@@ -33,11 +33,12 @@ surface gradients
 Mtosys, Mtouni: arrays (shape (idisc, jdisc, 3, 3)) made to store local coordinate system matrixes
 pressgrad: local pressure gradient (array, shape (idisc, jdisc)). Uses uniform boundary layer pressure approximation in normal axis
 dlx, dly, dlt: unitary variations in auxiliary coordinates. Used for finite difference derivatives
-dydly: array of length ndisc, identifies the ratio between the local derivative in y (normal) position of the grid node by auxiliary coordinate lambda_t 
+dydlt: array of length ndisc, identifies the ratio between the local derivative in y (normal) position of the grid node by auxiliary coordinate lambda_t 
 and the total grid thickness. Used for application of chain rule over finite difference derivatives
 us, vs, ws: local velocities (arrays of shape (idisc, jdisc, ndisc)) represented in local coordinate systems
 dudz, dwdz: local velocity gradient components in direction perpendicular to inviscid streamlines. Computed using auxiliary coordinates for surface gradient and
 renewed once every iteration. network class constructor sets them to 0 as an initial guess, accepting infinite swept wing assumptions
+delta: boundary layer thickness, calculated through integration of (1-u/ue) on z direction, u referring to the streamwise velocity
 
 =======
 methods
@@ -48,4 +49,5 @@ setcontour
 setattachment
 calcnorm
 propagate
+plot_deltax
 '''

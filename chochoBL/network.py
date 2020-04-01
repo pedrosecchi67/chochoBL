@@ -1,3 +1,5 @@
+from mpl_toolkits import mplot3d
+import matplotlib.pyplot as plt
 import numpy as np
 import numpy.linalg as lg
 import scipy.interpolate as sinterp
@@ -8,8 +10,8 @@ import toolkit
 
 class network:
     #class encompassing a network of cells
-    def __init__(self, mat=[[]], velmat=[[]], idisc=100, jdisc=100, ndisc=40, nstrategy=lambda x: (np.exp(x)-1.0)/(exp(1)-1.0), srule=lambda x: (np.sin(pi*x-pi/2)+1)/2, \
-        crule=lambda x: (np.sin(pi*x-pi/2)+1)/2, delta_heuristics=lambda x, y: 1.0, thickness=1.0, Cps=np.array([]), rho=1.225, mu=1.72e-5):
+    def __init__(self, mat=[[]], velmat=[[]], idisc=100, jdisc=100, ndisc=40, nstrategy=lambda x: (np.exp(x)-1.0)/(exp(1)-1.0), sstrategy=lambda x: (np.sin(pi*x-pi/2)+1)/2, \
+        cstrategy=lambda x: (np.sin(pi*x-pi/2)+1)/2, delta_heuristics=lambda x, y: 1.0, thickness=1.0, rho=1.225, mu=1.72e-5):
         self.rho=rho
         self.mu=mu
         #mat: list of lists with point arrays
@@ -103,6 +105,10 @@ class network:
         self.dudz=np.zeros((idisc, jdisc, ndisc))
         self.dwdz=np.zeros((idisc, jdisc, ndisc))
 
+        self.delta=np.zeros((idisc, jdisc))
+        self.attached=np.array([[True]*self.jdisc]*self.idisc)
+        self.hasdelta=False
+
         self.setcontour()
         self.setattachment()
     def setcontour(self): #set contour conditions to external flow velocity at BL edge and no-slip, no-penetration condition at wall
@@ -132,22 +138,76 @@ class network:
         #z components have already been computed (or guessed, if first iteration)
         #now, deducing v velocity along vel. profile:
         self.vs[i, :, 1:-1]=toolkit.calcv(self.dudz[i, :, :], self.dwdz[i, :, :], self.us[i, :, :], self.ws[i, :, :], \
-            self.pressgrad[i, :, 0], self.mu/self.rho, d2udy2, self.thicks[i, :, :])
-        dudx, dwdx=toolkit.blexercise(self.mu/self.rho, self.us[i, :, :], self.vs[i, :, :], self.ws[i, :, :], \
+            self.pressgrad[i, :, 0], self.mu, self.rho, d2udy2, self.thicks[i, :, :])
+        dudx, dwdx=toolkit.blexercise(self.mu, self.rho, self.us[i, :, :], self.vs[i, :, :], self.ws[i, :, :], \
             self.dudz[i, :, :], self.dwdz[i, :, :], dudy, dwdy, self.pressgrad[i, :, :], \
                 d2udy2, d2wdy2)
         self.us[i+1, :, 1:-1], self.ws[i+1, :, 1:-1]=toolkit.blpropagate(self.origin[i, :, :], self.origin[i+1, :, :], \
             self.thicks[i, :, :], self.thicks[i+1, :, :], self.us[i, :, :], self.ws[i, :, :], self.Mtosys[i, :, :, :], self.Mtosys[i+1, :, :, :], \
                 self.Mtouni[i, :, :, :], self.Mtouni[i+1, :, :, :], dudx, dwdx, dudy[:, 1:-1], \
                     dwdy[:, 1:-1], self.dudz[i, :, 1:-1], self.dwdz[i, :, 1:-1])
+        self.check_detachment(i+1)
+        self.hasdelta=False
+    def check_detachment(self, i): #function to check whether flow detatchment occurs at a given position based on Goldstein's singularity
+        self.attached[i, :]=toolkit.checkattach(self.us[i, :, :])
+    def calc_delta(self): #calculate delta based on value for local streamwise velocity
+        prop=np.zeros((self.idisc, self.jdisc, self.ndisc))
+        for i in range(self.idisc):
+            for j in range(self.jdisc):
+                prop[i, j, :]=1.0-self.us[i, j, :]/self.us[i, j, -1]
+        self.delta=toolkit.intthick(prop, self.thicks, self.dydlt, self.dlt)
+        self.hasdelta=True
+    def plot_surfgeom(self, color='blue', ax=None, fig=None, show=True, xlim=[], ylim=[], zlim=[]): #plot surface geometry as matplotlib surface
+        if fig==None:
+            fig=plt.figure()
+        if ax==None:
+            ax=plt.axes(projection='3d')
+        ax.plot_surface(self.origin[:, :, 0], self.origin[:, :, 1], self.origin[:, :, 2], color=color)
+        if len(xlim)!=0:
+            ax.set_xlim3d(xlim[0], xlim[1])
+        if len(ylim)!=0:
+            ax.set_ylim3d(ylim[0], ylim[1])
+        if len(zlim)!=0:
+            ax.set_zlim3d(zlim[0], zlim[1])
+        if show:
+            plt.show()
+    def plot_delta(self, color='gray', ax=None, fig=None, show=True, xlim=[], ylim=[], zlim=[], factor=1.0): #plot local boundary layer thickness
+        if not self.hasdelta:
+            self.calc_delta()
+        if fig==None:
+            fig=plt.figure()
+        if ax==None:
+            ax=plt.axes(projection='3d')
+        self.plot_surfgeom(color='blue', ax=ax, fig=fig, show=False)
+        thickpos=np.zeros((self.idisc, self.jdisc, 3))
+        for i in range(self.idisc):
+            for j in range(self.jdisc):
+                thickpos[i, j, :]=self.origin[i, j, :]+self.Mtosys[i, j, 1, :]*self.delta[i, j]*factor
+        print(thickpos)
+        ax.plot_wireframe(thickpos[:, :, 0], thickpos[:, :, 1], thickpos[:, :, 2], color=color)
+        if len(xlim)!=0:
+            ax.set_xlim3d(xlim[0], xlim[1])
+        if len(ylim)!=0:
+            ax.set_ylim3d(ylim[0], ylim[1])
+        if len(zlim)!=0:
+            ax.set_zlim3d(zlim[0], zlim[1])
+        if show:
+            plt.show()
+        
         
 
 #test case for constructors: flat plate
 ps=[[np.array([x, y, 0.0]) for x in np.linspace(0.0, 1.0, 100)] for y in np.linspace(0.0, 1.0, 50)]
 qes=[[np.array([1.0, 0.0, 0.0]) for u in np.linspace(0.0, 1.0, 100)] for v in np.linspace(0.0, 1.0, 50)]
 t=tm.time()
-ntw=network(mat=ps, velmat=qes, idisc=100, jdisc=100, ndisc=100, thickness=0.08)
+ntw=network(mat=ps, velmat=qes, idisc=500, jdisc=50, ndisc=50, thickness=0.06, delta_heuristics=lambda x, y : (x+1.0)/2)#, nstrategy=lambda x: x)
 for i in range(ntw.idisc-1):
     ntw.propagate(i)
+ntw.calc_delta()
 print(tm.time()-t, ' s')
-print(ntw.us[:, 0, :])
+ntw.plot_delta(factor=100.0)
+'''plt.plot(ntw.origin[ntw.attached[:, 0], 0, 0], ntw.delta[ntw.attached[:, 0], 0])
+plt.show()
+for i in range(0, ntw.idisc, 20):
+    plt.plot(ntw.us[i, 0, :], ntw.thicks[i, 0, :])
+    plt.show()'''

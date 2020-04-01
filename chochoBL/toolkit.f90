@@ -11,6 +11,8 @@
 ! and y second order derivative of u
 ! 9- put BL equations into exercise so as to compute velocity gradients
 ! 10- propagate a velocity gradient from a row to another
+! 11- quickly integrating a property along normal direction of all grid cells
+! 12- quickly perform attachment check based on Goldstein's singularity
 
 subroutine invert3(a, det_l) !coordinate system matrix inverter
     double precision, intent(inout) :: a (1:3, 1:3)
@@ -149,16 +151,16 @@ subroutine calcnormgrad(jdisc, ndisc, prop, thicks, dlt, dydlt, grad)
     end do
 end subroutine calcnormgrad
 
-subroutine calcv(jdisc, ndisc, dudz, dwdz, us, ws, dpdx, nu, d2udy2, thicks, vs)
+subroutine calcv(jdisc, ndisc, dudz, dwdz, us, ws, dpdx, mu, rho, d2udy2, thicks, vs)
     integer, intent(IN) :: jdisc, ndisc
     real(8), intent(IN) :: dudz(1:jdisc, 1:ndisc), dwdz(1:jdisc, 1:ndisc), us(1:jdisc, 1:ndisc), ws(1:jdisc, 1:ndisc), &
-    dpdx(1:jdisc), nu, d2udy2(1:jdisc, 1:ndisc), thicks(1:jdisc, 1:ndisc) !nu denoting kinematic viscosity
+    dpdx(1:jdisc), mu, rho, d2udy2(1:jdisc, 1:ndisc), thicks(1:jdisc, 1:ndisc) !nu denoting kinematic viscosity
     real(8), intent(OUT) :: vs(1:jdisc, 1:ndisc-2)
 
     real(8) :: intvec(1:jdisc, 1:ndisc-2), previous(1:jdisc), integrated(1:jdisc, 1:ndisc-2)
     integer :: n
 
-    intvec=us(:, 2:ndisc-1)*dwdz(:, 2:ndisc-1)-ws(:, 2:ndisc-1)*dudz(:, 2:ndisc-1)+nu*d2udy2(:, 2:ndisc-1)
+    intvec=us(:, 2:ndisc-1)*dwdz(:, 2:ndisc-1)-ws(:, 2:ndisc-1)*dudz(:, 2:ndisc-1)+(mu/rho)*d2udy2(:, 2:ndisc-1)
     do n=1, ndisc-2
         intvec(:, n)=intvec(:, n)-dpdx
     end do
@@ -173,9 +175,9 @@ subroutine calcv(jdisc, ndisc, dudz, dwdz, us, ws, dpdx, nu, d2udy2, thicks, vs)
     vs=integrated*us(:, 2:ndisc-1)
 end subroutine calcv
 
-subroutine blexercise(jdisc, ndisc, nu, us, vs, ws, dudz, dwdz, dudy, dwdy, pressgrad, d2udy2, d2wdy2, dudx, dwdx)
+subroutine blexercise(jdisc, ndisc, mu, rho, us, vs, ws, dudz, dwdz, dudy, dwdy, pressgrad, d2udy2, d2wdy2, dudx, dwdx)
     integer, intent(IN) :: jdisc, ndisc
-    real(8), intent(IN) :: nu, us(1:jdisc, 1:ndisc), vs(1:jdisc, 1:ndisc), ws(1:jdisc, 1:ndisc), &
+    real(8), intent(IN) :: mu, rho, us(1:jdisc, 1:ndisc), vs(1:jdisc, 1:ndisc), ws(1:jdisc, 1:ndisc), &
     dudz(1:jdisc, 1:ndisc), dwdz(1:jdisc, 1:ndisc), &
     dudy(1:jdisc, 1:ndisc), dwdy(1:jdisc, 1:ndisc), &
     pressgrad(1:jdisc, 1:3), &
@@ -184,11 +186,11 @@ subroutine blexercise(jdisc, ndisc, nu, us, vs, ws, dudz, dwdz, dudy, dwdy, pres
 
     integer :: n
 
-    dudx=nu*d2udy2(:, 2:ndisc-1)-vs(:, 2:ndisc-1)*dudy(:, 2:ndisc-1)-ws(:, 2:ndisc-1)*dudz(:, 2:ndisc-1)
-    dwdx=nu*d2wdy2(:, 2:ndisc-1)-vs(:, 2:ndisc-1)*dwdy(:, 2:ndisc-1)-ws(:, 2:ndisc-1)*dwdz(:, 2:ndisc-1)
+    dudx=(mu/rho)*d2udy2(:, 2:ndisc-1)-vs(:, 2:ndisc-1)*dudy(:, 2:ndisc-1)-ws(:, 2:ndisc-1)*dudz(:, 2:ndisc-1)
+    dwdx=(mu/rho)*d2wdy2(:, 2:ndisc-1)-vs(:, 2:ndisc-1)*dwdy(:, 2:ndisc-1)-ws(:, 2:ndisc-1)*dwdz(:, 2:ndisc-1)
     do n=1, ndisc-2
-        dudx(:, n)=dudx(:, n)-pressgrad(:, 1)
-        dwdx(:, n)=dwdx(:, n)-pressgrad(:, 3)
+        dudx(:, n)=dudx(:, n)-pressgrad(:, 1)/rho
+        dwdx(:, n)=dwdx(:, n)-pressgrad(:, 3)/rho
     end do
     dudx=dudx/us(:, 2:ndisc-1)
     dwdx=dwdx/us(:, 2:ndisc-1)
@@ -228,3 +230,31 @@ Mtouni_1, Mtouni_2, dudx, dwdx, dudy, dwdy, dudz, dwdz, newrow_us, newrow_ws)
         newrow_ws(j, :)=newv_aux(j, :, 1)*Mtosys_2(j, 3, 1)+newv_aux(j, :, 2)*Mtosys_2(j, 3, 2)+newv_aux(j, :, 3)*Mtosys_2(j, 3, 3)
     end do
 end subroutine blpropagate
+
+subroutine intthick(idisc, jdisc, ndisc, prop, thicks, dydlt, dlt, propint)
+    integer, intent(IN) :: idisc, jdisc, ndisc
+    real(8), intent(IN) :: prop(1:idisc, 1:jdisc, 1:ndisc), thicks(1:idisc, 1:jdisc, 1:ndisc), dydlt(1:ndisc), dlt
+    real(8), intent(OUT) :: propint(1:idisc, 1:jdisc)
+
+    real(8) :: vecaux(1:ndisc)
+    integer :: i, j
+
+    do i=1, idisc
+        do j=1, jdisc
+            vecaux=prop(i, j, :)*dydlt
+            propint(i, j)=thicks(i, j, ndisc)*dlt*sum(vecaux(1:ndisc-1)+vecaux(2:ndisc))/2
+        end do
+    end do
+end subroutine intthick
+
+subroutine checkattach(jdisc, ndisc, us, isattached)
+    integer, intent(IN) :: jdisc, ndisc
+    real(8), intent(IN) :: us(1:jdisc, 1:ndisc)
+    logical, intent(OUT) :: isattached(1:jdisc)
+
+    integer :: j
+    
+    do j=1, jdisc
+        isattached(j)=(.NOT. any(us(j, 2:ndisc)<0.0))
+    end do
+end subroutine checkattach
