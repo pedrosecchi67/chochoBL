@@ -183,7 +183,30 @@ class network:
         for i in range(self.idisc):
             for j in range(self.jdisc):
                 thickpos[i, j, :]=self.origin[i, j, :]+self.Mtosys[i, j, 1, :]*self.delta[i, j]*factor
-        print(thickpos)
+            thickpos[i, np.logical_not(self.attached[i, :]), :]=0.0
+        ax.scatter(thickpos[:, :, 0], thickpos[:, :, 1], thickpos[:, :, 2], color=color)
+        if len(xlim)!=0:
+            ax.set_xlim3d(xlim[0], xlim[1])
+        if len(ylim)!=0:
+            ax.set_ylim3d(ylim[0], ylim[1])
+        if len(zlim)!=0:
+            ax.set_zlim3d(zlim[0], zlim[1])
+        plt.xlabel('$x$')
+        plt.ylabel('$y$')
+        if show:
+            plt.show()
+    def plot_ue(self, color='gray', ax=None, fig=None, show=True, xlim=[], ylim=[], zlim=[], factor=1.0): #plot local external x-axis velocity
+        if not self.hasdelta:
+            self.calc_delta()
+        if fig==None:
+            fig=plt.figure()
+        if ax==None:
+            ax=plt.axes(projection='3d')
+        self.plot_surfgeom(color='blue', ax=ax, fig=fig, show=False)
+        thickpos=np.zeros((self.idisc, self.jdisc, 3))
+        for i in range(self.idisc):
+            for j in range(self.jdisc):
+                thickpos[i, j, :]=self.origin[i, j, :]+self.Mtosys[i, j, 1, :]*self.qes[i, j, 0]*factor
         ax.plot_wireframe(thickpos[:, :, 0], thickpos[:, :, 1], thickpos[:, :, 2], color=color)
         if len(xlim)!=0:
             ax.set_xlim3d(xlim[0], xlim[1])
@@ -191,23 +214,7 @@ class network:
             ax.set_ylim3d(ylim[0], ylim[1])
         if len(zlim)!=0:
             ax.set_zlim3d(zlim[0], zlim[1])
+        plt.xlabel('$x$')
+        plt.ylabel('$y$')
         if show:
             plt.show()
-        
-        
-
-#test case for constructors: flat plate
-ps=[[np.array([x, y, 0.0]) for x in np.linspace(0.0, 1.0, 100)] for y in np.linspace(0.0, 1.0, 50)]
-qes=[[np.array([1.0, 0.0, 0.0]) for u in np.linspace(0.0, 1.0, 100)] for v in np.linspace(0.0, 1.0, 50)]
-t=tm.time()
-ntw=network(mat=ps, velmat=qes, idisc=500, jdisc=50, ndisc=50, thickness=0.06, delta_heuristics=lambda x, y : (x+1.0)/2)#, nstrategy=lambda x: x)
-for i in range(ntw.idisc-1):
-    ntw.propagate(i)
-ntw.calc_delta()
-print(tm.time()-t, ' s')
-ntw.plot_delta(factor=100.0)
-'''plt.plot(ntw.origin[ntw.attached[:, 0], 0, 0], ntw.delta[ntw.attached[:, 0], 0])
-plt.show()
-for i in range(0, ntw.idisc, 20):
-    plt.plot(ntw.us[i, 0, :], ntw.thicks[i, 0, :])
-    plt.show()'''
