@@ -7,7 +7,7 @@ class turbulence_abaqus:
         self.rule=sinterp.UnivariateSpline(deltastars, props, ext=0) #engage extrapolation
         self.deltastar_lims=(deltastars[0], deltastars[1])
     def __call__(self, deltastar, dx=0):
-        return self.rule(deltastar, dx=dx)
+        return self.rule(deltastar, nu=dx)
 
 def Ksi(foo, disc=100):
     return np.trapz(foo(np.linspace(0.0, 1.0, disc)))
@@ -19,4 +19,4 @@ class Ksi_abaqus(turbulence_abaqus):
             props[i]=Ksi(foo=lambda eta: foo(eta, deltastars[i]), disc=disc)
         super().__init__(deltastars, props)
     def __call__(self, deltastar, dx=0):
-        super().__call__(deltastar, dx=dx)
+        return super().__call__(deltastar, dx=dx)

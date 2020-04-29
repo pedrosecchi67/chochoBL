@@ -22,7 +22,7 @@ class closure:
             deltastar_rule=lambda x: (np.sin((x-0.5)*np.pi)+1.0)/2, deltastar_disc=50, Ksi_disc=100, atmosphere=atm.ATMOSPHERE_1976(Z=0.0, dT=0.0)):
         deltastars=np.interp(deltastar_rule(np.linspace(0.0, 1.0, deltastar_disc)), [0.0, 1.0], deltastar_lims)
         
-        self.a=a; self.b=b; self.M=M; self.LOTW=LOTW
+        self.a=a; self.b=b; self.M=M; self.LOTW=LOTW; self.Ksi_disc=Ksi_disc
 
         #Defining turbulence dependant Ksis
         self.Ksi_W=abq.Ksi_abaqus(deltastars, foo=lambda eta, deltastar: LOTW(eta*deltastar), disc=Ksi_disc)
@@ -33,6 +33,9 @@ class closure:
         self.Ksi_WMa=abq.Ksi_abaqus(deltastars, foo=lambda eta, deltastar: LOTW(eta*deltastar)*M(eta)*a(eta), disc=Ksi_disc)
         self.Ksi_WMb=abq.Ksi_abaqus(deltastars, foo=lambda eta, deltastar: LOTW(eta*deltastar)*M(eta)*b(eta), disc=Ksi_disc)
         self.Ksi_W2M=abq.Ksi_abaqus(deltastars, foo=lambda eta, deltastar: LOTW(eta*deltastar)**2*M(eta), disc=Ksi_disc)
+        self.Ksi_W2M2=abq.Ksi_abaqus(deltastars, foo=lambda eta, deltastar: LOTW(eta*deltastar)**2*M(eta)**2, disc=Ksi_disc)
+        self.Ksi_WM2a=abq.Ksi_abaqus(deltastars, foo=lambda eta, deltastar: LOTW(eta*deltastar)*M(eta)**2*a(eta), disc=Ksi_disc)
+        self.Ksi_WM2b=abq.Ksi_abaqus(deltastars, foo=lambda eta, deltastar: LOTW(eta*deltastar)*M(eta)**2*b(eta), disc=Ksi_disc)
         
         #defining constant ksis
         self.Ksi_a=abq.Ksi(foo=a, disc=Ksi_disc)
@@ -45,6 +48,9 @@ class closure:
         self.Ksi_Mab=abq.Ksi(foo=lambda eta: M(eta)*a(eta)*b(eta), disc=Ksi_disc)
         self.Ksi_Ma2=abq.Ksi(foo=lambda eta: M(eta)*a(eta)**2, disc=Ksi_disc)
         self.Ksi_Mb2=abq.Ksi(foo=lambda eta: M(eta)*b(eta)**2, disc=Ksi_disc)
+        self.Ksi_M2a2=abq.Ksi(foo=lambda eta: M(eta)**2*a(eta)**2, disc=Ksi_disc)
+        self.Ksi_M2b2=abq.Ksi(foo=lambda eta: M(eta)**2*b(eta)**2, disc=Ksi_disc)
+        self.Ksi_M2ab=abq.Ksi(foo=lambda eta: M(eta)**2*a(eta)*b(eta), disc=Ksi_disc)
 
         self.atmosphere=atmosphere
 
