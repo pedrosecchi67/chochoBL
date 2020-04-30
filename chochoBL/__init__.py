@@ -7,8 +7,8 @@ sys.path.insert(0, os.getcwd())
 #module imports
 py_compile.compile('abaqus.py')
 py_compile.compile('station.py')
-import abaqus
-import closure
-import station
+from abaqus import *
+from closure import *
+from station import *
 os.chdir(ordir)
 del ordir

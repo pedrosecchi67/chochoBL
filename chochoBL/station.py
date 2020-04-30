@@ -12,8 +12,11 @@ def deriv(Ksi_mat, prod_mat, prodinds=(0, 0, 0), Ksi_inds=(0, 0, 0)):
     return prod_mat[prodinds[0], prodinds[1], prodinds[2], 1]*Ksi_mat[Ksi_inds[0], Ksi_inds[1], Ksi_inds[2], 0]+\
         prod_mat[prodinds[0], prodinds[1], prodinds[2], 0]*Ksi_mat[Ksi_inds[0], Ksi_inds[1], Ksi_inds[2], 1]
 
+defclsr=clsr.closure(deltastar_disc=40)
+defatm=atm.ATMOSPHERE_1976(Z=0.0, dT=0.0)
+
 class station:
-    def __init__(self, clsr, delta=0.0, drhoq_dx=0.0, drhoq_dz=0.0, d2rhoq_dx2=0.0, d2rhoq_dxdz=0.0, beta=0.0, dbeta_dx=0.0, dbeta_dz=0.0, deltastar=0.0, props=atm.ATMOSPHERE_1976(Z=0.0, dT=0.0), \
+    def __init__(self, clsr=defclsr, delta=0.0, drhoq_dx=0.0, drhoq_dz=0.0, d2rhoq_dx2=0.0, d2rhoq_dxdz=0.0, beta=0.0, dbeta_dx=0.0, dbeta_dz=0.0, props=defatm, \
         qe=1.0, gamma=1.4):
         self.clsr=clsr
         self.delta=delta
@@ -241,13 +244,11 @@ class station:
     def turb_it(self, Ut): #function defining a single iteration for Newton's method
         return self.Red*Ut**2*(1.0-np.cos(self.beta))+self.pp_w*(1.0-Ut*self.clsr.LOTW(self.Red*Ut))
 
-defclsr=clsr.closure(deltastar_disc=40)
-ntest=1000
+'''ntest=1000
 nnodes=5000
-prp=atm.ATMOSPHERE_1976(Z=0.0, dT=0.0)
 t=tm.time()
 for i in range(ntest):
-    stat=station(defclsr, delta=1.0, qe=1.0, props=prp)
+    stat=station(defclsr, delta=1.0, qe=1.0, props=defatm)
     stat.calc_data()
     stat.calc_derivs_x(dd_dx_seed=1.0)
     stat.calc_derivs_x(dd_dx_seed=0.0)
@@ -255,4 +256,4 @@ for i in range(ntest):
     stat.calc_derivs_z(dd_dz_seed=0.0)
 tunit=(tm.time()-t)/ntest
 print('total: ', tunit*nnodes)
-print('unit: ', tunit)
+print('unit: ', tunit)'''
