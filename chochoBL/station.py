@@ -71,13 +71,24 @@ class station:
                         prods[i, j, k, 1]+=k*self.tanb**i*self.Ut**j*self.C_Ut_dp**(k-1)*dC_dx
         
         dF_dx=deriv(Ksi_mat_t2, prods, prodinds=(0, 1, 0), Ksi_inds=(1, 0, 0))+deriv(Ksi_mat_t2, prods, prodinds=(0, 0, 1), Ksi_inds=(0, 0, 1))
-        dG_dx=deriv(Ksi_mat_t2, prods, prodinds=(1, 1, 0), Ksi_inds=(1, 1, 0))+deriv(Ksi_mat_t2, prods, prodinds=(0, 0, 1), Ksi_inds=(0, 1, 1))
+        dG_dx=deriv(Ksi_mat_t2, prods, prodinds=(1, 1, 0), Ksi_inds=(1, 1, 0))+deriv(Ksi_mat_t2, prods, prodinds=(1, 0, 1), Ksi_inds=(0, 1, 1))
         dH_dx=deriv(Ksi_mat_t2, prods, prodinds=(1, 2, 0), Ksi_inds=(2, 1, 0))+2*deriv(Ksi_mat_t2, prods, prodinds=(1, 1, 1), Ksi_inds=(1, 1, 1))+\
             deriv(Ksi_mat_t2, prods, prodinds=(1, 0, 2), Ksi_inds=(0, 1, 2))
         dI_dx=deriv(Ksi_mat_t2, prods, prodinds=(0, 2, 0), Ksi_inds=(2, 0, 0))+2*deriv(Ksi_mat_t2, prods, prodinds=(0, 1, 1), Ksi_inds=(1, 0, 1))+\
             deriv(Ksi_mat_t2, prods, prodinds=(0, 0, 2), Ksi_inds=(0, 0, 2))
-        dJ_dx=deriv(Ksi_mat_t2, prods, prodinds=(2, 2, 0), Ksi_inds=(2, 2, 0))+2*deriv(Ksi_mat_t2, prods, prodinds=(0, 1, 1), Ksi_inds=(1, 2, 1))+\
-            deriv(Ksi_mat_t2, prods, prodinds=(0, 0, 2), Ksi_inds=(0, 2, 2))
+        dJ_dx=deriv(Ksi_mat_t2, prods, prodinds=(2, 2, 0), Ksi_inds=(2, 2, 0))+2*deriv(Ksi_mat_t2, prods, prodinds=(2, 1, 1), Ksi_inds=(1, 2, 1))+\
+            deriv(Ksi_mat_t2, prods, prodinds=(2, 0, 2), Ksi_inds=(0, 2, 2))
+        
+        ddeltax_bar_dx=-dF_dx
+        ddeltaz_bar_dx=dG_dx
+        dThetaxx_dx=dF_dx-dI_dx
+        dThetaxz_dx=dG_dx-dH_dx
+        dThetazx_dx=dH_dx
+        dThetazz_dx=dJ_dx
+
+        #return: ddx_bar_deps, ddz, ddThetaxx...
+        return dd_dx_seed*self.deltax_bar+self.delta*ddeltax_bar_dx, dd_dx_seed*self.deltaz_bar+self.delta*ddeltaz_bar_dx, dd_dx_seed*self.Thetaxx+self.delta*dThetaxx_dx, \
+            dd_dx_seed*self.Thetaxz+self.delta*dThetaxz_dx, dd_dx_seed*self.Thetazx+self.delta*dThetazx_dx, dd_dx_seed*self.Thetazz+self.delta*dThetazz_dx
     def calc_derivs_z(self, dd_dz_seed=1.0):
         dLambda_dz=(2*dd_dz_seed*self.drhoq_dx+self.delta*self.d2rhoq_dxdz)*self.delta/self.atm_props.mu
 
@@ -114,18 +125,46 @@ class station:
                     if k!=0:
                         prods[i, j, k, 1]+=k*self.tanb**i*self.Ut**j*self.C_Ut_dp**(k-1)*dC_dz
         
+        
         dF_dz=deriv(Ksi_mat_t2, prods, prodinds=(0, 1, 0), Ksi_inds=(1, 0, 0))+deriv(Ksi_mat_t2, prods, prodinds=(0, 0, 1), Ksi_inds=(0, 0, 1))
-        dG_dz=deriv(Ksi_mat_t2, prods, prodinds=(1, 1, 0), Ksi_inds=(1, 1, 0))+deriv(Ksi_mat_t2, prods, prodinds=(0, 0, 1), Ksi_inds=(0, 1, 1))
+        dG_dz=deriv(Ksi_mat_t2, prods, prodinds=(1, 1, 0), Ksi_inds=(1, 1, 0))+deriv(Ksi_mat_t2, prods, prodinds=(1, 0, 1), Ksi_inds=(0, 1, 1))
         dH_dz=deriv(Ksi_mat_t2, prods, prodinds=(1, 2, 0), Ksi_inds=(2, 1, 0))+2*deriv(Ksi_mat_t2, prods, prodinds=(1, 1, 1), Ksi_inds=(1, 1, 1))+\
             deriv(Ksi_mat_t2, prods, prodinds=(1, 0, 2), Ksi_inds=(0, 1, 2))
         dI_dz=deriv(Ksi_mat_t2, prods, prodinds=(0, 2, 0), Ksi_inds=(2, 0, 0))+2*deriv(Ksi_mat_t2, prods, prodinds=(0, 1, 1), Ksi_inds=(1, 0, 1))+\
             deriv(Ksi_mat_t2, prods, prodinds=(0, 0, 2), Ksi_inds=(0, 0, 2))
-        dJ_dz=deriv(Ksi_mat_t2, prods, prodinds=(2, 2, 0), Ksi_inds=(2, 2, 0))+2*deriv(Ksi_mat_t2, prods, prodinds=(0, 1, 1), Ksi_inds=(1, 2, 1))+\
-            deriv(Ksi_mat_t2, prods, prodinds=(0, 0, 2), Ksi_inds=(0, 2, 2))
+        dJ_dz=deriv(Ksi_mat_t2, prods, prodinds=(2, 2, 0), Ksi_inds=(2, 2, 0))+2*deriv(Ksi_mat_t2, prods, prodinds=(2, 1, 1), Ksi_inds=(1, 2, 1))+\
+            deriv(Ksi_mat_t2, prods, prodinds=(2, 0, 2), Ksi_inds=(0, 2, 2))
+        
+        ddeltax_bar_dz=-dF_dz
+        ddeltaz_bar_dz=dG_dz
+        dThetaxx_dz=dF_dz-dI_dz
+        dThetaxz_dz=dG_dz-dH_dz
+        dThetazx_dz=dH_dz
+        dThetazz_dz=dJ_dz
+
+        #return: ddx_bar_deps, ddz, ddThetaxx...
+        return dd_dz_seed*self.deltax_bar+self.delta*ddeltax_bar_dz, dd_dz_seed*self.deltaz_bar+self.delta*ddeltaz_bar_dz, dd_dz_seed*self.Thetaxx+self.delta*dThetaxx_dz, \
+            dd_dz_seed*self.Thetaxz+self.delta*dThetaxz_dz, dd_dz_seed*self.Thetazx+self.delta*dThetazx_dz, dd_dz_seed*self.Thetazz+self.delta*dThetazz_dz
     def calc_data(self, Ut_initguess=0.1):
         self.turb_deduce(Ut_initguess=Ut_initguess)
 
         self.tanb=np.tan(self.beta)
+
+        self.F=self.Ut*self.Ksi_mat_t1[1, 0, 0, 0, 0]+self.C_Ut_dp*(self.Ksi_mat_t1[0, 0, 1, 0, 0]+self.Ksi_mat_t1[0, 0, 0, 1, 0]*self.Lambda)
+        self.G=self.tanb*(self.Ut*self.Ksi_mat_t1[1, 1, 0, 0, 0]+self.C_Ut_dp*(self.Ksi_mat_t1[0, 1, 1, 0, 0]+self.Ksi_mat_t1[0, 1, 0, 1, 0]*self.Lambda))
+        self.H=self.tanb*(self.Ut**2*self.Ksi_mat_t1[2, 1, 0, 0, 0]+2*self.C_Ut_dp*self.Ut*(self.Ksi_mat_t1[1, 1, 1, 0, 0]+self.Ksi_mat_t1[1, 1, 0, 1, 0]*self.Lambda)+\
+            self.C_Ut_dp**2*(self.Ksi_mat_t1[0, 1, 2, 0, 0]+2*self.Lambda*self.Ksi_mat_t1[0, 1, 1, 1, 0]+self.Ksi_mat_t1[0, 1, 0, 2, 0]*self.Lambda**2))
+        self.I=self.Ut**2*self.Ksi_mat_t1[2, 0, 0, 0, 0]+2*self.C_Ut_dp*self.Ut*(self.Ksi_mat_t1[1, 0, 1, 0, 0]+self.Ksi_mat_t1[1, 0, 0, 1, 0]*self.Lambda)+\
+            self.C_Ut_dp**2*(self.Ksi_mat_t1[0, 0, 2, 0, 0]+2*self.Ksi_mat_t1[0, 0, 1, 1, 0]*self.Lambda+self.Ksi_mat_t1[0, 0, 0, 2, 0]*self.Lambda**2)
+        self.J=self.tanb**2*(self.Ksi_mat_t1[2, 2, 0, 0, 0]*self.Ut**2+2*self.C_Ut_dp*self.Ut*(self.Ksi_mat_t1[1, 2, 1, 0, 0]+self.Ksi_mat_t1[1, 2, 0, 1, 0]*self.Lambda)+\
+            self.C_Ut_dp**2*(self.Ksi_mat_t1[0, 2, 2, 0, 0]+2*self.Ksi_mat_t1[0, 2, 1, 1, 0]*self.Lambda+self.Ksi_mat_t1[0, 2, 0, 2, 0]*self.Lambda**2))
+        
+        self.deltax_bar=1.0-self.F
+        self.deltaz_bar=self.G
+        self.Thetaxx=self.F-self.I
+        self.Thetaxz=self.G-self.H
+        self.Thetazx=self.H
+        self.Thetazz=self.J
     def turb_deduce(self, Ut_initguess=0.1):
         self.Ut=sopt.fsolve(self.turb_it, x0=Ut_initguess)[0]
         self.deltastar=self.Ut*self.Red
@@ -203,17 +242,17 @@ class station:
         return self.Red*Ut**2*(1.0-np.cos(self.beta))+self.pp_w*(1.0-Ut*self.clsr.LOTW(self.Red*Ut))
 
 defclsr=clsr.closure(deltastar_disc=40)
-ntest=100
+ntest=1000
 nnodes=5000
-t=tm.time()
 prp=atm.ATMOSPHERE_1976(Z=0.0, dT=0.0)
+t=tm.time()
 for i in range(ntest):
     stat=station(defclsr, delta=1.0, qe=1.0, props=prp)
     stat.calc_data()
     stat.calc_derivs_x(dd_dx_seed=1.0)
-    stat.calc_derivs_x(dd_dx_seed=1.0)
+    stat.calc_derivs_x(dd_dx_seed=0.0)
     stat.calc_derivs_z(dd_dz_seed=1.0)
-    stat.calc_derivs_z(dd_dz_seed=1.0)
+    stat.calc_derivs_z(dd_dz_seed=0.0)
 tunit=(tm.time()-t)/ntest
 print('total: ', tunit*nnodes)
 print('unit: ', tunit)
