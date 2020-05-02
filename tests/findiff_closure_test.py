@@ -38,22 +38,10 @@ def findiff_test():
     stat_dx.calc_data()
     stat_dz.calc_data()
 
-    ddx_dx_an, ddz_dx_an, dThxx_dx_an, dThxz_dx_an, dThzx_dx_an, dThzz_dx_an=stat.calc_derivs_x(dd_dx_seed)
-    ddx_dz_an, ddz_dz_an, dThxx_dz_an, dThxz_dz_an, dThzx_dz_an, dThzz_dz_an=stat.calc_derivs_z(dd_dz_seed)
+    dThxx_dx_an, dThxz_dx_an, dThzx_dx_an, dThzz_dx_an=stat.calc_derivs_x(dd_dx_seed)
+    dThxx_dz_an, dThxz_dz_an, dThzx_dz_an, dThzz_dz_an=stat.calc_derivs_z(dd_dz_seed)
 
     devs=[]
-
-    ddx_dx=(stat_dx.deltax_bar*stat_dx.delta-stat.deltax_bar*stat.delta)/h_x
-    ddx_dz=(stat_dz.deltax_bar*stat_dz.delta-stat.deltax_bar*stat.delta)/h_z
-
-    devs.append(abs((ddx_dx-ddx_dx_an)/ddx_dx))
-    devs.append(abs((ddx_dz-ddx_dz_an)/ddx_dz))
-
-    ddz_dx=(stat_dx.deltaz_bar*stat_dx.delta-stat.deltaz_bar*stat.delta)/h_x
-    ddz_dz=(stat_dz.deltaz_bar*stat_dz.delta-stat.deltaz_bar*stat.delta)/h_z
-
-    devs.append(abs((ddz_dx-ddz_dx_an)/ddz_dx))
-    devs.append(abs((ddz_dz-ddz_dz_an)/ddz_dz))
 
     dThxx_dx=(stat_dx.Thetaxx*stat_dx.delta-stat.Thetaxx*stat.delta)/h_x
     dThxx_dz=(stat_dz.Thetaxx*stat_dz.delta-stat.Thetaxx*stat.delta)/h_z
