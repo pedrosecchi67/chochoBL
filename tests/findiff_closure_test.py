@@ -6,10 +6,10 @@ from math import *
 
 def findiff_test():
     delta=rnd.random()
-    drhoq_dx=rnd.random()
-    drhoq_dz=rnd.random()
-    d2rhoq_dx2=rnd.random()
-    d2rhoq_dxdz=rnd.random()
+    dq_dx=rnd.random()
+    dq_dz=rnd.random()
+    d2q_dx2=rnd.random()
+    d2q_dxdz=rnd.random()
     beta=rnd.random()
     dbeta_dx=rnd.random()
     dbeta_dz=rnd.random()
@@ -20,16 +20,19 @@ def findiff_test():
     rho=defatm.rho
 
     print('beta ', degrees(beta), ' dbeta_dx ', degrees(dbeta_dx), ' dbeta_dz ', degrees(dbeta_dz))
-    print(drhoq_dx*np.tan(beta))
+    print(dq_dx*np.tan(beta))
 
     h_x=1e-8
     h_z=1e-8
 
-    stat=station(delta=delta, drhoq_dx=drhoq_dx, drhoq_dz=drhoq_dz, d2rhoq_dx2=d2rhoq_dx2, d2rhoq_dxdz=d2rhoq_dxdz, beta=beta, dbeta_dx=dbeta_dx, dbeta_dz=dbeta_dz, qe=qe)
-    stat_dx=station(delta=delta+dd_dx_seed*h_x, drhoq_dx=drhoq_dx+d2rhoq_dx2*h_x, drhoq_dz=drhoq_dz+d2rhoq_dxdz*h_x, d2rhoq_dx2=d2rhoq_dx2, d2rhoq_dxdz=d2rhoq_dxdz, \
-        beta=beta+dbeta_dx*h_x, dbeta_dx=dbeta_dx, dbeta_dz=dbeta_dz, qe=qe+drhoq_dx*h_x/rho)
-    stat_dz=station(delta=delta+dd_dz_seed*h_z, drhoq_dx=drhoq_dx+d2rhoq_dxdz*h_z, drhoq_dz=drhoq_dz, d2rhoq_dx2=d2rhoq_dx2, d2rhoq_dxdz=d2rhoq_dxdz, \
-        beta=beta+dbeta_dz*h_z, dbeta_dx=dbeta_dx, dbeta_dz=dbeta_dz, qe=qe+drhoq_dz*h_z/rho)
+    stat=station(delta=delta, dq_dx=dq_dx, dq_dz=dq_dz, d2q_dx2=d2q_dx2, d2q_dxdz=d2q_dxdz, qe=qe, Uinf=qe, \
+        beta=beta, dbeta_dx=dbeta_dx, dbeta_dz=dbeta_dz)
+    stat_dx=station(delta=delta+dd_dx_seed*h_x, dq_dx=dq_dx+d2q_dx2*h_x, dq_dz=dq_dz+d2q_dxdz*h_x, \
+        d2q_dx2=d2q_dx2, d2q_dxdz=d2q_dxdz, qe=qe+dq_dx*h_x, Uinf=qe+dq_dx*h_x, \
+            beta=beta+dbeta_dx*h_x, dbeta_dx=dbeta_dx, dbeta_dz=dbeta_dz)
+    stat_dz=station(delta=delta+dd_dz_seed*h_z, dq_dx=dq_dx+d2q_dxdz*h_z, dq_dz=dq_dz, \
+        d2q_dx2=d2q_dx2, d2q_dxdz=d2q_dxdz, qe=qe+dq_dz*h_z, Uinf=qe+dq_dz*h_z, \
+            beta=beta+dbeta_dz*h_z, dbeta_dx=dbeta_dx, dbeta_dz=dbeta_dz)
     
     stat.calc_data()
     stat_dx.calc_data()

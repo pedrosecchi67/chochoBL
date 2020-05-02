@@ -16,27 +16,28 @@ defclsr=clsr.closure(deltastar_disc=40)
 defatm=atm.ATMOSPHERE_1976(Z=0.0, dT=0.0)
 
 class station:
-    def __init__(self, clsr=defclsr, delta=0.0, drhoq_dx=0.0, drhoq_dz=0.0, d2rhoq_dx2=0.0, d2rhoq_dxdz=0.0, beta=0.0, dbeta_dx=0.0, dbeta_dz=0.0, props=defatm, \
-        qe=1.0, gamma=1.4):
+    def __init__(self, clsr=defclsr, delta=0.0, dq_dx=0.0, dq_dz=0.0, d2q_dx2=0.0, d2q_dxdz=0.0, beta=0.0, dbeta_dx=0.0, dbeta_dz=0.0, props=defatm, \
+        qe=1.0, Uinf=1.0, gamma=1.4):
         self.clsr=clsr
         self.delta=delta
         self.deltastar=0.0
-        self.Lambda=delta**2*drhoq_dx/props.mu
-        self.drhoq_dx=drhoq_dx
-        self.drhoq_dz=drhoq_dz
-        self.d2rhoq_dx2=d2rhoq_dx2
-        self.d2rhoq_dxdz=d2rhoq_dxdz
+        self.Me=qe/props.v_sonic #small disturbance assumption: a~=ainf
+        self.rho=props.rho*(1.0-self.Me**2*(qe-Uinf)/Uinf) #also a small disturbance assumption: Drho/rho=-Me**2*DV/V
+        self.drhoq_dx=(1.0-self.Me**2)*self.rho*dq_dx
+        self.drhoq_dz=(1.0-self.Me**2)*self.rho*dq_dz
+        self.Lambda=delta**2*self.drhoq_dx/props.mu
+        drho_dx=-self.Me**2*self.rho*dq_dx/qe
+        drho_dz=-self.Me**2*self.rho*dq_dz/qe
+        self.d2rhoq_dx2=-2*self.Me*(dq_dx**2)*self.rho/props.v_sonic+(1.0-self.Me**2)*(drho_dx*dq_dx+self.rho*d2q_dx2)
+        self.d2rhoq_dxdz=-2*self.Me*dq_dx*dq_dz*self.rho/props.v_sonic+(1.0-self.Me**2)*(drho_dz*dq_dx+self.rho*d2q_dxdz)
         self.beta=beta
         self.dbeta_dx=dbeta_dx
         self.dbeta_dz=dbeta_dz
         self.atm_props=props
         self.qe=qe
-        self.gamma=gamma
-        self.Me=qe/props.v_sonic
-        self.dyn_press=gamma*props.P*self.Me**2/2
-        self.rho=2*self.dyn_press/(self.qe**2)
-        self.Red=2*self.dyn_press*self.delta/(qe*props.mu)
-        self.pp_w=clsr.ap_w+clsr.bp_w*self.Lambda #derivative of p at the wall
+        self.dyn_press=self.rho*qe**2/2
+        self.Red=self.rho*self.qe*self.delta/props.mu
+        self.pp_w=clsr.ap_w+clsr.bp_w*self.Lambda
     def calc_derivs_x(self, dd_dx_seed=1.0):
         dLambda_dx=(2*dd_dx_seed*self.drhoq_dx+self.delta*self.d2rhoq_dx2)*self.delta/self.atm_props.mu
 
@@ -171,7 +172,7 @@ class station:
     def turb_deduce(self, Ut_initguess=0.1):
         self.Ut=sopt.fsolve(self.turb_it, x0=Ut_initguess)[0]
         self.deltastar=self.Ut*self.Red
-        self.Tau_w=self.Ut**2*2*self.dyn_press
+        self.Cf=self.Ut**2*2*self.dyn_press
         self.up_edge=self.clsr.LOTW(self.deltastar)
         self.C_Ut_dp=(1.0-self.Ut*self.up_edge)
         h=self.deltastar/self.clsr.Ksi_disc
