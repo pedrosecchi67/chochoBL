@@ -42,7 +42,7 @@ class station:
         self.dyn_press=self.rho*qe**2/2
         self.Red=self.rho*self.qe*self.delta/props.mu
         self.pp_w=clsr.ap_w+clsr.bp_w*self.Lambda
-    def calc_derivs_x(self, dd_dx_seed=1.0):
+    def calc_derivs_x(self, dd_dx_seed=1.0, Ksi_mat_t1_arg=np.zeros((3, 3, 3, 3, 2))):
         dLambda_dx=(2*dd_dx_seed*self.drhoq_dx+self.delta*self.d2rhoq_dx2)*self.delta/self.atm_props.mu
 
         dRed_dx=(dd_dx_seed*self.rho*self.qe+self.delta*self.drhoq_dx)/self.atm_props.mu
@@ -55,7 +55,7 @@ class station:
         dC_dx=self.dC_dUt*dUt_dx+self.dC_ddp*ddeltastar_dx
         dtb_dx=self.dbeta_dx*(1.0+self.tanb**2)**2
 
-        Ksi_mat_t1=np.copy(self.Ksi_mat_t1)
+        Ksi_mat_t1=np.copy(Ksi_mat_t1_arg)
         Ksi_mat_t1[:, :, :, :, 1]*=ddeltastar_dx
 
         Ksi_mat_t2=np.zeros((3, 3, 3, 2))
@@ -97,7 +97,7 @@ class station:
         #return: ddx_bar_deps, ddz, ddThetaxx...
         return dd_dx_seed*self.Thetaxx+self.delta*dThetaxx_dx, \
             dd_dx_seed*self.Thetaxz+self.delta*dThetaxz_dx, dd_dx_seed*self.Thetazx+self.delta*dThetazx_dx, dd_dx_seed*self.Thetazz+self.delta*dThetazz_dx
-    def calc_derivs_z(self, dd_dz_seed=1.0):
+    def calc_derivs_z(self, dd_dz_seed=1.0, Ksi_mat_t1_arg=np.zeros((3, 3, 3, 3, 2))):
         dLambda_dz=(2*dd_dz_seed*self.drhoq_dx+self.delta*self.d2rhoq_dxdz)*self.delta/self.atm_props.mu
 
         dRed_dz=(dd_dz_seed*self.rho*self.qe+self.delta*self.drhoq_dz)/self.atm_props.mu
@@ -110,7 +110,7 @@ class station:
         dC_dz=self.dC_dUt*dUt_dz+self.dC_ddp*ddeltastar_dz
         dtb_dz=self.dbeta_dz*(1.0+self.tanb**2)**2
 
-        Ksi_mat_t1=np.copy(self.Ksi_mat_t1)
+        Ksi_mat_t1=np.copy(Ksi_mat_t1_arg)
         Ksi_mat_t1[:, :, :, :, 1]*=ddeltastar_dz
 
         Ksi_mat_t2=np.zeros((3, 3, 3, 2))
@@ -152,18 +152,18 @@ class station:
         return dd_dz_seed*self.Thetaxx+self.delta*dThetaxx_dz, dd_dz_seed*self.Thetaxz+self.delta*dThetaxz_dz, \
             dd_dz_seed*self.Thetazx+self.delta*dThetazx_dz, dd_dz_seed*self.Thetazz+self.delta*dThetazz_dz
     def calc_data(self, Ut_initguess=0.1):
-        self.turb_deduce(Ut_initguess=Ut_initguess)
+        Ksi_mat_t1=self.turb_deduce(Ut_initguess=Ut_initguess)
 
         self.tanb=np.tan(self.beta)
 
-        self.F=self.Ut*self.Ksi_mat_t1[1, 0, 0, 0, 0]+self.C_Ut_dp*(self.Ksi_mat_t1[0, 0, 1, 0, 0]+self.Ksi_mat_t1[0, 0, 0, 1, 0]*self.Lambda)
-        self.G=self.tanb*(self.Ut*self.Ksi_mat_t1[1, 1, 0, 0, 0]+self.C_Ut_dp*(self.Ksi_mat_t1[0, 1, 1, 0, 0]+self.Ksi_mat_t1[0, 1, 0, 1, 0]*self.Lambda))
-        self.H=self.tanb*(self.Ut**2*self.Ksi_mat_t1[2, 1, 0, 0, 0]+2*self.C_Ut_dp*self.Ut*(self.Ksi_mat_t1[1, 1, 1, 0, 0]+self.Ksi_mat_t1[1, 1, 0, 1, 0]*self.Lambda)+\
-            self.C_Ut_dp**2*(self.Ksi_mat_t1[0, 1, 2, 0, 0]+2*self.Lambda*self.Ksi_mat_t1[0, 1, 1, 1, 0]+self.Ksi_mat_t1[0, 1, 0, 2, 0]*self.Lambda**2))
-        self.I=self.Ut**2*self.Ksi_mat_t1[2, 0, 0, 0, 0]+2*self.C_Ut_dp*self.Ut*(self.Ksi_mat_t1[1, 0, 1, 0, 0]+self.Ksi_mat_t1[1, 0, 0, 1, 0]*self.Lambda)+\
-            self.C_Ut_dp**2*(self.Ksi_mat_t1[0, 0, 2, 0, 0]+2*self.Ksi_mat_t1[0, 0, 1, 1, 0]*self.Lambda+self.Ksi_mat_t1[0, 0, 0, 2, 0]*self.Lambda**2)
-        self.J=self.tanb**2*(self.Ksi_mat_t1[2, 2, 0, 0, 0]*self.Ut**2+2*self.C_Ut_dp*self.Ut*(self.Ksi_mat_t1[1, 2, 1, 0, 0]+self.Ksi_mat_t1[1, 2, 0, 1, 0]*self.Lambda)+\
-            self.C_Ut_dp**2*(self.Ksi_mat_t1[0, 2, 2, 0, 0]+2*self.Ksi_mat_t1[0, 2, 1, 1, 0]*self.Lambda+self.Ksi_mat_t1[0, 2, 0, 2, 0]*self.Lambda**2))
+        self.F=self.Ut*Ksi_mat_t1[1, 0, 0, 0, 0]+self.C_Ut_dp*(Ksi_mat_t1[0, 0, 1, 0, 0]+Ksi_mat_t1[0, 0, 0, 1, 0]*self.Lambda)
+        self.G=self.tanb*(self.Ut*Ksi_mat_t1[1, 1, 0, 0, 0]+self.C_Ut_dp*(Ksi_mat_t1[0, 1, 1, 0, 0]+Ksi_mat_t1[0, 1, 0, 1, 0]*self.Lambda))
+        self.H=self.tanb*(self.Ut**2*Ksi_mat_t1[2, 1, 0, 0, 0]+2*self.C_Ut_dp*self.Ut*(Ksi_mat_t1[1, 1, 1, 0, 0]+Ksi_mat_t1[1, 1, 0, 1, 0]*self.Lambda)+\
+            self.C_Ut_dp**2*(Ksi_mat_t1[0, 1, 2, 0, 0]+2*self.Lambda*Ksi_mat_t1[0, 1, 1, 1, 0]+Ksi_mat_t1[0, 1, 0, 2, 0]*self.Lambda**2))
+        self.I=self.Ut**2*Ksi_mat_t1[2, 0, 0, 0, 0]+2*self.C_Ut_dp*self.Ut*(Ksi_mat_t1[1, 0, 1, 0, 0]+Ksi_mat_t1[1, 0, 0, 1, 0]*self.Lambda)+\
+            self.C_Ut_dp**2*(Ksi_mat_t1[0, 0, 2, 0, 0]+2*Ksi_mat_t1[0, 0, 1, 1, 0]*self.Lambda+Ksi_mat_t1[0, 0, 0, 2, 0]*self.Lambda**2)
+        self.J=self.tanb**2*(Ksi_mat_t1[2, 2, 0, 0, 0]*self.Ut**2+2*self.C_Ut_dp*self.Ut*(Ksi_mat_t1[1, 2, 1, 0, 0]+Ksi_mat_t1[1, 2, 0, 1, 0]*self.Lambda)+\
+            self.C_Ut_dp**2*(Ksi_mat_t1[0, 2, 2, 0, 0]+2*Ksi_mat_t1[0, 2, 1, 1, 0]*self.Lambda+Ksi_mat_t1[0, 2, 0, 2, 0]*self.Lambda**2))
         
         self.deltax_bar=1.0-self.F
         self.deltaz_bar=self.G
@@ -171,6 +171,8 @@ class station:
         self.Thetaxz=self.G-self.H
         self.Thetazx=self.H
         self.Thetazz=self.J
+
+        return Ksi_mat_t1
     def turb_deduce(self, Ut_initguess=0.1):
         self.Ut=sopt.fsolve(self.turb_it, x0=Ut_initguess)[0]
         self.deltastar=self.Ut*self.Red
@@ -205,81 +207,59 @@ class station:
         dKsi_WM2b_ddp=self.clsr.Ksi_WM2b(self.deltastar, dx=1)
 
         #obtain ksis into matrix
-        self.Ksi_mat_t1=np.zeros((3, 3, 3, 3, 2)) #into the matrix: indexes denote: W, M, a, b degree, and finally derivative index (0 for none, 1 for x, 2 for z)
-        self.Ksi_mat_t1[1, 0, 0, 0, 0]=Ksi_W
-        self.Ksi_mat_t1[1, 0, 0, 0, 1]=dKsi_W_ddp
-        self.Ksi_mat_t1[2, 0, 0, 0, 0]=Ksi_W2
-        self.Ksi_mat_t1[2, 0, 0, 0, 1]=dKsi_W2_ddp
-        self.Ksi_mat_t1[1, 0, 1, 0, 0]=Ksi_Wa
-        self.Ksi_mat_t1[1, 0, 1, 0, 1]=dKsi_Wa_ddp
-        self.Ksi_mat_t1[1, 0, 0, 1, 0]=Ksi_Wb
-        self.Ksi_mat_t1[1, 0, 0, 1, 1]=dKsi_Wb_ddp
-        self.Ksi_mat_t1[1, 1, 0, 0, 0]=Ksi_WM
-        self.Ksi_mat_t1[1, 1, 0, 0, 1]=dKsi_WM_ddp
-        self.Ksi_mat_t1[1, 1, 1, 0, 0]=Ksi_WMa
-        self.Ksi_mat_t1[1, 1, 1, 0, 1]=dKsi_WMa_ddp
-        self.Ksi_mat_t1[1, 1, 0, 1, 0]=Ksi_WMb
-        self.Ksi_mat_t1[1, 1, 0, 1, 1]=dKsi_WMb_ddp
-        self.Ksi_mat_t1[2, 1, 0, 0, 0]=Ksi_W2M
-        self.Ksi_mat_t1[2, 1, 0, 0, 1]=dKsi_W2M_ddp
-        self.Ksi_mat_t1[2, 2, 0, 0, 0]=Ksi_W2M2
-        self.Ksi_mat_t1[2, 2, 0, 0, 1]=dKsi_W2M2_ddp
-        self.Ksi_mat_t1[1, 2, 1, 0, 0]=Ksi_WM2a
-        self.Ksi_mat_t1[1, 2, 1, 0, 1]=dKsi_WM2a_ddp
-        self.Ksi_mat_t1[1, 2, 0, 1, 0]=Ksi_WM2b
-        self.Ksi_mat_t1[1, 2, 0, 1, 1]=dKsi_WM2b_ddp
-        self.Ksi_mat_t1[0, 0, 1, 0, 0]=self.clsr.Ksi_a
-        self.Ksi_mat_t1[0, 0, 0, 1, 0]=self.clsr.Ksi_b
-        self.Ksi_mat_t1[0, 0, 1, 1, 0]=self.clsr.Ksi_ab
-        self.Ksi_mat_t1[0, 0, 2, 0, 0]=self.clsr.Ksi_a2
-        self.Ksi_mat_t1[0, 0, 0, 2, 0]=self.clsr.Ksi_b2
-        self.Ksi_mat_t1[0, 1, 1, 0, 0]=self.clsr.Ksi_Ma
-        self.Ksi_mat_t1[0, 1, 0, 1, 0]=self.clsr.Ksi_Mb
-        self.Ksi_mat_t1[0, 1, 1, 1, 0]=self.clsr.Ksi_Mab
-        self.Ksi_mat_t1[0, 1, 2, 0, 0]=self.clsr.Ksi_Ma2
-        self.Ksi_mat_t1[0, 1, 0, 2, 0]=self.clsr.Ksi_Mb2
-        self.Ksi_mat_t1[0, 2, 1, 1, 0]=self.clsr.Ksi_M2ab
-        self.Ksi_mat_t1[0, 2, 2, 0, 0]=self.clsr.Ksi_M2a2
-        self.Ksi_mat_t1[0, 2, 0, 2, 0]=self.clsr.Ksi_M2b2
+        Ksi_mat_t1=np.zeros((3, 3, 3, 3, 2)) #into the matrix: indexes denote: W, M, a, b degree, and finally derivative index (0 for none, 1 for x, 2 for z)
+        Ksi_mat_t1[1, 0, 0, 0, 0]=Ksi_W
+        Ksi_mat_t1[1, 0, 0, 0, 1]=dKsi_W_ddp
+        Ksi_mat_t1[2, 0, 0, 0, 0]=Ksi_W2
+        Ksi_mat_t1[2, 0, 0, 0, 1]=dKsi_W2_ddp
+        Ksi_mat_t1[1, 0, 1, 0, 0]=Ksi_Wa
+        Ksi_mat_t1[1, 0, 1, 0, 1]=dKsi_Wa_ddp
+        Ksi_mat_t1[1, 0, 0, 1, 0]=Ksi_Wb
+        Ksi_mat_t1[1, 0, 0, 1, 1]=dKsi_Wb_ddp
+        Ksi_mat_t1[1, 1, 0, 0, 0]=Ksi_WM
+        Ksi_mat_t1[1, 1, 0, 0, 1]=dKsi_WM_ddp
+        Ksi_mat_t1[1, 1, 1, 0, 0]=Ksi_WMa
+        Ksi_mat_t1[1, 1, 1, 0, 1]=dKsi_WMa_ddp
+        Ksi_mat_t1[1, 1, 0, 1, 0]=Ksi_WMb
+        Ksi_mat_t1[1, 1, 0, 1, 1]=dKsi_WMb_ddp
+        Ksi_mat_t1[2, 1, 0, 0, 0]=Ksi_W2M
+        Ksi_mat_t1[2, 1, 0, 0, 1]=dKsi_W2M_ddp
+        Ksi_mat_t1[2, 2, 0, 0, 0]=Ksi_W2M2
+        Ksi_mat_t1[2, 2, 0, 0, 1]=dKsi_W2M2_ddp
+        Ksi_mat_t1[1, 2, 1, 0, 0]=Ksi_WM2a
+        Ksi_mat_t1[1, 2, 1, 0, 1]=dKsi_WM2a_ddp
+        Ksi_mat_t1[1, 2, 0, 1, 0]=Ksi_WM2b
+        Ksi_mat_t1[1, 2, 0, 1, 1]=dKsi_WM2b_ddp
+        Ksi_mat_t1[0, 0, 1, 0, 0]=self.clsr.Ksi_a
+        Ksi_mat_t1[0, 0, 0, 1, 0]=self.clsr.Ksi_b
+        Ksi_mat_t1[0, 0, 1, 1, 0]=self.clsr.Ksi_ab
+        Ksi_mat_t1[0, 0, 2, 0, 0]=self.clsr.Ksi_a2
+        Ksi_mat_t1[0, 0, 0, 2, 0]=self.clsr.Ksi_b2
+        Ksi_mat_t1[0, 1, 1, 0, 0]=self.clsr.Ksi_Ma
+        Ksi_mat_t1[0, 1, 0, 1, 0]=self.clsr.Ksi_Mb
+        Ksi_mat_t1[0, 1, 1, 1, 0]=self.clsr.Ksi_Mab
+        Ksi_mat_t1[0, 1, 2, 0, 0]=self.clsr.Ksi_Ma2
+        Ksi_mat_t1[0, 1, 0, 2, 0]=self.clsr.Ksi_Mb2
+        Ksi_mat_t1[0, 2, 1, 1, 0]=self.clsr.Ksi_M2ab
+        Ksi_mat_t1[0, 2, 2, 0, 0]=self.clsr.Ksi_M2a2
+        Ksi_mat_t1[0, 2, 0, 2, 0]=self.clsr.Ksi_M2b2
 
         self.dC_dUt=-self.up_edge
         self.dC_ddp=-self.up_prime_edge*self.Ut
+        return Ksi_mat_t1
     def turb_it(self, Ut): #function defining a single iteration for Newton's method
         return self.Red*Ut**2*(1.0-np.cos(self.beta))+self.pp_w*(1.0-Ut*self.clsr.LOTW(self.Red*Ut))
-    def eqns_solve(self):
+    def eqns_solve(self, Ksi_mat_t1=np.zeros((3, 3, 3, 3, 2))):
         #structure: A{dd_dx, dd_dz}.T+b={dthxx_dx+dthxz_dz, dthzx_dx+dthzz_dz}.T
-        thxx_0x, thxz_0x, thzx_0x, thzz_0x=self.calc_derivs_x(dd_dx_seed=0.0)
-        thxx_0z, thxz_0z, thzx_0z, thzz_0z=self.calc_derivs_z(dd_dz_seed=0.0)
-        thxx_1x, thxz_1x, thzx_1x, thzz_1x=self.calc_derivs_x(dd_dx_seed=1.0)
-        thxx_1z, thxz_1z, thzx_1z, thzz_1z=self.calc_derivs_z(dd_dz_seed=1.0)
+        thxx_0x, thxz_0x, thzx_0x, thzz_0x=self.calc_derivs_x(dd_dx_seed=0.0, Ksi_mat_t1_arg=Ksi_mat_t1)
+        thxx_0z, thxz_0z, thzx_0z, thzz_0z=self.calc_derivs_z(dd_dz_seed=0.0, Ksi_mat_t1_arg=Ksi_mat_t1)
+        thxx_1x, thxz_1x, thzx_1x, thzz_1x=self.calc_derivs_x(dd_dx_seed=1.0, Ksi_mat_t1_arg=Ksi_mat_t1)
+        thxx_1z, thxz_1z, thzx_1z, thzz_1z=self.calc_derivs_z(dd_dz_seed=1.0, Ksi_mat_t1_arg=Ksi_mat_t1)
         b=np.array([thxx_0x+thxz_0z, thzx_0x+thzz_0z])
         A=np.array([[thxx_1x-thxx_0x, thxz_1z-thxz_0z], [thzx_1x-thzx_0x, thzz_1z-thzz_0z]])
         RHS=np.array([np.cos(self.beta), np.sin(self.beta)])*self.Cf+np.array([-(self.deltax_bar*self.dq_dx+self.deltaz_bar*self.dq_dz), self.dq_dx*np.tan(self.beta)])*self.delta/self.qe-\
             np.array([self.Thetaxx*self.dq_dx+self.Thetaxz*self.dq_dz, self.Thetazx*self.dq_dx+self.Thetazz*self.dq_dz])*(2.0-self.Me**2)*self.delta/self.qe
         return lg.solve(A, RHS-b)
-
-ntest=1000
-nnodes=5000
-t=tm.time()
-for i in range(ntest):
-    delta=rnd.random()
-    dq_dx=rnd.random()
-    dq_dz=rnd.random()
-    d2q_dx2=rnd.random()
-    d2q_dxdz=rnd.random()
-    beta=rnd.random()*0.2 #multiplying to mantain reasonable small-crossflow assumptions
-    dbeta_dx=rnd.random()*0.1
-    dbeta_dz=rnd.random()*0.1
-    qe=rnd.random()
-    stat=station(defclsr, delta=delta, dq_dx=dq_dx, dq_dz=dq_dz, d2q_dx2=d2q_dx2, d2q_dxdz=d2q_dxdz, qe=qe, Uinf=qe, \
-        beta=beta, dbeta_dx=dbeta_dx, dbeta_dz=dbeta_dz)
-    stat.calc_data()
-    stat.eqns_solve()
-tunit=(tm.time()-t)/ntest
-print('total: ', tunit*nnodes)
-print('total with multiprocessing: ', tunit*nnodes/4)
-print('unit: ', tunit)
-'''stat=station(defclsr, delta=1.0, qe=1.0, dq_dx=0.1, beta=np.radians(10.0), props=defatm)
-stat.calc_data()
-for ddx in np.arange(0.0, 1.0, 0.01):
-    print(stat.calc_derivs_x(dd_dx_seed=ddx))'''
+    def calcpropag(self, Ut_initguess=0.1):
+        Ksi_mat_t1=self.calc_data(Ut_initguess=Ut_initguess)
+        return self.eqns_solve(Ksi_mat_t1=Ksi_mat_t1)
