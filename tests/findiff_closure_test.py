@@ -1,24 +1,29 @@
 from chochoBL import *
 import random as rnd
 import numpy as np
+import numpy.linalg as lg
+from math import *
 
 def findiff_test():
     delta=rnd.random()
-    drhoq_dx=0.0#rnd.random()
-    drhoq_dz=0.0#rnd.random()
-    d2rhoq_dx2=0.0#rnd.random()
-    d2rhoq_dxdz=0.0#rnd.random()
-    beta=0.0#rnd.random()
-    dbeta_dx=0.0#rnd.random()
-    dbeta_dz=0.0#rnd.random()
+    drhoq_dx=rnd.random()
+    drhoq_dz=rnd.random()
+    d2rhoq_dx2=rnd.random()
+    d2rhoq_dxdz=rnd.random()
+    beta=rnd.random()
+    dbeta_dx=rnd.random()
+    dbeta_dz=rnd.random()
     qe=rnd.random()
 
     dd_dx_seed=rnd.random()
     dd_dz_seed=rnd.random()
     rho=defatm.rho
 
-    h_x=1e-7
-    h_z=1e-7
+    print('beta ', degrees(beta), ' dbeta_dx ', degrees(dbeta_dx), ' dbeta_dz ', degrees(dbeta_dz))
+    print(drhoq_dx*np.tan(beta))
+
+    h_x=1e-8
+    h_z=1e-8
 
     stat=station(delta=delta, drhoq_dx=drhoq_dx, drhoq_dz=drhoq_dz, d2rhoq_dx2=d2rhoq_dx2, d2rhoq_dxdz=d2rhoq_dxdz, beta=beta, dbeta_dx=dbeta_dx, dbeta_dz=dbeta_dz, qe=qe)
     stat_dx=station(delta=delta+dd_dx_seed*h_x, drhoq_dx=drhoq_dx+d2rhoq_dx2*h_x, drhoq_dz=drhoq_dz+d2rhoq_dxdz*h_x, d2rhoq_dx2=d2rhoq_dx2, d2rhoq_dxdz=d2rhoq_dxdz, \
@@ -30,12 +35,47 @@ def findiff_test():
     stat_dx.calc_data()
     stat_dz.calc_data()
 
-    _, _, thxx_an_x, _, _, _=stat.calc_derivs_x(dd_dx_seed)
-    _, _, thxx_an_z, _, _, _=stat.calc_derivs_x(dd_dz_seed)
+    ddx_dx_an, ddz_dx_an, dThxx_dx_an, dThxz_dx_an, dThzx_dx_an, dThzz_dx_an=stat.calc_derivs_x(dd_dx_seed)
+    ddx_dz_an, ddz_dz_an, dThxx_dz_an, dThxz_dz_an, dThzx_dz_an, dThzz_dz_an=stat.calc_derivs_z(dd_dz_seed)
+
+    devs=[]
+
+    ddx_dx=(stat_dx.deltax_bar*stat_dx.delta-stat.deltax_bar*stat.delta)/h_x
+    ddx_dz=(stat_dz.deltax_bar*stat_dz.delta-stat.deltax_bar*stat.delta)/h_z
+
+    devs.append(abs((ddx_dx-ddx_dx_an)/ddx_dx))
+    devs.append(abs((ddx_dz-ddx_dz_an)/ddx_dz))
+
+    ddz_dx=(stat_dx.deltaz_bar*stat_dx.delta-stat.deltaz_bar*stat.delta)/h_x
+    ddz_dz=(stat_dz.deltaz_bar*stat_dz.delta-stat.deltaz_bar*stat.delta)/h_z
+
+    devs.append(abs((ddz_dx-ddz_dx_an)/ddz_dx))
+    devs.append(abs((ddz_dz-ddz_dz_an)/ddz_dz))
 
     dThxx_dx=(stat_dx.Thetaxx*stat_dx.delta-stat.Thetaxx*stat.delta)/h_x
     dThxx_dz=(stat_dz.Thetaxx*stat_dz.delta-stat.Thetaxx*stat.delta)/h_z
-    print(abs(dThxx_dx-thxx_an_x)/dThxx_dx)
-    print(abs(dThxx_dz-thxx_an_z)/dThxx_dz)
+
+    devs.append(abs((dThxx_dx-dThxx_dx_an)/dThxx_dx))
+    devs.append(abs((dThxx_dz-dThxx_dz_an)/dThxx_dz))
+
+    dThxz_dx=(stat_dx.Thetaxz*stat_dx.delta-stat.Thetaxz*stat.delta)/h_x
+    dThxz_dz=(stat_dz.Thetaxz*stat_dz.delta-stat.Thetaxz*stat.delta)/h_z
+
+    devs.append(abs((dThxz_dx-dThxz_dx_an)/dThxz_dx))
+    devs.append(abs((dThxz_dz-dThxz_dz_an)/dThxz_dz))
+
+    dThzx_dx=(stat_dx.Thetazx*stat_dx.delta-stat.Thetazx*stat.delta)/h_x
+    dThzx_dz=(stat_dz.Thetazx*stat_dz.delta-stat.Thetazx*stat.delta)/h_z
+
+    devs.append(abs((dThzx_dx-dThzx_dx_an)/dThzx_dx))
+    devs.append(abs((dThzx_dz-dThzx_dz_an)/dThzx_dz))
+
+    dThzz_dx=(stat_dx.Thetazz*stat_dx.delta-stat.Thetazz*stat.delta)/h_x
+    dThzz_dz=(stat_dz.Thetazz*stat_dz.delta-stat.Thetazz*stat.delta)/h_z
+
+    devs.append(abs((dThzz_dx-dThzz_dx_an)/dThzz_dx))
+    devs.append(abs((dThzz_dz-dThzz_dz_an)/dThzz_dz))
+
+    print(devs)
 
 findiff_test()
