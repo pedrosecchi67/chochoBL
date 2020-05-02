@@ -1,7 +1,9 @@
 import numpy as np
+import numpy.linalg as lg
 import math as mth
 import scipy.optimize as sopt
 import time as tm
+import random as rnd
 
 import fluids.atmosphere as atm
 
@@ -33,6 +35,8 @@ class station:
         self.beta=beta
         self.dbeta_dx=dbeta_dx
         self.dbeta_dz=dbeta_dz
+        self.dq_dx=dq_dx
+        self.dq_dz=dq_dz
         self.atm_props=props
         self.qe=qe
         self.dyn_press=self.rho*qe**2/2
@@ -91,7 +95,7 @@ class station:
         dThetazz_dx=dJ_dx
 
         #return: ddx_bar_deps, ddz, ddThetaxx...
-        return dd_dx_seed*self.deltax_bar+self.delta*ddeltax_bar_dx, dd_dx_seed*self.deltaz_bar+self.delta*ddeltaz_bar_dx, dd_dx_seed*self.Thetaxx+self.delta*dThetaxx_dx, \
+        return dd_dx_seed*self.Thetaxx+self.delta*dThetaxx_dx, \
             dd_dx_seed*self.Thetaxz+self.delta*dThetaxz_dx, dd_dx_seed*self.Thetazx+self.delta*dThetazx_dx, dd_dx_seed*self.Thetazz+self.delta*dThetazz_dx
     def calc_derivs_z(self, dd_dz_seed=1.0):
         dLambda_dz=(2*dd_dz_seed*self.drhoq_dx+self.delta*self.d2rhoq_dxdz)*self.delta/self.atm_props.mu
@@ -139,16 +143,14 @@ class station:
         dJ_dz=deriv(Ksi_mat_t2, prods, prodinds=(2, 2, 0), Ksi_inds=(2, 2, 0))+2*deriv(Ksi_mat_t2, prods, prodinds=(2, 1, 1), Ksi_inds=(1, 2, 1))+\
             deriv(Ksi_mat_t2, prods, prodinds=(2, 0, 2), Ksi_inds=(0, 2, 2))
         
-        ddeltax_bar_dz=-dF_dz
-        ddeltaz_bar_dz=dG_dz
         dThetaxx_dz=dF_dz-dI_dz
         dThetaxz_dz=dG_dz-dH_dz
         dThetazx_dz=dH_dz
         dThetazz_dz=dJ_dz
 
         #return: ddx_bar_deps, ddz, ddThetaxx...
-        return dd_dz_seed*self.deltax_bar+self.delta*ddeltax_bar_dz, dd_dz_seed*self.deltaz_bar+self.delta*ddeltaz_bar_dz, dd_dz_seed*self.Thetaxx+self.delta*dThetaxx_dz, \
-            dd_dz_seed*self.Thetaxz+self.delta*dThetaxz_dz, dd_dz_seed*self.Thetazx+self.delta*dThetazx_dz, dd_dz_seed*self.Thetazz+self.delta*dThetazz_dz
+        return dd_dz_seed*self.Thetaxx+self.delta*dThetaxx_dz, dd_dz_seed*self.Thetaxz+self.delta*dThetaxz_dz, \
+            dd_dz_seed*self.Thetazx+self.delta*dThetazx_dz, dd_dz_seed*self.Thetazz+self.delta*dThetazz_dz
     def calc_data(self, Ut_initguess=0.1):
         self.turb_deduce(Ut_initguess=Ut_initguess)
 
@@ -172,7 +174,7 @@ class station:
     def turb_deduce(self, Ut_initguess=0.1):
         self.Ut=sopt.fsolve(self.turb_it, x0=Ut_initguess)[0]
         self.deltastar=self.Ut*self.Red
-        self.Cf=self.Ut**2*2*self.dyn_press
+        self.Cf=self.Ut**2*2
         self.up_edge=self.clsr.LOTW(self.deltastar)
         self.C_Ut_dp=(1.0-self.Ut*self.up_edge)
         h=self.deltastar/self.clsr.Ksi_disc
@@ -244,17 +246,40 @@ class station:
         self.dC_ddp=-self.up_prime_edge*self.Ut
     def turb_it(self, Ut): #function defining a single iteration for Newton's method
         return self.Red*Ut**2*(1.0-np.cos(self.beta))+self.pp_w*(1.0-Ut*self.clsr.LOTW(self.Red*Ut))
+    def eqns_solve(self):
+        #structure: A{dd_dx, dd_dz}.T+b={dthxx_dx+dthxz_dz, dthzx_dx+dthzz_dz}.T
+        thxx_0x, thxz_0x, thzx_0x, thzz_0x=self.calc_derivs_x(dd_dx_seed=0.0)
+        thxx_0z, thxz_0z, thzx_0z, thzz_0z=self.calc_derivs_z(dd_dz_seed=0.0)
+        thxx_1x, thxz_1x, thzx_1x, thzz_1x=self.calc_derivs_x(dd_dx_seed=1.0)
+        thxx_1z, thxz_1z, thzx_1z, thzz_1z=self.calc_derivs_z(dd_dz_seed=1.0)
+        b=np.array([thxx_0x+thxz_0z, thzx_0x+thzz_0z])
+        A=np.array([[thxx_1x-thxx_0x, thxz_1z-thxz_0z], [thzx_1x-thzx_0x, thzz_1z-thzz_0z]])
+        RHS=np.array([np.cos(self.beta), np.sin(self.beta)])*self.Cf+np.array([-(self.deltax_bar*self.dq_dx+self.deltaz_bar*self.dq_dz), self.dq_dx*np.tan(self.beta)])*self.delta/self.qe-\
+            np.array([self.Thetaxx*self.dq_dx+self.Thetaxz*self.dq_dz, self.Thetazx*self.dq_dx+self.Thetazz*self.dq_dz])*(2.0-self.Me**2)*self.delta/self.qe
+        return lg.solve(A, RHS-b)
 
-'''ntest=1000
+ntest=1000
 nnodes=5000
 t=tm.time()
 for i in range(ntest):
-    stat=station(defclsr, delta=1.0, qe=1.0, props=defatm)
+    delta=rnd.random()
+    dq_dx=rnd.random()
+    dq_dz=rnd.random()
+    d2q_dx2=rnd.random()
+    d2q_dxdz=rnd.random()
+    beta=rnd.random()*0.2 #multiplying to mantain reasonable small-crossflow assumptions
+    dbeta_dx=rnd.random()*0.1
+    dbeta_dz=rnd.random()*0.1
+    qe=rnd.random()
+    stat=station(defclsr, delta=delta, dq_dx=dq_dx, dq_dz=dq_dz, d2q_dx2=d2q_dx2, d2q_dxdz=d2q_dxdz, qe=qe, Uinf=qe, \
+        beta=beta, dbeta_dx=dbeta_dx, dbeta_dz=dbeta_dz)
     stat.calc_data()
-    stat.calc_derivs_x(dd_dx_seed=1.0)
-    stat.calc_derivs_x(dd_dx_seed=0.0)
-    stat.calc_derivs_z(dd_dz_seed=1.0)
-    stat.calc_derivs_z(dd_dz_seed=0.0)
+    stat.eqns_solve()
 tunit=(tm.time()-t)/ntest
 print('total: ', tunit*nnodes)
-print('unit: ', tunit)'''
+print('total with multiprocessing: ', tunit*nnodes/4)
+print('unit: ', tunit)
+'''stat=station(defclsr, delta=1.0, qe=1.0, dq_dx=0.1, beta=np.radians(10.0), props=defatm)
+stat.calc_data()
+for ddx in np.arange(0.0, 1.0, 0.01):
+    print(stat.calc_derivs_x(dd_dx_seed=ddx))'''

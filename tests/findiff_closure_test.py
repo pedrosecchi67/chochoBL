@@ -10,9 +10,9 @@ def findiff_test():
     dq_dz=rnd.random()
     d2q_dx2=rnd.random()
     d2q_dxdz=rnd.random()
-    beta=rnd.random()
-    dbeta_dx=rnd.random()
-    dbeta_dz=rnd.random()
+    beta=rnd.random()*0.2 #multiplying to mantain reasonable small-crossflow assumptions
+    dbeta_dx=rnd.random()*0.1
+    dbeta_dz=rnd.random()*0.1
     qe=rnd.random()
 
     dd_dx_seed=rnd.random()
@@ -28,10 +28,10 @@ def findiff_test():
     stat=station(delta=delta, dq_dx=dq_dx, dq_dz=dq_dz, d2q_dx2=d2q_dx2, d2q_dxdz=d2q_dxdz, qe=qe, Uinf=qe, \
         beta=beta, dbeta_dx=dbeta_dx, dbeta_dz=dbeta_dz)
     stat_dx=station(delta=delta+dd_dx_seed*h_x, dq_dx=dq_dx+d2q_dx2*h_x, dq_dz=dq_dz+d2q_dxdz*h_x, \
-        d2q_dx2=d2q_dx2, d2q_dxdz=d2q_dxdz, qe=qe+dq_dx*h_x, Uinf=qe+dq_dx*h_x, \
+        d2q_dx2=d2q_dx2, d2q_dxdz=d2q_dxdz, qe=qe+dq_dx*h_x, Uinf=qe, \
             beta=beta+dbeta_dx*h_x, dbeta_dx=dbeta_dx, dbeta_dz=dbeta_dz)
     stat_dz=station(delta=delta+dd_dz_seed*h_z, dq_dx=dq_dx+d2q_dxdz*h_z, dq_dz=dq_dz, \
-        d2q_dx2=d2q_dx2, d2q_dxdz=d2q_dxdz, qe=qe+dq_dz*h_z, Uinf=qe+dq_dz*h_z, \
+        d2q_dx2=d2q_dx2, d2q_dxdz=d2q_dxdz, qe=qe+dq_dz*h_z, Uinf=qe, \
             beta=beta+dbeta_dz*h_z, dbeta_dx=dbeta_dx, dbeta_dz=dbeta_dz)
     
     stat.calc_data()
