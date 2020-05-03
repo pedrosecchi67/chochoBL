@@ -53,9 +53,9 @@ class mesh:
         self.gradient[1, 1, :, :]=(self.dxdlx*self.n[:, :, 2]-self.n[:, :, 0]*self.dzdlx)/dets
         self.gradient[2, 0, :, :]=(self.dxdly*self.n[:, :, 1]-self.n[:, :, 0]*self.dydly)/dets
         self.gradient[2, 1, :, :]=(self.n[:, :, 0]*self.dydlx-self.dxdlx*self.n[:, :, 1])/dets
-        self.S=np.zeros((3, 3, self.nm, self.nn)) #tensor S=[dudx, dudy, dudz; dv...]
+        self.J=np.zeros((3, 3, self.nm, self.nn)) #tensor S=[dudx, dudy, dudz; dv...]
         for i in range(3):
-            self.S[i, 0, :, :], self.S[i, 1, :, :], self.S[i, 2, :, :]=self.calc_derivative(self.parvels[:, :, i])
+            self.J[i, 0, :, :], self.J[i, 1, :, :], self.J[i, 2, :, :]=self.calc_derivative(self.parvels[:, :, i])
     def calc_derivative_aux(self, data):
         dvslx=np.zeros((self.nm, self.nn))
         dvsly=np.zeros((self.nm, self.nn))
@@ -83,7 +83,7 @@ class mesh:
             direction=self.c
         trans=np.zeros((3, self.nm, self.nn))
         for i in range(3):
-            trans[i, :, :]=self.S[i, 0, :, :]*direction[:, :, 0]+self.S[i, 1, :, :]*direction[:, :, 1]+self.S[i, 2, :, :]*direction[:, :, 2]
+            trans[i, :, :]=self.J[i, 0, :, :]*direction[:, :, 0]+self.J[i, 1, :, :]*direction[:, :, 1]+self.J[i, 2, :, :]*direction[:, :, 2]
         return veldirs[:, :, 0]*trans[0, :, :]+veldirs[:, :, 1]*trans[1, :, :]+veldirs[:, :, 2]*trans[2, :, :]
 
 nm=100
