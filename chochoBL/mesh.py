@@ -59,6 +59,7 @@ class mesh:
         self.Hu=self.calc_Hessian(self.parvels[:, :, 0])
         self.Hv=self.calc_Hessian(self.parvels[:, :, 1])
         self.Hw=self.calc_Hessian(self.parvels[:, :, 2])
+        self.velderivs_define()
     def calc_derivative_aux(self, data):
         dvslx=np.zeros((self.nm, self.nn))
         dvsly=np.zeros((self.nm, self.nn))
@@ -95,6 +96,24 @@ class mesh:
         H[1, 0, :, :], H[1, 1, :, :], H[1, 2, :, :]=self.calc_derivative(dy)
         H[2, 0, :, :], H[2, 1, :, :], H[2, 2, :, :]=self.calc_derivative(dz)
         return H
+    def velderivs_define(self):
+        dw_ds=self.calc_velderivs(vel='w', direct='s')
+        dq_ds=self.calc_velderivs(vel='q', direct='s')
+
+        Me=self.qes/self.atm_props.v_sonic
+
+        dq_dx, dq_dy, dq_dz=self.calc_derivative(self.qes)
+        self.dq_dx=dq_dx*self.s[:, :, 0]+dq_dy*self.s[:, :, 1]+dq_dz*self.s[:, :, 2]
+        self.dq_dz=dq_dx*self.c[:, :, 0]+dq_dy*self.c[:, :, 1]+dq_dz*self.c[:, :, 2]
+
+        d2q_dsdx, d2q_dsdy, d2q_dsdz=self.calc_derivative(self.dq_dx)
+        self.d2q_dx2=d2q_dsdx*self.s[:, :, 0]+d2q_dsdy*self.s[:, :, 1]+d2q_dsdz*self.s[:, :, 2]
+        self.d2q_dxdz=d2q_dsdx*self.c[:, :, 0]+d2q_dsdy*self.c[:, :, 1]+d2q_dsdz*self.c[:, :, 2]
+
+        self.betas=np.arctan2(dw_ds, (1.0-Me**2)*dq_ds)
+        dbeta_dx, dbeta_dy, dbeta_dz=self.calc_derivative(self.betas)
+        self.dbetas_dx=dbeta_dx*self.s[:, :, 0]+dbeta_dy*self.s[:, :, 1]+dbeta_dz*self.s[:, :, 2]
+        self.dbetas_dz=dbeta_dx*self.c[:, :, 0]+dbeta_dy*self.c[:, :, 1]+dbeta_dz*self.c[:, :, 2]
 
 nm=100
 nn=50
