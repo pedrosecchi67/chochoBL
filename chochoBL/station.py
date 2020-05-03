@@ -28,8 +28,8 @@ class station:
         self.drhoq_dx=(1.0-self.Me**2)*self.rho*dq_dx
         self.drhoq_dz=(1.0-self.Me**2)*self.rho*dq_dz
         self.Lambda=delta**2*self.drhoq_dx/props.mu
-        drho_dx=-self.Me**2*self.rho*dq_dx/qe
-        drho_dz=-self.Me**2*self.rho*dq_dz/qe
+        drho_dx=-self.Me*self.rho*dq_dx/props.v_sonic
+        drho_dz=-self.Me*self.rho*dq_dz/props.v_sonic
         self.d2rhoq_dx2=-2*self.Me*(dq_dx**2)*self.rho/props.v_sonic+(1.0-self.Me**2)*(drho_dx*dq_dx+self.rho*d2q_dx2)
         self.d2rhoq_dxdz=-2*self.Me*dq_dx*dq_dz*self.rho/props.v_sonic+(1.0-self.Me**2)*(drho_dz*dq_dx+self.rho*d2q_dxdz)
         self.beta=beta

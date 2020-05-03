@@ -8,6 +8,7 @@ sys.path.insert(0, os.getcwd())
 #these lines ensure pycaching prior to module importation
 py_compile.compile('abaqus.py')
 py_compile.compile('station.py')
+py_compile.compile('mesh.py')
 from abaqus import *
 from closure import *
 from station import *
