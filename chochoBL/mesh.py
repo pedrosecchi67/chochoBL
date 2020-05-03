@@ -114,6 +114,10 @@ class mesh:
         dbeta_dx, dbeta_dy, dbeta_dz=self.calc_derivative(self.betas)
         self.dbetas_dx=dbeta_dx*self.s[:, :, 0]+dbeta_dy*self.s[:, :, 1]+dbeta_dz*self.s[:, :, 2]
         self.dbetas_dz=dbeta_dx*self.c[:, :, 0]+dbeta_dy*self.c[:, :, 1]+dbeta_dz*self.c[:, :, 2]
+    def identify_starting_points(self):
+        startinds=np.zeros(self.nn, dtype='int')
+        for i in range(self.nn):
+            startinds[i]=np.argmin(self.vels[:, i, 0])
 
 nm=100
 nn=50
