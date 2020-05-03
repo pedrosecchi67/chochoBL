@@ -56,6 +56,9 @@ class mesh:
         self.J=np.zeros((3, 3, self.nm, self.nn)) #tensor S=[dudx, dudy, dudz; dv...]
         for i in range(3):
             self.J[i, 0, :, :], self.J[i, 1, :, :], self.J[i, 2, :, :]=self.calc_derivative(self.parvels[:, :, i])
+        self.Hu=self.calc_Hessian(self.parvels[:, :, 0])
+        self.Hv=self.calc_Hessian(self.parvels[:, :, 1])
+        self.Hw=self.calc_Hessian(self.parvels[:, :, 2])
     def calc_derivative_aux(self, data):
         dvslx=np.zeros((self.nm, self.nn))
         dvsly=np.zeros((self.nm, self.nn))
@@ -85,6 +88,13 @@ class mesh:
         for i in range(3):
             trans[i, :, :]=self.J[i, 0, :, :]*direction[:, :, 0]+self.J[i, 1, :, :]*direction[:, :, 1]+self.J[i, 2, :, :]*direction[:, :, 2]
         return veldirs[:, :, 0]*trans[0, :, :]+veldirs[:, :, 1]*trans[1, :, :]+veldirs[:, :, 2]*trans[2, :, :]
+    def calc_Hessian(self, props):
+        H=np.zeros((3, 3, self.nm, self.nn))
+        dx, dy, dz=self.calc_derivative(props)
+        H[0, 0, :, :], H[0, 1, :, :], H[0, 2, :, :]=self.calc_derivative(dx)
+        H[1, 0, :, :], H[1, 1, :, :], H[1, 2, :, :]=self.calc_derivative(dy)
+        H[2, 0, :, :], H[2, 1, :, :], H[2, 2, :, :]=self.calc_derivative(dz)
+        return H
 
 nm=100
 nn=50
