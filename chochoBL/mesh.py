@@ -17,6 +17,9 @@ class mesh:
         self.dlx=1.0/self.nm
         self.dly=1.0/self.nn
         self.local_coordinate_define()
+        self.matrix=[[None]*self.nm]*self.nn #dimensions are inversed in order : columns (x variation) are identified by the first index.
+        #for faster access only
+        self.attachinds=self.identify_starting_points()
     def local_coordinate_define(self):
         self.dxdlx, self.dxdly=self.calc_derivative_aux(self.posits[:, :, 0])
         self.dydlx, self.dydly=self.calc_derivative_aux(self.posits[:, :, 1])
@@ -118,6 +121,7 @@ class mesh:
         startinds=np.zeros(self.nn, dtype='int')
         for i in range(self.nn):
             startinds[i]=np.argmin(self.vels[:, i, 0])
+        return startinds
 
 nm=100
 nn=50
