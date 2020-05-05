@@ -181,7 +181,7 @@ class station:
         return Ksi_mat_t1
     def turb_deduce(self, Ut_initguess=0.1):
         if self.delta!=0.0:
-            self.Ut=sopt.fsolve(self.turb_it, x0=Ut_initguess)
+            self.Ut=sopt.fsolve(self.turb_it, x0=Ut_initguess)[0]
         else:
             self.Ut=0.0 #case for attachment lines and reversed flows in which solution is impossible: Tw assumed approximately 0
         self.deltastar=self.Ut*self.Red
