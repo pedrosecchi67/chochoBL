@@ -3,11 +3,14 @@ import numpy.linalg as lg
 import time as tm
 
 import abaqus as abq
-import closure as clsr
+from closure import *
 import station as stat
 
+def FS_extrap_wall(s, nu, Uinf): #returns Falkner-Skan boundary layer thickness according to a normal-to-wall inviscid solution (wedge angle=pi rad)
+    return np.sqrt(s*nu/Uinf)
+
 class mesh:
-    def __init__(self, atm_props=stat.defatm, clsr=stat.defclsr, posits=np.zeros((2, 2, 3)), vels=np.zeros((2, 2, 3))):
+    def __init__(self, atm_props=stat.defatm, clsr=stat.defclsr, posits=np.zeros((2, 2, 3)), vels=np.zeros((2, 2, 3)), Uinf=1.0, extrapfun=FS_extrap_wall, gamma=1.4):
         self.vels=vels
         self.posits=posits
         self.atm_props=atm_props
@@ -20,6 +23,9 @@ class mesh:
         self.matrix=[[None]*self.nm]*self.nn #dimensions are inversed in order : columns (x variation) are identified by the first index.
         #for faster access only
         self.attachinds=self.identify_starting_points()
+        self.contour_apply()
+        self.extrap=lambda s: extrapfun(s, self.atm_props.mu/(self.atm_props.rho*(1.0+(gamma-1.0)*(Uinf/self.atm_props.v_sonic)**2/2)**(gamma/(gamma-1.0))), Uinf)
+        self.Uinf=Uinf
     def local_coordinate_define(self):
         self.dxdlx, self.dxdly=self.calc_derivative_aux(self.posits[:, :, 0])
         self.dydlx, self.dydly=self.calc_derivative_aux(self.posits[:, :, 1])
@@ -122,6 +128,35 @@ class mesh:
         for i in range(self.nn):
             startinds[i]=np.argmin(self.vels[:, i, 0])
         return startinds
+    def contour_apply(self):
+        for i, ind in zip(range(self.nn), self.attachinds):
+            self.matrix[i][ind]=stat.station(delta=0.0, qe=self.qes[ind, i], dq_dx=self.dq_dx[ind, i], dq_dz=self.dq_dz[ind, i], d2q_dx2=self.d2q_dx2[ind, i], d2q_dxdz=self.d2q_dxdz[ind, i], \
+                props=self.atm_props, clsr=self.clsr, Uinf=self.Uinf)
+    def LE_extrapolate(self):
+        for i, ind in zip(range(self.nn), self.attachinds):
+            if ind!=self.nm:
+                self.matrix[i][ind+1]=stat.station(delta=self.extrap(self.s[:, ind+1, i]@(self.posits[:, ind+1, i]-self.posits[:, ind, i])), qe=self.qes[ind+1, i], dq_dx=self.dq_dx[ind+1, i], \
+                    dq_dz=self.dq_dz[ind+1, i], d2q_dx2=self.d2q_dx2[ind+1, i], d2q_dxdz=self.d2q_dxdz[ind+1, i], props=self.atm_props, clsr=self.clsr, Uinf=self.Uinf)
+            if ind!=0:
+                self.matrix[i][ind-1]=stat.station(delta=self.extrap(self.s[:, ind-1, i]@(self.posits[:, ind-1, i]-self.posits[:, ind, i])), qe=self.qes[ind-1, i], dq_dx=self.dq_dx[ind-1, i], \
+                    dq_dz=self.dq_dz[ind-1, i], d2q_dx2=self.d2q_dx2[ind-1, i], d2q_dxdz=self.d2q_dxdz[ind-1, i], props=self.atm_props, clsr=self.clsr, Uinf=self.Uinf)
+    def propagate(self):
+        for i in range(self.nn):
+            self.matrix[i][self.attachinds[i]].calc_data()
+            for j in range(self.attachinds[i]+2, self.nm):
+                ds, dc=self.matrix[i][j-1].calcpropag()
+                relpos=self.posits[:, j, i]-self.posits[:, j-1, i]
+                d=self.matrix[i][j-1].delta+ds*relpos@self.s[:, j-1, i]+dc*relpos@self.c[:, j-1, i]
+                self.matrix[i][j]=stat.station(delta=d, qe=self.qes[j, i], dq_dx=self.dq_dx[j, i], dq_dz=self.dq_dz[j, i], d2q_dx2=self.d2q_dx2[j, i], d2q_dxdz=self.d2q_dxdz[j, i], clsr=self.clsr, \
+                    props=self.atm_props, Uinf=self.Uinf)
+            for j in range(self.attachinds[i]-2, -1, -1):
+                ds, dc=self.matrix[i][j+1].calcpropag()
+                relpos=self.posits[:, j, i]-self.posits[:, j+1, i]
+                d=self.matrix[i][j+1].delta+ds*relpos@self.s[:, j+1, i]+dc*relpos@self.c[:, j+1, i]
+                self.matrix[i][j]=stat.station(delta=d, qe=self.qes[j, i], dq_dx=self.dq_dx[j, i], dq_dz=self.dq_dz[j, i], d2q_dx2=self.d2q_dx2[j, i], d2q_dxdz=self.d2q_dxdz[j, i], clsr=self.clsr, \
+                    props=self.atm_props, Uinf=self.Uinf)
+            self.matrix[i][-1].calc_data()
+            self.matrix[i][0].calc_data()
 
 nm=100
 nn=50

@@ -47,8 +47,11 @@ class station:
 
         dRed_dx=(dd_dx_seed*self.rho*self.qe+self.delta*self.drhoq_dx)/self.atm_props.mu
 
-        dUt_dx=-(dRed_dx*self.Ut**2*(1.0-np.cos(self.beta))+self.Red*self.Ut**2*np.sin(self.beta)*self.dbeta_dx+dLambda_dx*self.clsr.bp_w*self.C_Ut_dp\
-            -self.pp_w*self.Ut**2*self.up_prime_edge*dRed_dx)/(2*self.Red*self.Ut*(1.0-np.cos(self.beta))-self.pp_w*(self.up_edge+self.Red*self.Ut*self.up_prime_edge))
+        if self.delta!=0.0:
+            dUt_dx=-(dRed_dx*self.Ut**2*(1.0-np.cos(self.beta))+self.Red*self.Ut**2*np.sin(self.beta)*self.dbeta_dx+dLambda_dx*self.clsr.bp_w*self.C_Ut_dp\
+                -self.pp_w*self.Ut**2*self.up_prime_edge*dRed_dx)/(2*self.Red*self.Ut*(1.0-np.cos(self.beta))-self.pp_w*(self.up_edge+self.Red*self.Ut*self.up_prime_edge))
+        else:
+            dUt_dx=0.0
 
         ddeltastar_dx=dRed_dx*self.Ut+self.Red*dUt_dx
 
@@ -102,8 +105,11 @@ class station:
 
         dRed_dz=(dd_dz_seed*self.rho*self.qe+self.delta*self.drhoq_dz)/self.atm_props.mu
 
-        dUt_dz=-(dRed_dz*self.Ut**2*(1.0-np.cos(self.beta))+self.Red*self.Ut**2*np.sin(self.beta)*self.dbeta_dz+dLambda_dz*self.clsr.bp_w*self.C_Ut_dp\
-            -self.pp_w*self.Ut**2*self.up_prime_edge*dRed_dz)/(2*self.Red*self.Ut*(1.0-np.cos(self.beta))-self.pp_w*(self.up_edge+self.Red*self.Ut*self.up_prime_edge))
+        if self.delta!=0.0:
+            dUt_dz=-(dRed_dz*self.Ut**2*(1.0-np.cos(self.beta))+self.Red*self.Ut**2*np.sin(self.beta)*self.dbeta_dz+dLambda_dz*self.clsr.bp_w*self.C_Ut_dp\
+                -self.pp_w*self.Ut**2*self.up_prime_edge*dRed_dz)/(2*self.Red*self.Ut*(1.0-np.cos(self.beta))-self.pp_w*(self.up_edge+self.Red*self.Ut*self.up_prime_edge))
+        else:
+            dUt_dz=0.0
 
         ddeltastar_dz=dRed_dz*self.Ut+self.Red*dUt_dz
 
@@ -174,17 +180,19 @@ class station:
 
         return Ksi_mat_t1
     def turb_deduce(self, Ut_initguess=0.1):
-        soln, _, ier, _=sopt.fsolve(self.turb_it, x0=Ut_initguess)
-        if ier:
-            self.Ut=soln
+        if self.delta!=0.0:
+            self.Ut=sopt.fsolve(self.turb_it, x0=Ut_initguess)
         else:
             self.Ut=0.0 #case for attachment lines and reversed flows in which solution is impossible: Tw assumed approximately 0
         self.deltastar=self.Ut*self.Red
         self.Cf=self.Ut**2*2
         self.up_edge=self.clsr.LOTW(self.deltastar)
         self.C_Ut_dp=(1.0-self.Ut*self.up_edge)
-        h=self.deltastar/self.clsr.Ksi_disc
-        self.up_prime_edge=(self.clsr.LOTW(self.deltastar+h)-self.clsr.LOTW(self.deltastar-h))/(2*h)
+        if self.deltastar!=0.0:
+            h=self.deltastar/self.clsr.Ksi_disc
+            self.up_prime_edge=(self.clsr.LOTW(self.deltastar+h)-self.clsr.LOTW(self.deltastar-h))/(2*h)
+        else:
+            self.up_prime_edge=0.0
 
         #obtain Ksis from closure relationships
         Ksi_W=self.clsr.Ksi_W(self.deltastar)
@@ -254,16 +262,20 @@ class station:
     def turb_it(self, Ut): #function defining a single iteration for Newton's method
         return self.Red*Ut**2*(1.0-np.cos(self.beta))+self.pp_w*(1.0-Ut*self.clsr.LOTW(self.Red*Ut))
     def eqns_solve(self, Ksi_mat_t1=np.zeros((3, 3, 3, 3, 2))):
-        #structure: A{dd_dx, dd_dz}.T+b={dthxx_dx+dthxz_dz, dthzx_dx+dthzz_dz}.T
-        thxx_0x, thxz_0x, thzx_0x, thzz_0x=self.calc_derivs_x(dd_dx_seed=0.0, Ksi_mat_t1_arg=Ksi_mat_t1)
-        thxx_0z, thxz_0z, thzx_0z, thzz_0z=self.calc_derivs_z(dd_dz_seed=0.0, Ksi_mat_t1_arg=Ksi_mat_t1)
-        thxx_1x, thxz_1x, thzx_1x, thzz_1x=self.calc_derivs_x(dd_dx_seed=1.0, Ksi_mat_t1_arg=Ksi_mat_t1)
-        thxx_1z, thxz_1z, thzx_1z, thzz_1z=self.calc_derivs_z(dd_dz_seed=1.0, Ksi_mat_t1_arg=Ksi_mat_t1)
-        b=np.array([thxx_0x+thxz_0z, thzx_0x+thzz_0z])
-        A=np.array([[thxx_1x-thxx_0x, thxz_1z-thxz_0z], [thzx_1x-thzx_0x, thzz_1z-thzz_0z]])
-        RHS=np.array([np.cos(self.beta), np.sin(self.beta)])*self.Cf+np.array([-(self.deltax_bar*self.dq_dx+self.deltaz_bar*self.dq_dz), self.dq_dx*np.tan(self.beta)])*self.delta/self.qe-\
-            np.array([self.Thetaxx*self.dq_dx+self.Thetaxz*self.dq_dz, self.Thetazx*self.dq_dx+self.Thetazz*self.dq_dz])*(2.0-self.Me**2)*self.delta/self.qe
-        return lg.solve(A, RHS-b)
+        if self.delta!=0.0:
+            #structure: A{dd_dx, dd_dz}.T+b={dthxx_dx+dthxz_dz, dthzx_dx+dthzz_dz}.T
+            thxx_0x, thxz_0x, thzx_0x, thzz_0x=self.calc_derivs_x(dd_dx_seed=0.0, Ksi_mat_t1_arg=Ksi_mat_t1)
+            thxx_0z, thxz_0z, thzx_0z, thzz_0z=self.calc_derivs_z(dd_dz_seed=0.0, Ksi_mat_t1_arg=Ksi_mat_t1)
+            thxx_1x, thxz_1x, thzx_1x, thzz_1x=self.calc_derivs_x(dd_dx_seed=1.0, Ksi_mat_t1_arg=Ksi_mat_t1)
+            thxx_1z, thxz_1z, thzx_1z, thzz_1z=self.calc_derivs_z(dd_dz_seed=1.0, Ksi_mat_t1_arg=Ksi_mat_t1)
+            b=np.array([thxx_0x+thxz_0z, thzx_0x+thzz_0z])
+            A=np.array([[thxx_1x-thxx_0x, thxz_1z-thxz_0z], [thzx_1x-thzx_0x, thzz_1z-thzz_0z]])
+            RHS=np.array([np.cos(self.beta), np.sin(self.beta)])*self.Cf+np.array([-(self.deltax_bar*self.dq_dx+self.deltaz_bar*self.dq_dz), self.dq_dx*np.tan(self.beta)])*self.delta/self.qe-\
+                np.array([self.Thetaxx*self.dq_dx+self.Thetaxz*self.dq_dz, self.Thetazx*self.dq_dx+self.Thetazz*self.dq_dz])*(2.0-self.Me**2)*self.delta/self.qe
+            return lg.solve(A, RHS-b)
+        else:
+            return np.array([0.0, 0.0])
     def calcpropag(self, Ut_initguess=0.1):
         Ksi_mat_t1=self.calc_data(Ut_initguess=Ut_initguess)
         return self.eqns_solve(Ksi_mat_t1=Ksi_mat_t1)
+        
