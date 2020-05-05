@@ -272,7 +272,11 @@ class station:
             A=np.array([[thxx_1x-thxx_0x, thxz_1z-thxz_0z], [thzx_1x-thzx_0x, thzz_1z-thzz_0z]])
             RHS=np.array([np.cos(self.beta), np.sin(self.beta)])*self.Cf+np.array([-(self.deltax_bar*self.dq_dx+self.deltaz_bar*self.dq_dz), self.dq_dx*np.tan(self.beta)])*self.delta/self.qe-\
                 np.array([self.Thetaxx*self.dq_dx+self.Thetaxz*self.dq_dz, self.Thetazx*self.dq_dx+self.Thetazz*self.dq_dz])*(2.0-self.Me**2)*self.delta/self.qe
-            return lg.solve(A, RHS-b)
+            rank=lg.matrix_rank(A)
+            if rank==2:
+                return lg.solve(A, RHS-b)
+            else:
+                return (RHS-b)[0]/A[0, 0], 0.0
         else:
             return np.array([0.0, 0.0])
     def calcpropag(self, Ut_initguess=0.1):

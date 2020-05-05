@@ -1,6 +1,8 @@
 import numpy as np
 import numpy.linalg as lg
 import time as tm
+import matplotlib.pyplot as plt
+from mpl_toolkits import mplot3d
 
 import abaqus as abq
 from closure import *
@@ -161,8 +163,9 @@ class mesh:
         self.LE_extrapolate()
         self.propagate()
 
+
 nm=100
-nn=50
+nn=20
 xs=np.linspace(0.0, 1.0, nm)
 ys=np.linspace(0.0, 1.0, nn)
 posits=np.zeros((nm, nn, 3))
@@ -176,3 +179,10 @@ t=tm.time()
 msh=mesh(posits=posits, vels=vels)
 msh.calculate()
 print(tm.time()-t)
+ds=np.array([[elem.delta for elem in strip] for strip in msh.matrix])
+
+xxs, yys=np.meshgrid(xs, ys)
+fig=plt.figure()
+ax=plt.axes(projection='3d')
+ax.plot_surface(xxs, yys, ds)
+plt.show()
