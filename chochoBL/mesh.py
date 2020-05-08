@@ -8,8 +8,8 @@ import abaqus as abq
 from closure import *
 import station as stat
 
-def FS_extrap_wall(s, nu, Uinf): #returns Falkner-Skan boundary layer thickness according to a normal-to-wall inviscid solution (wedge angle=pi rad)
-    return np.sqrt(s*nu/Uinf)
+def FS_extrap_wall(s, m, nu, Uinf): #returns Falkner-Skan boundary layer thickness according to a normal-to-wall inviscid solution (wedge angle=pi rad)
+    return np.sqrt(2*s*nu/(Uinf*(m+1)))
 
 class mesh:
     def __init__(self, atm_props=stat.defatm, clsr=stat.defclsr, posits=np.zeros((2, 2, 3)), vels=np.zeros((2, 2, 3)), Uinf=1.0, extrapfun=FS_extrap_wall, gamma=1.4):
@@ -27,7 +27,7 @@ class mesh:
         #for faster access only
         self.attachinds=self.identify_starting_points()
         self.contour_apply()
-        self.extrap=lambda s: extrapfun(s, self.atm_props.mu/(self.atm_props.rho*(1.0+(gamma-1.0)*(Uinf/self.atm_props.v_sonic)**2/2)**(gamma/(gamma-1.0))), Uinf)
+        self.extrap=lambda s, m: extrapfun(s, m, self.atm_props.mu/(self.atm_props.rho*(1.0+(gamma-1.0)*(Uinf/self.atm_props.v_sonic)**2/2)**(gamma/(gamma-1.0))), Uinf)
     def local_coordinate_define(self):
         self.dxdlx, self.dxdly=self.calc_derivative_aux(self.posits[:, :, 0])
         self.dydlx, self.dydly=self.calc_derivative_aux(self.posits[:, :, 1])
@@ -137,10 +137,14 @@ class mesh:
     def LE_extrapolate(self):
         for i, ind in zip(range(self.nn), self.attachinds):
             if ind!=self.nm:
-                self.matrix[i][ind+1]=stat.station(delta=self.extrap(self.s[ind+1, i, :]@(self.posits[ind+1, i, :]-self.posits[ind, i, :])), qe=self.qes[ind+1, i], dq_dx=self.dq_dx[ind+1, i], \
+                s=self.s[ind+1, i, :]@(self.posits[ind+1, i, :]-self.posits[ind, i, :])
+                m=self.dq_dx[ind+1, i]*s/self.qes[ind+1, i]
+                self.matrix[i][ind+1]=stat.station(delta=self.extrap(s, m), qe=self.qes[ind+1, i], dq_dx=self.dq_dx[ind+1, i], \
                     dq_dz=self.dq_dz[ind+1, i], d2q_dx2=self.d2q_dx2[ind+1, i], d2q_dxdz=self.d2q_dxdz[ind+1, i], props=self.atm_props, clsr=self.clsr, Uinf=self.Uinf)
             if ind!=0:
-                self.matrix[i][ind-1]=stat.station(delta=self.extrap(self.s[ind-1, i, :]@(self.posits[ind-1, i, :]-self.posits[ind, i, :])), qe=self.qes[ind-1, i], dq_dx=self.dq_dx[ind-1, i], \
+                s=self.s[ind-1, i, :]@(self.posits[ind-1, i, :]-self.posits[ind, i, :])
+                m=self.dq_dx[ind-1, i]*s/self.qes[ind-1, i]
+                self.matrix[i][ind-1]=stat.station(delta=self.extrap(s, m), qe=self.qes[ind-1, i], dq_dx=self.dq_dx[ind-1, i], \
                     dq_dz=self.dq_dz[ind-1, i], d2q_dx2=self.d2q_dx2[ind-1, i], d2q_dxdz=self.d2q_dxdz[ind-1, i], props=self.atm_props, clsr=self.clsr, Uinf=self.Uinf)
     def propagate(self):
         for i in range(self.nn):
@@ -164,9 +168,11 @@ class mesh:
         self.propagate()
 
 
-nm=100
-nn=20
-xs=np.linspace(0.0, 1.0, nm)
+nm=5000
+nn=2
+L=1.0
+Uinf=1.0
+xs=np.linspace(0.0, L, nm)
 ys=np.linspace(0.0, 1.0, nn)
 posits=np.zeros((nm, nn, 3))
 for i in range(nm):
@@ -174,12 +180,14 @@ for i in range(nm):
         posits[i, j, 0]=xs[i]
         posits[i, j, 1]=ys[j]
 vels=np.zeros((nm, nn, 3))
-vels[:, :, 0]=1.0
+vels[:, :, 0]=Uinf
 t=tm.time()
 msh=mesh(posits=posits, vels=vels)
 msh.calculate()
 print(tm.time()-t)
 ds=np.array([[elem.delta for elem in strip] for strip in msh.matrix])
+
+print(ds[-1, -1], 5.0*L/np.sqrt(1.224*L*Uinf/1.72e-5))
 
 xxs, yys=np.meshgrid(xs, ys)
 fig=plt.figure()
