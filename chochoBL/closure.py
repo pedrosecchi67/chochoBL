@@ -58,102 +58,49 @@ class closure:
         self.ap_w=(a(h)-a(0.0))/h
         self.bp_w=(b(h)-b(0.0))/h
 
-def polyfit2d(x, y, z, kx=3, ky=3, order=None):
-    '''
-    Two dimensional polynomial fitting by least squares.
-    Fits the functional form f(x,y) = z.
+def laminar_profile_analyse(fun, M, disc=100, strategy=lambda x: x):
+    etas=strategy(np.linspace(0.0, 1.0, disc))
+    fs=fun(etas)
+    ms=M(etas)
 
-    Notes
-    -----
-    Resultant fit can be plotted with:
-    np.polynomial.polynomial.polygrid2d(x, y, soln.reshape((kx+1, ky+1)))
+    f=np.trapz(fs, x=etas)
+    f2=np.trapz(fs**2, x=etas)
+    fm=np.trapz(fs*ms, x=etas)
+    f2m=np.trapz(fs**2*ms, x=etas)
+    f2m2=np.trapz((fs*ms)**2, x=etas)
 
-    Parameters
-    ----------
-    x, y: array-like, 1d
-        x and y coordinates.
-    z: np.ndarray, 2d
-        Surface to fit.
-    kx, ky: int, default is 3
-        Polynomial order in x and y, respectively.
-    order: int or None, default is None
-        If None, all coefficients up to maxiumum kx, ky, ie. up to and including x^kx*y^ky, are considered.
-        If int, coefficients up to a maximum of kx+ky <= order are considered.
+    dx=1.0-f
+    dz=fm
+    thxx=f-f2
+    thxz=fm-f2m
+    thzx=f2m
+    thzz=f2m2
 
-    Returns
-    -------
-    Return paramters from np.linalg.lstsq.
+    return dx, dz, thxx, thxz, thzx, thzz
 
-    soln: np.ndarray
-        Array of polynomial coefficients.
-    residuals: np.ndarray
-    rank: int
-    s: np.ndarray
+def turbulent_profile_analyse(A, deltastar, M=lambda x: 1.0-x**2, LOTW=Gersten_Herwig_LOTW, outter_profile=lambda x: np.sin(np.pi*x/2)**2, disc=100, strategy=lambda x: x):
+    etas=strategy(np.linspace(0.0, 1.0, disc))
+    yps=etas*deltastar
 
-    '''
+    ups=LOTW(yps)+A*outter_profile(etas)
+    
+    Ut=1.0/ups[-1]
+    Cf=2*Ut**2
 
-    # grid coords
-    x, y = np.meshgrid(x, y)
-    # coefficient array, up to x^kx, y^ky
-    coeffs = np.ones((kx+1, ky+1))
+    fs=ups*Ut
+    ms=M(etas)
 
-    # solve array
-    a = np.zeros((coeffs.size, x.size))
+    f=np.trapz(fs, x=etas)
+    f2=np.trapz(fs**2, x=etas)
+    fm=np.trapz(fs*ms, x=etas)
+    f2m=np.trapz(fs**2*ms, x=etas)
+    f2m2=np.trapz((fs*ms)**2, x=etas)
 
-    # for each coefficient produce array x^i, y^j
-    for index, (j, i) in enumerate(np.ndindex(coeffs.shape)):
-        # do not include powers greater than order
-        if order is not None and i + j > order:
-            arr = np.zeros_like(x)
-        else:
-            arr = coeffs[i, j] * x**i * y**j
-        a[index] = arr.ravel()
+    dx=1.0-f
+    dz=fm
+    thxx=f-f2
+    thxz=fm-f2m
+    thzx=f2m
+    thzz=f2m2
 
-    # do leastsq fitting and return leastsq result
-    return np.linalg.lstsq(a.T, np.ravel(z), rcond=None)
-
-def poly2Dreco(X, Y, c):
-    '''
-    Evaluates polyfit2d
-    '''
-
-    return (c[0] + X*c[1] + Y*c[2] + X**2*c[3] + X**2*Y*c[4] + X**2*Y**2*c[5] + 
-           Y**2*c[6] + X*Y**2*c[7] + X*Y*c[8])
-
-class closure_abaqus:
-    def __init__(self, LOTW=Gersten_Herwig_LOTW, w=lambda x: (1.0-np.cos(np.pi*x))/2, disc=100):
-        self.disc=disc
-        self.LOTW=LOTW
-        self.w=w
-        h=1.0/disc
-        self.d2w_deta2=(w(h)-2*w(0)+w(-h))/h**2
-    def build(self, As=np.linspace(-2.0, 1000.0, 100), dsts=10.0**np.linspace(2.0, 6.0, 100), ad_plot=False, lr_plot=False, logz_plot=True):
-        Lambda_mat=np.zeros((len(As), len(dsts)))
-        Red_mat=np.zeros((len(As), len(dsts)))
-        Cf_mat=np.zeros((len(As), len(dsts)))
-        Ut_mat=np.zeros((len(As), len(dsts)))
-        for i in range(len(As)):
-            for j in range(len(dsts)):
-                Lambda_mat[i, j], Red_mat[i, j], Cf_mat[i, j], Ut_mat[i, j]=self.calc(dst=dsts[j], A=As[i])
-        if ad_plot:
-            fig=plt.figure()
-            ax=plt.axes(projection='3d')
-            aa, dd=np.meshgrid(As, dsts)
-            ax.plot_surface(aa, np.log10(dd), np.log10(Cf_mat) if logz_plot else Cf_mat)
-            plt.show()
-        if lr_plot:
-            fig=plt.figure()
-            ax=plt.axes(projection='3d')
-            ax.plot_surface(np.exp(Lambda_mat), np.log10(Red_mat), np.log10(Cf_mat) if logz_plot else Cf_mat)
-            plt.xlabel('$\Lambda$')
-            plt.show()
-    def calc(self, dst, A):
-        ust_edge=self.LOTW(dst)+A*self.w(1.0)
-        Red=ust_edge*dst
-        Ut=dst/Red
-        Lambda=self.d2w_deta2*A*Ut
-        Cf=2.0/ust_edge**2
-        return Lambda, Red, Cf, Ut
-
-def_turb_clsr_abaq=closure_abaqus()
-def_turb_clsr_abaq.build(lr_plot=True)
+    return dx, dz, thxx, thxz, thzx, thzz, Cf
