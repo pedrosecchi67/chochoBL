@@ -16,49 +16,23 @@ def Gersten_Herwig_LOTW(yp):
         Gersten_Herwig_Lambda*yp+1.0))/3+(np.arctan((2*Gersten_Herwig_Lambda*yp-1.0)/np.sqrt(3))+np.pi/6)/np.sqrt(3))/Gersten_Herwig_Lambda+\
             np.log(1.0+Von_Karman_kappa*Gersten_Herwig_B*(yp)**4)/(4*Von_Karman_kappa)
 
-class closure:
-    def __init__(self, M=lambda eta: 1.0-eta**2, a=lambda eta: 2*eta-2*eta**3+eta**4, \
-        b=lambda eta: eta*(1.0-eta**3)/6, LOTW=Gersten_Herwig_LOTW, deltastar_lims=[0.0, 500.0], \
-            deltastar_rule=lambda x: (np.sin((x-0.5)*np.pi)+1.0)/2, deltastar_disc=50, Ksi_disc=100, atmosphere=atm.ATMOSPHERE_1976(Z=0.0, dT=0.0)):
-        deltastars=np.interp(deltastar_rule(np.linspace(0.0, 1.0, deltastar_disc)), [0.0, 1.0], deltastar_lims)
-        
-        self.a=a; self.b=b; self.M=M; self.LOTW=LOTW; self.Ksi_disc=Ksi_disc
-
-        #Defining turbulence dependant Ksis
-        self.Ksi_W=abq.Ksi_abaqus(deltastars, foo=lambda eta, deltastar: LOTW(eta*deltastar), disc=Ksi_disc)
-        self.Ksi_W2=abq.Ksi_abaqus(deltastars, foo=lambda eta, deltastar: LOTW(eta*deltastar)**2, disc=Ksi_disc)
-        self.Ksi_Wa=abq.Ksi_abaqus(deltastars, foo=lambda eta, deltastar: LOTW(eta*deltastar)*a(eta), disc=Ksi_disc)
-        self.Ksi_Wb=abq.Ksi_abaqus(deltastars, foo=lambda eta, deltastar: LOTW(eta*deltastar)*b(eta), disc=Ksi_disc)
-        self.Ksi_WM=abq.Ksi_abaqus(deltastars, foo=lambda eta, deltastar: LOTW(eta*deltastar)*M(eta), disc=Ksi_disc)
-        self.Ksi_WMa=abq.Ksi_abaqus(deltastars, foo=lambda eta, deltastar: LOTW(eta*deltastar)*M(eta)*a(eta), disc=Ksi_disc)
-        self.Ksi_WMb=abq.Ksi_abaqus(deltastars, foo=lambda eta, deltastar: LOTW(eta*deltastar)*M(eta)*b(eta), disc=Ksi_disc)
-        self.Ksi_W2M=abq.Ksi_abaqus(deltastars, foo=lambda eta, deltastar: LOTW(eta*deltastar)**2*M(eta), disc=Ksi_disc)
-        self.Ksi_W2M2=abq.Ksi_abaqus(deltastars, foo=lambda eta, deltastar: LOTW(eta*deltastar)**2*M(eta)**2, disc=Ksi_disc)
-        self.Ksi_WM2a=abq.Ksi_abaqus(deltastars, foo=lambda eta, deltastar: LOTW(eta*deltastar)*M(eta)**2*a(eta), disc=Ksi_disc)
-        self.Ksi_WM2b=abq.Ksi_abaqus(deltastars, foo=lambda eta, deltastar: LOTW(eta*deltastar)*M(eta)**2*b(eta), disc=Ksi_disc)
-        
-        #defining constant ksis
-        self.Ksi_a=abq.Ksi(foo=a, disc=Ksi_disc)
-        self.Ksi_b=abq.Ksi(foo=b, disc=Ksi_disc)
-        self.Ksi_ab=abq.Ksi(foo=lambda eta: a(eta)*b(eta), disc=Ksi_disc)
-        self.Ksi_a2=abq.Ksi(foo=lambda eta: a(eta)**2, disc=Ksi_disc)
-        self.Ksi_b2=abq.Ksi(foo=lambda eta: b(eta)**2, disc=Ksi_disc)
-        self.Ksi_Ma=abq.Ksi(foo=lambda eta: M(eta)*a(eta), disc=Ksi_disc)
-        self.Ksi_Mb=abq.Ksi(foo=lambda eta: M(eta)*b(eta), disc=Ksi_disc)
-        self.Ksi_Mab=abq.Ksi(foo=lambda eta: M(eta)*a(eta)*b(eta), disc=Ksi_disc)
-        self.Ksi_Ma2=abq.Ksi(foo=lambda eta: M(eta)*a(eta)**2, disc=Ksi_disc)
-        self.Ksi_Mb2=abq.Ksi(foo=lambda eta: M(eta)*b(eta)**2, disc=Ksi_disc)
-        self.Ksi_M2a2=abq.Ksi(foo=lambda eta: M(eta)**2*a(eta)**2, disc=Ksi_disc)
-        self.Ksi_M2b2=abq.Ksi(foo=lambda eta: M(eta)**2*b(eta)**2, disc=Ksi_disc)
-        self.Ksi_M2ab=abq.Ksi(foo=lambda eta: M(eta)**2*a(eta)*b(eta), disc=Ksi_disc)
-
-        self.atmosphere=atmosphere
-
-        h=1.0/Ksi_disc
-        self.ap_w=(a(h)-a(0.0))/h
-        self.bp_w=(b(h)-b(0.0))/h
-
 def laminar_profile_analyse(fun, M, disc=100, strategy=lambda x: x):
+    '''
+    Analyse laminar profile, according to function describing streamwise profile (fun) and
+    crossflow profile (M, uc/q=M(eta)*fun(eta)*tan(crossflow))
+    ======
+    parameters
+    ======
+    * fun: streamwise profile function
+    * M: crossflow profile (M, uc/q=M(eta)*fun(eta)*tan(crossflow))
+    * disc: discretization for integration along the boundary layer
+    * strategy: function distributing etas across BL (etas=strategy(np.linspace(0.0, 1.0, disc)))
+    ======
+    returns
+    ======
+    deltastar_x/delta, deltastar_z/delta, thxx/delta, thxz/(delta*tan(crossflow)), thzx/(delta*tan(crossflow)), thzz/(delta*tan(crossflow)**2)
+    '''
+
     etas=strategy(np.linspace(0.0, 1.0, disc))
     fs=fun(etas)
     ms=M(etas)
@@ -79,11 +53,30 @@ def laminar_profile_analyse(fun, M, disc=100, strategy=lambda x: x):
     return dx, dz, thxx, thxz, thzx, thzz
 
 def turbulent_profile_analyse(A, deltastar, M=lambda x: 1.0-x**2, LOTW=Gersten_Herwig_LOTW, outter_profile=lambda x: np.sin(np.pi*x/2)**2, disc=100, strategy=lambda x: x):
+    '''
+    Analyse turbulent profile, according to function describing Law of The Wall (default is Gersten-Herwig's), outter profile and
+    crossflow profile (M, uc/q=M(eta)*f(eta)*tan(crossflow))
+    ======
+    parameters
+    ======
+    * LOTW: Law of The Wall
+    * outter_profile: outter profile shape function. up(yp)=LOTW(yp)+A*w(yp/deltap)
+    * M: crossflow profile (M, uc/q=M(eta)*f(eta)*tan(crossflow))
+    * disc: discretization for integration along the boundary layer
+    * strategy: function distributing etas across BL (etas=strategy(np.linspace(0.0, 1.0, disc)))
+    ======
+    returns
+    ======
+    deltastar_x/delta, deltastar_z/delta, thxx/delta, thxz/(delta*tan(crossflow)), thzx/(delta*tan(crossflow)), thzz/(delta*tan(crossflow)**2), Cf
+    '''
     etas=strategy(np.linspace(0.0, 1.0, disc))
     yps=etas*deltastar
 
     ups=LOTW(yps)+A*outter_profile(etas)
     
+    h=1.0/disc
+    wpp=(outter_profile(h)-2*outter_profile(0.0)+outter_profile(-h))/h**2
+
     Ut=1.0/ups[-1]
     Cf=2*Ut**2
 
@@ -103,4 +96,48 @@ def turbulent_profile_analyse(A, deltastar, M=lambda x: 1.0-x**2, LOTW=Gersten_H
     thzx=f2m
     thzz=f2m2
 
+    Lambda=A*Ut*wpp
+
     return dx, dz, thxx, thxz, thzx, thzz, Cf
+
+def get_A_dst(Lambda, wpp_w, Red, LOTW, initguess):
+    Ut=sopt.fsolve(lambda Ut: (1.0-Lambda/wpp_w)-Ut*LOTW(Red*Ut), x0=initguess)[0]
+    A=Lambda/(Ut*wpp_w)
+    return A, Ut*Red
+
+class closure:
+    def __init__(self, M=lambda eta: 1.0-eta**2, LOTW=Gersten_Herwig_LOTW, w=lambda x: np.sin(np.pi*x/2)**2, disc=100):
+        h=1.0/disc
+        self.wpp_w=(w(h)-2*w(0)+w(-h))/h**2
+        self.LOTW=LOTW
+        self.w=w
+        self.M=M
+    def build(self, Lambdas=np.linspace(-2.0, 4.0, 100), Reds=10**np.linspace(2.0, 6.0, 100), disc=100, \
+        strategy=lambda x: x, Ut_initguess=0.1):
+        nm=len(Lambdas)
+        nn=len(Reds)
+
+        dx=np.zeros((nm, nn))
+        dz=np.zeros((nm, nn))
+        thxx=np.zeros((nm, nn))
+        thxz=np.zeros((nm, nn))
+        thzx=np.zeros((nm, nn))
+        thzz=np.zeros((nm, nn))
+        Cf=np.zeros((nm, nn))
+
+        for i, l in enumerate(Lambdas):
+            for j, rd in enumerate(Reds):
+                a, d=get_A_dst(Lambda=l, wpp_w=self.wpp_w, Red=rd, LOTW=self.LOTW, initguess=Ut_initguess)
+                dx[i, j], dz[i, j], thxx[i, j], thxz[i, j], thzx[i, j], thzz[i, j], Cf[i, j]=turbulent_profile_analyse(a, d, \
+                    M=self.M, LOTW=self.LOTW, outter_profile=self.w, disc=disc, strategy=strategy)
+        
+        rr, ll=np.meshgrid(Reds, Lambdas)
+        fig=plt.figure()
+        ax=plt.axes(projection='3d')
+        ax.plot_surface(np.log10(rr), thxx, Cf)
+        plt.xlabel('$log_{10}(Re_\delta)$')
+        plt.ylabel('$\Lambda$')
+        plt.show()
+
+clsr=closure()
+clsr.build()

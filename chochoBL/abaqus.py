@@ -4,23 +4,12 @@ import scipy.optimize as sopt
 import matplotlib.pyplot as plt
 from mpl_toolkits import mplot3d
 
-from closure import *
-
-class turbulence_abaqus:
-    def __init__(self, deltastars, props):
-        self.rule=sinterp.UnivariateSpline(deltastars, props, ext=0) #engage extrapolation
-        self.deltastar_lims=(deltastars[0], deltastars[1])
-    def __call__(self, deltastar, dx=0):
-        return self.rule(deltastar, nu=dx)
-
-def Ksi(foo, disc=100):
-    return np.trapz(foo(np.linspace(0.0, 1.0, disc)))
-
-class Ksi_abaqus(turbulence_abaqus):
-    def __init__(self, deltastars, foo=lambda x: x, disc=100): #foo necessarily takes arguments eta and deltastar
-        props=np.zeros(len(deltastars))
-        for i in range(len(deltastars)):
-            props[i]=Ksi(foo=lambda eta: foo(eta, deltastars[i]), disc=disc)
-        super().__init__(deltastars, props)
-    def __call__(self, deltastar, dx=0):
-        return super().__call__(deltastar, dx=dx)
+class abaqus:
+    def __init__(self, x, y, z, fun, funp, initguess):
+        soln=sopt.minimize(lambda pars: np.sum((fun(x, y, pars)-z)**2), x0=initguess, method='Nelder-Mead', options={'maxiter':1e5}, tol=1e-5)
+        self.success=soln.success
+        self.pars=soln.x
+        self.fun=fun
+        self.funp=funp
+    def __call__(self, x, y, dx=0, dy=0):
+        return self.fun(x, y, self.pars)
