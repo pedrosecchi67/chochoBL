@@ -1,0 +1,6 @@
+*.bl
+*.dat
+*.pyc
+*.abq
+/*.egg-info
+*.cls

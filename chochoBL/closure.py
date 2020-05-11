@@ -4,8 +4,11 @@ import matplotlib.pyplot as plt
 from mpl_toolkits import mplot3d
 import scipy.interpolate as sinterp
 import time as tm
-import abaqus as abq
 import fluids.atmosphere as atm
+import cloudpickle as pck
+import os
+
+import abaqus as abq
 
 Gersten_Herwig_A=6.1e-4
 Gersten_Herwig_B=1.43e-3
@@ -112,8 +115,14 @@ class closure:
         self.LOTW=LOTW
         self.w=w
         self.M=M
-    def build(self, Lambdas=np.linspace(-2.0, 4.0, 100), Reds=10**np.linspace(2.0, 6.0, 100), disc=100, \
-        strategy=lambda x: x, Ut_initguess=0.1):
+
+    def build(self, Lambdas=np.linspace(-2.0, 4.0, 50), Reds=10**np.linspace(2.0, 6.0, 50), disc=100, \
+        strategy=lambda x: x, Ut_initguess=0.1, log_Reynolds=True):
+        '''
+        build the closure relationships for a given range of Lambdas and thickness Reynolds numbers. strategy and disc arguments
+        are referrent to function turbulent_profile_analyse(). log_Reynolds set input Reynolds numbers to logarythmic scale before splining.
+        '''
+
         nm=len(Lambdas)
         nn=len(Reds)
 
@@ -130,14 +139,80 @@ class closure:
                 a, d=get_A_dst(Lambda=l, wpp_w=self.wpp_w, Red=rd, LOTW=self.LOTW, initguess=Ut_initguess)
                 dx[i, j], dz[i, j], thxx[i, j], thxz[i, j], thzx[i, j], thzz[i, j], Cf[i, j]=turbulent_profile_analyse(a, d, \
                     M=self.M, LOTW=self.LOTW, outter_profile=self.w, disc=disc, strategy=strategy)
-        
-        rr, ll=np.meshgrid(Reds, Lambdas)
-        fig=plt.figure()
-        ax=plt.axes(projection='3d')
-        ax.plot_surface(np.log10(rr), thxx, Cf)
-        plt.xlabel('$log_{10}(Re_\delta)$')
-        plt.ylabel('$\Lambda$')
-        plt.show()
 
-clsr=closure()
-clsr.build()
+        self.thxx=abq.abaqus(Lambdas, np.log(Reds) if log_Reynolds else Reds, thxx)
+        self.thxz=abq.abaqus(Lambdas, np.log(Reds) if log_Reynolds else Reds, thxz)
+        self.thzx=abq.abaqus(Lambdas, np.log(Reds) if log_Reynolds else Reds, thzx)
+        self.thzz=abq.abaqus(Lambdas, np.log(Reds) if log_Reynolds else Reds, thzz)
+        self.dx=abq.abaqus(Lambdas, np.log(Reds) if log_Reynolds else Reds, dx)
+        self.dz=abq.abaqus(Lambdas, np.log(Reds) if log_Reynolds else Reds, dz)
+        self.Cf=abq.abaqus(Lambdas, np.log(Reds) if log_Reynolds else Reds, Cf)
+
+        self.log_Reynolds=log_Reynolds
+
+    def __call__(self, Lambda, Red, nu=False):
+        '''
+        return values from closure relationships
+        ======
+        args
+        ======
+        Lambda, Red: x and y values to look for in splines. Lambda is fpp value at the wall, or -delta**2*dq_dx/mu. Red is Reynolds number in
+        respect to delta
+        nu: boolean on whether to differentiate return values. If True, returns theta tensor ((thxx, thxz/tan(crossflow)), (thzx/tan(crossflow), thzz/tan2(crossflow))), 
+        or th, returned as derivated values dth/dLambda and dth/dRed.
+        else returns th, deltastar_x, deltastar_z/tan(crossflow), Cf (not differentiated)
+        '''
+        
+        rd=np.log(Red) if self.log_Reynolds else Red
+
+        if nu:
+            #return theta tensor Lambda and Red derivatives
+            return np.array([[self.thxx(Lambda, rd, dx=1), self.thxz(Lambda, rd, dx=1)], [self.thzx(Lambda, rd, dx=1), self.thzz(Lambda, rd, dx=1)]]), \
+                np.array([[self.thxx(Lambda, rd, dy=1), self.thxz(Lambda, rd, dy=1)], [self.thzx(Lambda, rd, dy=1), self.thzz(Lambda, rd, dy=1)]])/(rd if self.log_Reynolds else 1.0)
+        
+        else:
+            #return tensor, dx, dz, Cf
+            return np.array([[self.thxx(Lambda, rd), self.thxz(Lambda, rd)], [self.thzx(Lambda, rd), self.thzz(Lambda, rd)]]), \
+                self.dx(Lambda, rd), self.dz(Lambda, rd), self.Cf(Lambda, rd)
+
+    def dump(self, fname, ext_append=True):
+        '''
+        method to dump a set of closure relationships to a binary file.
+        ======
+        args
+        ======
+        fname: file name (or complete directory) within which to save the pickled closure relationships
+        ext_append: wether to add .cls to file name
+        '''
+
+        fil=open(fname+'.cls' if ext_append else '', 'wb')
+        pck.dump(self, fil)
+        fil.close()
+
+def read_closure(fname, ext_append=True):
+    '''
+    function to read a set of closure relationships from a binary file
+    ======
+    args
+    ======
+    fname: file name (or complete directory) within which to save the pickled closure relationships
+    ext_append: whether to expect the name+.cls
+    '''
+
+    fil=open(fname+'.cls' if ext_append else '', 'rb')
+    clsr=pck.load(fil)
+    fil.close()
+
+    return clsr
+
+#look for default closure relationships in package folder
+ordir=os.getcwd()
+os.chdir(os.path.dirname(__file__))
+if os.path.exists('defclosure.cls'):
+    defclosure=read_closure('defclosure')
+else:
+    defclosure=closure()
+    defclosure.build()
+    defclosure.dump('defclosure')
+os.chdir(ordir)
+del ordir

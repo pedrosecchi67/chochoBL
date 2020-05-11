@@ -20,6 +20,6 @@ setup(
         "License :: OSI Approved :: GNU General Public License (GPL)",
         "Operating System :: OS Independent",
     ],
-    install_requires=['numpy', 'scipy', 'matplotlib', 'fluids'],
+    install_requires=['numpy', 'scipy', 'matplotlib', 'fluids', 'cloudpickle'],
     python_requires='>=3.6',
 )
