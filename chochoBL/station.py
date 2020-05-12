@@ -14,10 +14,13 @@ import transition as trans
 defatm=atm.ATMOSPHERE_1976(Z=0.0, dT=0.0)
 
 class station:
-    def __init__(self, turb_clsr=def_turb_closure, lam_clsr=def_lam_clsr, delta=0.0, dq_dx=0.0, dq_dz=0.0, d2q_dx2=0.0, d2q_dxdz=0.0, beta=0.0, dbeta_dx=0.0, dbeta_dz=0.0, props=defatm, \
-        qe=1.0, Uinf=1.0, gamma=1.4, transition=False):
+    def __init__(self, turb_clsr=def_turb_closure, lam_clsr=def_lam_closure, delta=0.0, dq_dx=0.0, dq_dz=0.0, d2q_dx2=0.0, d2q_dxdz=0.0, beta=0.0, dbeta_dx=0.0, dbeta_dz=0.0, props=defatm, \
+        qe=1.0, Uinf=1.0, gamma=1.4, transition=False, transition_envelope=trans.Tollmien_Schlichting_Drela):
         #closure relationships as input
         self.turb_clsr=turb_clsr
+        self.lam_clsr=lam_clsr
+        self.transition=False
+        self.transition_envelope=transition_envelope
 
         #define thicknesses
         self.delta=delta
@@ -67,10 +70,13 @@ class station:
     def _eqns_solve(self, Ksi_mat_t1=np.zeros((3, 3, 3, 3, 2))):
         if self.delta!=0.0:
             #calculating local thicknesses according to closure relationships
-            th, dx, dz, Cf=self.clsr(self.Lambda, self.Red)
-
             #calculating thickness tensor derivatives
-            dth_dLambda, dth_dRed=self.clsr(self.Lambda, self.Red, nu=True)
+            if self.transition:
+                th, dx, dz, Cf=self.turb_clsr(self.Lambda, self.Red)
+                dth_dLambda, dth_dRed=self.turb_clsr(self.Lambda, self.Red, nu=True)
+            else:
+                th, dx, dz, Cf=self.lam_clsr(self.Lambda, self.Red)
+                dth_dLambda, dth_dRed=self.lam_clsr(self.Lambda, self.Red, nu=True)
 
             #generating crossflow conversion matrix and its derivatives
             tanb=np.tan(self.beta)
@@ -146,7 +152,10 @@ class station:
 
         #calculating local thicknesses according to closure relationships
         if self.delta!=0.0:
-            th, dx, dz, Cf=self.clsr(self.Lambda, self.Red)
+            if self.transition:
+                th, dx, dz, Cf=self.turb_clsr(self.Lambda, self.Red)
+            else:
+                th, dx, dz, Cf=self.lam_clsr(self.Lambda, self.Red)
         else:
             th=np.zeros((2, 2))
             dx=0.0
@@ -162,6 +171,9 @@ class station:
         self.dx=dx*self.delta
         self.dz=dz*self.delta
         self.Cf=Cf
+    
+    def has_transition(self):
+        return self.transition_envelope(self)
 
     def calcpropag(self):
         return self._eqns_solve()

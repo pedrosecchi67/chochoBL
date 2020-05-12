@@ -7,12 +7,14 @@ from mpl_toolkits import mplot3d
 import abaqus as abq
 from closure import *
 import station as stat
+import transition as trans
 
 def FS_extrap_wall(s, m, nu, Uinf): #returns Falkner-Skan boundary layer thickness according to a normal-to-wall inviscid solution (wedge angle=pi rad)
     return np.sqrt(2*s*nu/(Uinf*(m+1)))
 
 class mesh:
-    def __init__(self, atm_props=stat.defatm, clsr=defclosure, posits=np.zeros((2, 2, 3)), vels=np.zeros((2, 2, 3)), Uinf=1.0, extrapfun=FS_extrap_wall, gamma=1.4):
+    def __init__(self, atm_props=stat.defatm, turb_clsr=def_turb_closure, lam_clsr=def_lam_closure, posits=np.zeros((2, 2, 3)), vels=np.zeros((2, 2, 3)), Uinf=1.0, extrapfun=FS_extrap_wall, gamma=1.4, \
+        transition_envelope=trans.Tollmien_Schlichting_Drela):
         #freestream properties
         self.Uinf=Uinf
         self.vels=vels
@@ -20,7 +22,9 @@ class mesh:
         self.atm_props=atm_props
 
         #closure properties
-        self.clsr=clsr
+        self.turb_clsr=turb_clsr
+        self.lam_clsr=lam_clsr
+        self.transition_envelope=transition_envelope
 
         #network size
         self.nm=np.size(self.vels, 0)
@@ -183,6 +187,7 @@ class mesh:
         dbeta_dx, dbeta_dy, dbeta_dz=self._calc_derivative(self.betas)
         self.dbetas_dx=dbeta_dx*self.s[:, :, 0]+dbeta_dy*self.s[:, :, 1]+dbeta_dz*self.s[:, :, 2]
         self.dbetas_dz=dbeta_dx*self.c[:, :, 0]+dbeta_dy*self.c[:, :, 1]+dbeta_dz*self.c[:, :, 2]
+
     def _identify_starting_points(self):
         #instantiate indexes
         startinds=np.zeros(self.nn, dtype='int')
@@ -198,7 +203,7 @@ class mesh:
 
         for i, ind in zip(range(self.nn), self.attachinds):
             self.matrix[i][ind]=stat.station(delta=0.0, qe=self.qes[ind, i], dq_dx=self.dq_dx[ind, i], dq_dz=self.dq_dz[ind, i], d2q_dx2=self.d2q_dx2[ind, i], d2q_dxdz=self.d2q_dxdz[ind, i], \
-                props=self.atm_props, clsr=self.clsr, Uinf=self.Uinf)
+                props=self.atm_props, Uinf=self.Uinf, turb_clsr=self.turb_clsr, lam_clsr=self.lam_clsr, transition_envelope=self.transition_envelope, transition=False)
 
     def _LE_extrapolate(self):
         #extrapolate Falkner-Skan boundary layer at the first post-attachment row of stations in the chordwise direction
@@ -208,12 +213,14 @@ class mesh:
                 s=self.s[ind+1, i, :]@(self.posits[ind+1, i, :]-self.posits[ind, i, :])
                 m=self.dq_dx[ind+1, i]*s/self.qes[ind+1, i]
                 self.matrix[i][ind+1]=stat.station(delta=self.extrap(s, m), qe=self.qes[ind+1, i], dq_dx=self.dq_dx[ind+1, i], \
-                    dq_dz=self.dq_dz[ind+1, i], d2q_dx2=self.d2q_dx2[ind+1, i], d2q_dxdz=self.d2q_dxdz[ind+1, i], props=self.atm_props, clsr=self.clsr, Uinf=self.Uinf)
+                    dq_dz=self.dq_dz[ind+1, i], d2q_dx2=self.d2q_dx2[ind+1, i], d2q_dxdz=self.d2q_dxdz[ind+1, i], props=self.atm_props, Uinf=self.Uinf, \
+                        turb_clsr=self.turb_clsr, lam_clsr=self.lam_clsr, transition_envelope=self.transition_envelope, transition=False)
             if ind!=0:
                 s=self.s[ind-1, i, :]@(self.posits[ind-1, i, :]-self.posits[ind, i, :])
                 m=self.dq_dx[ind-1, i]*s/self.qes[ind-1, i]
                 self.matrix[i][ind-1]=stat.station(delta=self.extrap(s, m), qe=self.qes[ind-1, i], dq_dx=self.dq_dx[ind-1, i], \
-                    dq_dz=self.dq_dz[ind-1, i], d2q_dx2=self.d2q_dx2[ind-1, i], d2q_dxdz=self.d2q_dxdz[ind-1, i], props=self.atm_props, clsr=self.clsr, Uinf=self.Uinf)
+                    dq_dz=self.dq_dz[ind-1, i], d2q_dx2=self.d2q_dx2[ind-1, i], d2q_dxdz=self.d2q_dxdz[ind-1, i], props=self.atm_props, Uinf=self.Uinf, \
+                        turb_clsr=self.turb_clsr, lam_clsr=self.lam_clsr, transition_envelope=self.transition_envelope, transition=False)
         
     def _propagate(self):
         #propagate growth in boundary layer from row to row
@@ -225,8 +232,8 @@ class mesh:
                 ds, dc=self.matrix[i][j-1].calcpropag()
                 relpos=self.posits[j, i, :]-self.posits[j-1, i, :]
                 d=self.matrix[i][j-1].delta+ds*relpos@self.s[j-1, i, :]+dc*relpos@self.c[j-1, i, :]
-                self.matrix[i][j]=stat.station(delta=d, qe=self.qes[j, i], dq_dx=self.dq_dx[j, i], dq_dz=self.dq_dz[j, i], d2q_dx2=self.d2q_dx2[j, i], d2q_dxdz=self.d2q_dxdz[j, i], clsr=self.clsr, \
-                    props=self.atm_props, Uinf=self.Uinf)
+                self.matrix[i][j]=stat.station(delta=d, qe=self.qes[j, i], dq_dx=self.dq_dx[j, i], dq_dz=self.dq_dz[j, i], d2q_dx2=self.d2q_dx2[j, i], d2q_dxdz=self.d2q_dxdz[j, i], \
+                    props=self.atm_props, Uinf=self.Uinf, turb_clsr=self.turb_clsr, lam_clsr=self.lam_clsr, transition_envelope=self.transition_envelope, transition=self.matrix[i][j-1].has_transition())
             
             #go in the other direction where qe is in the opposite direction
 
@@ -234,8 +241,8 @@ class mesh:
                 ds, dc=self.matrix[i][j+1].calcpropag()
                 relpos=self.posits[j, i, :]-self.posits[j+1, i, :]
                 d=self.matrix[i][j+1].delta+ds*relpos@self.s[j+1, i, :]+dc*relpos@self.c[j+1, i, :]
-                self.matrix[i][j]=stat.station(delta=d, qe=self.qes[j, i], dq_dx=self.dq_dx[j, i], dq_dz=self.dq_dz[j, i], d2q_dx2=self.d2q_dx2[j, i], d2q_dxdz=self.d2q_dxdz[j, i], clsr=self.clsr, \
-                    props=self.atm_props, Uinf=self.Uinf)
+                self.matrix[i][j]=stat.station(delta=d, qe=self.qes[j, i], dq_dx=self.dq_dx[j, i], dq_dz=self.dq_dz[j, i], d2q_dx2=self.d2q_dx2[j, i], d2q_dxdz=self.d2q_dxdz[j, i], \
+                    props=self.atm_props, Uinf=self.Uinf, turb_clsr=self.turb_clsr, lam_clsr=self.lam_clsr, transition_envelope=self.transition_envelope, transition=self.matrix[i][j+1].has_transition())
             self.matrix[i][-1].calc_data()
             self.matrix[i][0].calc_data()
 
@@ -244,7 +251,7 @@ class mesh:
         self._propagate()
 
 
-nm=5000
+'''nm=5000
 nn=2
 L=0.1
 Uinf=10.0
@@ -269,4 +276,4 @@ xxs, yys=np.meshgrid(xs, ys)
 fig=plt.figure()
 ax=plt.axes(projection='3d')
 ax.plot_surface(xxs, yys, ds)
-plt.show()
+plt.show()'''

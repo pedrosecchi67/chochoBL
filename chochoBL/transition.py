@@ -4,6 +4,9 @@ from station import *
 
 '''
 Module containing functions necessary for transition prediction
+
+All should be defined as boolean returning functions that recieve the station at hand as input,
+and are to be summoned from within stations as transition envelopes.
 '''
 
 def Tollmien_Schlichting_Drela(stat):
@@ -17,7 +20,7 @@ def Tollmien_Schlichting_Drela(stat):
     Hk=stat.dx/stat.th[0, 0]
 
     #deducing critical Reynolds number (in respect to theta) considering fit data
-    log10Reth_critical=(1.415/(Hk-1.0)-0.489)*tanh(20.0/(Hk-1.0)-12.9)+3.295/(Hk-1.0)+0.44
+    log10Reth_critical=(1.415/(Hk-1.0)-0.489)*np.tanh(20.0/(Hk-1.0)-12.9)+3.295/(Hk-1.0)+0.44
 
     log10Reth_local=np.log10(stat.th[0, 0]*stat.qe*stat.rho/stat.atm_props.mu)
 

@@ -262,24 +262,25 @@ def read_closure(fname, ext_append=True):
 
 #look for default closure relationships in package folder
 ordir=os.getcwd()
-
 os.chdir(os.path.dirname(__file__))
 
 if os.path.exists('lam_defclosure.cls'): #change and False later
-    lam_defclosure=read_closure('lam_defclosure')
+    def_lam_closure=read_closure('lam_defclosure')
 
 else:
-    lam_defclosure=laminar_closure()
-    lam_defclosure.build()
-    lam_defclosure.dump('lam_defclosure')
+    print('Default laminar closure not found. Constructing anew')
+    def_lam_closure=laminar_closure()
+    def_lam_closure.build()
+    def_lam_closure.dump('lam_defclosure')
 
 if os.path.exists('turb_defclosure.cls'): #change and False later
-    turb_defclosure=read_closure('turb_defclosure')
+    def_turb_closure=read_closure('turb_defclosure')
 
 else:
-    turb_defclosure=turbulent_closure()
-    turb_defclosure.build()
-    turb_defclosure.dump('turb_defclosure')
+    print('Default turbulent closure not found. Constructing anew')
+    def_turb_closure=turbulent_closure()
+    def_turb_closure.build()
+    def_turb_closure.dump('turb_defclosure')
     
 os.chdir(ordir)
 del ordir
