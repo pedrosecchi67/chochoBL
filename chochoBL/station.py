@@ -8,278 +8,159 @@ import random as rnd
 import fluids.atmosphere as atm
 
 import abaqus as abq
-import closure as clsr
+from closure import *
 
-def deriv(Ksi_mat, prod_mat, prodinds=(0, 0, 0), Ksi_inds=(0, 0, 0)):
-    return prod_mat[prodinds[0], prodinds[1], prodinds[2], 1]*Ksi_mat[Ksi_inds[0], Ksi_inds[1], Ksi_inds[2], 0]+\
-        prod_mat[prodinds[0], prodinds[1], prodinds[2], 0]*Ksi_mat[Ksi_inds[0], Ksi_inds[1], Ksi_inds[2], 1]
-
-defclsr=clsr.closure(deltastar_disc=40)
 defatm=atm.ATMOSPHERE_1976(Z=0.0, dT=0.0)
 
 class station:
-    def __init__(self, clsr=defclsr, delta=0.0, dq_dx=0.0, dq_dz=0.0, d2q_dx2=0.0, d2q_dxdz=0.0, beta=0.0, dbeta_dx=0.0, dbeta_dz=0.0, props=defatm, \
+    def __init__(self, clsr=defclosure, delta=0.0, dq_dx=0.0, dq_dz=0.0, d2q_dx2=0.0, d2q_dxdz=0.0, beta=0.0, dbeta_dx=0.0, dbeta_dz=0.0, props=defatm, \
         qe=1.0, Uinf=1.0, gamma=1.4):
+        #closure relationships as input
         self.clsr=clsr
+
+        #define thicknesses
         self.delta=delta
         self.deltastar=0.0
-        self.Me=qe/props.v_sonic #small disturbance assumption: a~=ainf
+
+        #use small disturbance assumptions to calculate local Mach number
+        self.Me=qe/props.v_sonic
+
+        #calculate local densities and momentum variation rates
         self.rho=props.rho*(1.0-self.Me**2*(qe-Uinf)/Uinf) #also a small disturbance assumption: Drho/rho=-Me**2*DV/V
         self.drhoq_dx=(1.0-self.Me**2)*self.rho*dq_dx
         self.drhoq_dz=(1.0-self.Me**2)*self.rho*dq_dz
-        self.Lambda=delta**2*self.drhoq_dx/props.mu
         drho_dx=-self.Me*self.rho*dq_dx/props.v_sonic
         drho_dz=-self.Me*self.rho*dq_dz/props.v_sonic
         self.d2rhoq_dx2=-2*self.Me*(dq_dx**2)*self.rho/props.v_sonic+(1.0-self.Me**2)*(drho_dx*dq_dx+self.rho*d2q_dx2)
         self.d2rhoq_dxdz=-2*self.Me*dq_dx*dq_dz*self.rho/props.v_sonic+(1.0-self.Me**2)*(drho_dz*dq_dx+self.rho*d2q_dxdz)
+
+        #calculating shape parameter Lambda=fpp
+        self.Lambda=-delta**2*self.drhoq_dx/props.mu
+
+        #setting crossflow and its variations along the axes
         self.beta=beta
         self.dbeta_dx=dbeta_dx
         self.dbeta_dz=dbeta_dz
+
+        #setting atmospheric properties
+        self.atm_props=props
+
+        #setting freestream properties
+        self.qe=qe
         self.dq_dx=dq_dx
         self.dq_dz=dq_dz
-        self.atm_props=props
-        self.qe=qe
         self.dyn_press=self.rho*qe**2/2
+
+        #setting local Reynolds number in respect to thickness
         self.Red=self.rho*self.qe*self.delta/props.mu
-        self.pp_w=clsr.ap_w+clsr.bp_w*self.Lambda
-    def calc_derivs_x(self, dd_dx_seed=1.0, Ksi_mat_t1_arg=np.zeros((3, 3, 3, 3, 2))):
-        dLambda_dx=(2*dd_dx_seed*self.drhoq_dx+self.delta*self.d2rhoq_dx2)*self.delta/self.atm_props.mu
+    
+    def _calc_parameter_derivatives(self, dd_dx, dd_dz):
+        dLambda_dx=-self.delta*(2*dd_dx*self.drhoq_dx+self.delta*self.d2rhoq_dx2)/self.atm_props.mu
+        dLambda_dz=-self.delta*(2*dd_dz*self.drhoq_dx+self.delta*self.d2rhoq_dxdz)/self.atm_props.mu
 
-        dRed_dx=(dd_dx_seed*self.rho*self.qe+self.delta*self.drhoq_dx)/self.atm_props.mu
+        dRed_dx=(self.qe*self.rho*dd_dx+self.drhoq_dx*self.delta)/self.atm_props.mu
+        dRed_dz=(self.qe*self.rho*dd_dz+self.drhoq_dz*self.delta)/self.atm_props.mu
 
+        return dLambda_dx, dLambda_dz, dRed_dx, dRed_dz
+
+    def _eqns_solve(self, Ksi_mat_t1=np.zeros((3, 3, 3, 3, 2))):
         if self.delta!=0.0:
-            dUt_dx=-(dRed_dx*self.Ut**2*(1.0-np.cos(self.beta))+self.Red*self.Ut**2*np.sin(self.beta)*self.dbeta_dx+dLambda_dx*self.clsr.bp_w*self.C_Ut_dp\
-                -self.pp_w*self.Ut**2*self.up_prime_edge*dRed_dx)/(2*self.Red*self.Ut*(1.0-np.cos(self.beta))-self.pp_w*(self.up_edge+self.Red*self.Ut*self.up_prime_edge))
-        else:
-            dUt_dx=0.0
+            #calculating local thicknesses according to closure relationships
+            th, dx, dz, Cf=self.clsr(self.Lambda, self.Red)
 
-        ddeltastar_dx=dRed_dx*self.Ut+self.Red*dUt_dx
+            #calculating thickness tensor derivatives
+            dth_dLambda, dth_dRed=self.clsr(self.Lambda, self.Red, nu=True)
 
-        dC_dx=self.dC_dUt*dUt_dx+self.dC_ddp*ddeltastar_dx
-        dtb_dx=self.dbeta_dx*(1.0+self.tanb**2)**2
+            #generating crossflow conversion matrix and its derivatives
+            tanb=np.tan(self.beta)
+            sec2=np.sqrt(tanb**2+1.0)
+            dtanb_dx=self.dbeta_dx*sec2
+            dtanb_dz=self.dbeta_dz*sec2
+            dtanb2_dx=2*tanb*dtanb_dx
+            dtanb2_dz=2*tanb*dtanb_dz
 
-        Ksi_mat_t1=np.copy(Ksi_mat_t1_arg)
-        Ksi_mat_t1[:, :, :, :, 1]*=ddeltastar_dx
+            cross=np.array([[1.0, tanb], [tanb, tanb**2]])
+            dcross_dx=np.array([[0.0, dtanb_dx], [dtanb_dx, dtanb2_dx]])
+            dcross_dz=np.array([[0.0, dtanb_dz], [dtanb_dz, dtanb2_dz]])
 
-        Ksi_mat_t2=np.zeros((3, 3, 3, 2))
-        Ksi_mat_t2[:, :, 0, :]=Ksi_mat_t1[:, :, 0, 0, :]
-        Ksi_mat_t2[:, :, 1, 0]=Ksi_mat_t1[:, :, 1, 0, 0]+Ksi_mat_t1[:, :, 0, 1, 0]*self.Lambda
-        Ksi_mat_t2[:, :, 1, 1]=Ksi_mat_t1[:, :, 1, 0, 1]+Ksi_mat_t1[:, :, 0, 1, 1]*self.Lambda+Ksi_mat_t1[:, :, 0, 1, 0]*dLambda_dx
-        Ksi_mat_t2[:, :, 2, 0]=Ksi_mat_t1[:, :, 2, 0, 0]+2*Ksi_mat_t1[:, :, 1, 1, 0]*self.Lambda+Ksi_mat_t1[:, :, 0, 2, 0]*self.Lambda**2
-        Ksi_mat_t2[:, :, 2, 1]=Ksi_mat_t1[:, :, 2, 0, 1]+2*(Ksi_mat_t1[:, :, 1, 1, 1]*self.Lambda+Ksi_mat_t1[:, :, 1, 1, 0]*dLambda_dx)+\
-            Ksi_mat_t1[:, :, 0, 2, 1]*self.Lambda**2+2*Ksi_mat_t1[:, :, 0, 2, 0]*self.Lambda*dLambda_dx
-        
-        prods=np.zeros((3, 3, 3, 2))
-        for i in range(3):
-            for j in range(3):
-                for k in range(3):
-                    prods[i, j, k, 0]=self.tanb**i*self.Ut**j*self.C_Ut_dp**k
-                    if i!=0:
-                        prods[i, j, k, 1]+=i*self.tanb**(i-1)*self.Ut**j*self.C_Ut_dp**k*dtb_dx
-                    if j!=0:
-                        prods[i, j, k, 1]+=j*self.tanb**i*self.Ut**(j-1)*self.C_Ut_dp**k*dUt_dx
-                    if k!=0:
-                        prods[i, j, k, 1]+=k*self.tanb**i*self.Ut**j*self.C_Ut_dp**(k-1)*dC_dx
-        
-        dF_dx=deriv(Ksi_mat_t2, prods, prodinds=(0, 1, 0), Ksi_inds=(1, 0, 0))+deriv(Ksi_mat_t2, prods, prodinds=(0, 0, 1), Ksi_inds=(0, 0, 1))
-        dG_dx=deriv(Ksi_mat_t2, prods, prodinds=(1, 1, 0), Ksi_inds=(1, 1, 0))+deriv(Ksi_mat_t2, prods, prodinds=(1, 0, 1), Ksi_inds=(0, 1, 1))
-        dH_dx=deriv(Ksi_mat_t2, prods, prodinds=(1, 2, 0), Ksi_inds=(2, 1, 0))+2*deriv(Ksi_mat_t2, prods, prodinds=(1, 1, 1), Ksi_inds=(1, 1, 1))+\
-            deriv(Ksi_mat_t2, prods, prodinds=(1, 0, 2), Ksi_inds=(0, 1, 2))
-        dI_dx=deriv(Ksi_mat_t2, prods, prodinds=(0, 2, 0), Ksi_inds=(2, 0, 0))+2*deriv(Ksi_mat_t2, prods, prodinds=(0, 1, 1), Ksi_inds=(1, 0, 1))+\
-            deriv(Ksi_mat_t2, prods, prodinds=(0, 0, 2), Ksi_inds=(0, 0, 2))
-        dJ_dx=deriv(Ksi_mat_t2, prods, prodinds=(2, 2, 0), Ksi_inds=(2, 2, 0))+2*deriv(Ksi_mat_t2, prods, prodinds=(2, 1, 1), Ksi_inds=(1, 2, 1))+\
-            deriv(Ksi_mat_t2, prods, prodinds=(2, 0, 2), Ksi_inds=(0, 2, 2))
-        
-        ddeltax_bar_dx=-dF_dx
-        ddeltaz_bar_dx=dG_dx
-        dThetaxx_dx=dF_dx-dI_dx
-        dThetaxz_dx=dG_dx-dH_dx
-        dThetazx_dx=dH_dx
-        dThetazz_dx=dJ_dx
+            #now we're due to define linear functions for the derivatives of Lambda and Red in respect to dd_dx and dd_dz
+            dl_00x, dl_00z, drd_00x, drd_00z=self._calc_parameter_derivatives(0.0, 0.0)
+            dl_11x, dl_11z, drd_11x, drd_11z=self._calc_parameter_derivatives(1.0, 1.0)
 
-        #return: ddx_bar_deps, ddz, ddThetaxx...
-        return dd_dx_seed*self.Thetaxx+self.delta*dThetaxx_dx, \
-            dd_dx_seed*self.Thetaxz+self.delta*dThetaxz_dx, dd_dx_seed*self.Thetazx+self.delta*dThetazx_dx, dd_dx_seed*self.Thetazz+self.delta*dThetazz_dx
-    def calc_derivs_z(self, dd_dz_seed=1.0, Ksi_mat_t1_arg=np.zeros((3, 3, 3, 3, 2))):
-        dLambda_dz=(2*dd_dz_seed*self.drhoq_dx+self.delta*self.d2rhoq_dxdz)*self.delta/self.atm_props.mu
+            #derivate quantities of interest for dd_dksi=1 and dd_dksi=0.0 (for linearization)
+            dth_00x=dth_dLambda*dl_00x+dth_dRed*drd_00x
+            dth_11x=dth_dLambda*dl_11x+dth_dRed*drd_11x
+            dth_00z=dth_dLambda*dl_00z+dth_dRed*drd_00z
+            dth_11z=dth_dLambda*dl_11z+dth_dRed*drd_11z
 
-        dRed_dz=(dd_dz_seed*self.rho*self.qe+self.delta*self.drhoq_dz)/self.atm_props.mu
+            #apply crossflow
+            dth_00x=dth_00x*cross+th*dcross_dx
+            dth_11x=dth_11x*cross+th*dcross_dx
+            dth_00z=dth_00z*cross+th*dcross_dz
+            dth_11z=dth_11z*cross+th*dcross_dz
+            th*=cross
+            dz*=tanb
 
-        if self.delta!=0.0:
-            dUt_dz=-(dRed_dz*self.Ut**2*(1.0-np.cos(self.beta))+self.Red*self.Ut**2*np.sin(self.beta)*self.dbeta_dz+dLambda_dz*self.clsr.bp_w*self.C_Ut_dp\
-                -self.pp_w*self.Ut**2*self.up_prime_edge*dRed_dz)/(2*self.Red*self.Ut*(1.0-np.cos(self.beta))-self.pp_w*(self.up_edge+self.Red*self.Ut*self.up_prime_edge))
-        else:
-            dUt_dz=0.0
+            #saving quantities of interest
+            self.th=th*self.delta
+            self.dx=dx*self.delta
+            self.dz=dz*self.delta
+            self.Cf=Cf
 
-        ddeltastar_dz=dRed_dz*self.Ut+self.Red*dUt_dz
+            #apply effective thicknesses
+            dth_00x=dth_00x*self.delta
+            dth_11x=dth_11x*self.delta+th
+            dth_00z=dth_00z*self.delta
+            dth_11z=dth_11z*self.delta+th
 
-        dC_dz=self.dC_dUt*dUt_dz+self.dC_ddp*ddeltastar_dz
-        dtb_dz=self.dbeta_dz*(1.0+self.tanb**2)**2
+            #solve equations and generate gradient of boundary layer thickness
+            RHS=np.zeros(2)
+            A=np.zeros((2, 2))
 
-        Ksi_mat_t1=np.copy(Ksi_mat_t1_arg)
-        Ksi_mat_t1[:, :, :, :, 1]*=ddeltastar_dz
+            #complete derivative linearization
+            #first quantity of interest: dthxx_dx+dthxz_dz
+            #second quantity of interest: dthzx_dx+dthzz_dz
+            b=np.array([dth_00x[0, 0]+dth_00z[0, 1], dth_00x[1, 0]+dth_00z[1, 1]])
+            A[:, 0]=dth_11x[:, 0]+dth_00z[:, 1]-b
+            A[:, 1]=dth_00x[:, 0]+dth_11z[:, 1]-b
 
-        Ksi_mat_t2=np.zeros((3, 3, 3, 2))
-        Ksi_mat_t2[:, :, 0, :]=Ksi_mat_t1[:, :, 0, 0, :]
-        Ksi_mat_t2[:, :, 1, 0]=Ksi_mat_t1[:, :, 1, 0, 0]+Ksi_mat_t1[:, :, 0, 1, 0]*self.Lambda
-        Ksi_mat_t2[:, :, 1, 1]=Ksi_mat_t1[:, :, 1, 0, 1]+Ksi_mat_t1[:, :, 0, 1, 1]*self.Lambda+Ksi_mat_t1[:, :, 0, 1, 0]*dLambda_dz
-        Ksi_mat_t2[:, :, 2, 0]=Ksi_mat_t1[:, :, 2, 0, 0]+2*Ksi_mat_t1[:, :, 1, 1, 0]*self.Lambda+Ksi_mat_t1[:, :, 0, 2, 0]*self.Lambda**2
-        Ksi_mat_t2[:, :, 2, 1]=Ksi_mat_t1[:, :, 2, 0, 1]+2*(Ksi_mat_t1[:, :, 1, 1, 1]*self.Lambda+Ksi_mat_t1[:, :, 1, 1, 0]*dLambda_dz)+\
-            Ksi_mat_t1[:, :, 0, 2, 1]*self.Lambda**2+2*Ksi_mat_t1[:, :, 0, 2, 0]*self.Lambda*dLambda_dz
-        
-        prods=np.zeros((3, 3, 3, 2))
-        for i in range(3):
-            for j in range(3):
-                for k in range(3):
-                    prods[i, j, k, 0]=self.tanb**i*self.Ut**j*self.C_Ut_dp**k
-                    if i!=0:
-                        prods[i, j, k, 1]+=i*self.tanb**(i-1)*self.Ut**j*self.C_Ut_dp**k*dtb_dz
-                    if j!=0:
-                        prods[i, j, k, 1]+=j*self.tanb**i*self.Ut**(j-1)*self.C_Ut_dp**k*dUt_dz
-                    if k!=0:
-                        prods[i, j, k, 1]+=k*self.tanb**i*self.Ut**j*self.C_Ut_dp**(k-1)*dC_dz
-        
-        
-        dF_dz=deriv(Ksi_mat_t2, prods, prodinds=(0, 1, 0), Ksi_inds=(1, 0, 0))+deriv(Ksi_mat_t2, prods, prodinds=(0, 0, 1), Ksi_inds=(0, 0, 1))
-        dG_dz=deriv(Ksi_mat_t2, prods, prodinds=(1, 1, 0), Ksi_inds=(1, 1, 0))+deriv(Ksi_mat_t2, prods, prodinds=(1, 0, 1), Ksi_inds=(0, 1, 1))
-        dH_dz=deriv(Ksi_mat_t2, prods, prodinds=(1, 2, 0), Ksi_inds=(2, 1, 0))+2*deriv(Ksi_mat_t2, prods, prodinds=(1, 1, 1), Ksi_inds=(1, 1, 1))+\
-            deriv(Ksi_mat_t2, prods, prodinds=(1, 0, 2), Ksi_inds=(0, 1, 2))
-        dI_dz=deriv(Ksi_mat_t2, prods, prodinds=(0, 2, 0), Ksi_inds=(2, 0, 0))+2*deriv(Ksi_mat_t2, prods, prodinds=(0, 1, 1), Ksi_inds=(1, 0, 1))+\
-            deriv(Ksi_mat_t2, prods, prodinds=(0, 0, 2), Ksi_inds=(0, 0, 2))
-        dJ_dz=deriv(Ksi_mat_t2, prods, prodinds=(2, 2, 0), Ksi_inds=(2, 2, 0))+2*deriv(Ksi_mat_t2, prods, prodinds=(2, 1, 1), Ksi_inds=(1, 2, 1))+\
-            deriv(Ksi_mat_t2, prods, prodinds=(2, 0, 2), Ksi_inds=(0, 2, 2))
-        
-        dThetaxx_dz=dF_dz-dI_dz
-        dThetaxz_dz=dG_dz-dH_dz
-        dThetazx_dz=dH_dz
-        dThetazz_dz=dJ_dz
+            #defining right hand side
+            RHS[0]=Cf*np.cos(self.beta)/2-self.dx*self.dq_dx/self.qe-self.dz*self.dq_dz/self.qe-(2.0-self.Me**2)*(self.th[0, 0]*self.dq_dx+self.th[0, 1]*self.dq_dz)/self.qe
+            RHS[1]=Cf*np.sin(self.beta)/2+self.delta*self.dq_dx*tanb/self.qe-(2.0-self.Me**2)*(self.th[1, 0]*self.dq_dx+self.th[1, 1]*self.dq_dz)/self.qe
 
-        #return: ddx_bar_deps, ddz, ddThetaxx...
-        return dd_dz_seed*self.Thetaxx+self.delta*dThetaxx_dz, dd_dz_seed*self.Thetaxz+self.delta*dThetaxz_dz, \
-            dd_dz_seed*self.Thetazx+self.delta*dThetazx_dz, dd_dz_seed*self.Thetazz+self.delta*dThetazz_dz
-    def calc_data(self, Ut_initguess=0.1):
-        Ksi_mat_t1=self.turb_deduce(Ut_initguess=Ut_initguess)
-
-        self.tanb=np.tan(self.beta)
-
-        self.F=self.Ut*Ksi_mat_t1[1, 0, 0, 0, 0]+self.C_Ut_dp*(Ksi_mat_t1[0, 0, 1, 0, 0]+Ksi_mat_t1[0, 0, 0, 1, 0]*self.Lambda)
-        self.G=self.tanb*(self.Ut*Ksi_mat_t1[1, 1, 0, 0, 0]+self.C_Ut_dp*(Ksi_mat_t1[0, 1, 1, 0, 0]+Ksi_mat_t1[0, 1, 0, 1, 0]*self.Lambda))
-        self.H=self.tanb*(self.Ut**2*Ksi_mat_t1[2, 1, 0, 0, 0]+2*self.C_Ut_dp*self.Ut*(Ksi_mat_t1[1, 1, 1, 0, 0]+Ksi_mat_t1[1, 1, 0, 1, 0]*self.Lambda)+\
-            self.C_Ut_dp**2*(Ksi_mat_t1[0, 1, 2, 0, 0]+2*self.Lambda*Ksi_mat_t1[0, 1, 1, 1, 0]+Ksi_mat_t1[0, 1, 0, 2, 0]*self.Lambda**2))
-        self.I=self.Ut**2*Ksi_mat_t1[2, 0, 0, 0, 0]+2*self.C_Ut_dp*self.Ut*(Ksi_mat_t1[1, 0, 1, 0, 0]+Ksi_mat_t1[1, 0, 0, 1, 0]*self.Lambda)+\
-            self.C_Ut_dp**2*(Ksi_mat_t1[0, 0, 2, 0, 0]+2*Ksi_mat_t1[0, 0, 1, 1, 0]*self.Lambda+Ksi_mat_t1[0, 0, 0, 2, 0]*self.Lambda**2)
-        self.J=self.tanb**2*(Ksi_mat_t1[2, 2, 0, 0, 0]*self.Ut**2+2*self.C_Ut_dp*self.Ut*(Ksi_mat_t1[1, 2, 1, 0, 0]+Ksi_mat_t1[1, 2, 0, 1, 0]*self.Lambda)+\
-            self.C_Ut_dp**2*(Ksi_mat_t1[0, 2, 2, 0, 0]+2*Ksi_mat_t1[0, 2, 1, 1, 0]*self.Lambda+Ksi_mat_t1[0, 2, 0, 2, 0]*self.Lambda**2))
-        
-        self.deltax_bar=1.0-self.F
-        self.deltaz_bar=self.G
-        self.Thetaxx=self.F-self.I
-        self.Thetaxz=self.G-self.H
-        self.Thetazx=self.H
-        self.Thetazz=self.J
-
-        return Ksi_mat_t1
-    def turb_deduce(self, Ut_initguess=0.1):
-        if self.delta!=0.0:
-            self.Ut=sopt.fsolve(self.turb_it, x0=Ut_initguess)[0]
-        else:
-            self.Ut=0.0 #case for attachment lines and reversed flows in which solution is impossible: Tw assumed approximately 0
-        self.deltastar=self.Ut*self.Red
-        self.Cf=self.Ut**2*2
-        self.up_edge=self.clsr.LOTW(self.deltastar)
-        self.C_Ut_dp=(1.0-self.Ut*self.up_edge)
-        if self.deltastar!=0.0:
-            h=self.deltastar/self.clsr.Ksi_disc
-            self.up_prime_edge=(self.clsr.LOTW(self.deltastar+h)-self.clsr.LOTW(self.deltastar-h))/(2*h)
-        else:
-            self.up_prime_edge=0.0
-
-        #obtain Ksis from closure relationships
-        Ksi_W=self.clsr.Ksi_W(self.deltastar)
-        dKsi_W_ddp=self.clsr.Ksi_W(self.deltastar, dx=1)
-        Ksi_W2=self.clsr.Ksi_W2(self.deltastar)
-        dKsi_W2_ddp=self.clsr.Ksi_W2(self.deltastar, dx=1)
-        Ksi_Wa=self.clsr.Ksi_Wa(self.deltastar)
-        dKsi_Wa_ddp=self.clsr.Ksi_Wa(self.deltastar, dx=1)
-        Ksi_Wb=self.clsr.Ksi_Wb(self.deltastar)
-        dKsi_Wb_ddp=self.clsr.Ksi_Wb(self.deltastar, dx=1)
-        Ksi_WM=self.clsr.Ksi_WM(self.deltastar)
-        dKsi_WM_ddp=self.clsr.Ksi_WM(self.deltastar, dx=1)
-        Ksi_WMa=self.clsr.Ksi_WMa(self.deltastar)
-        dKsi_WMa_ddp=self.clsr.Ksi_WMa(self.deltastar, dx=1)
-        Ksi_WMb=self.clsr.Ksi_WMb(self.deltastar)
-        dKsi_WMb_ddp=self.clsr.Ksi_WMb(self.deltastar, dx=1)
-        Ksi_W2M=self.clsr.Ksi_W2M(self.deltastar)
-        dKsi_W2M_ddp=self.clsr.Ksi_W2M(self.deltastar, dx=1)
-        Ksi_W2M2=self.clsr.Ksi_W2M2(self.deltastar)
-        dKsi_W2M2_ddp=self.clsr.Ksi_W2M2(self.deltastar, dx=1)
-        Ksi_WM2a=self.clsr.Ksi_WM2a(self.deltastar)
-        dKsi_WM2a_ddp=self.clsr.Ksi_WM2a(self.deltastar, dx=1)
-        Ksi_WM2b=self.clsr.Ksi_WM2b(self.deltastar)
-        dKsi_WM2b_ddp=self.clsr.Ksi_WM2b(self.deltastar, dx=1)
-
-        #obtain ksis into matrix
-        Ksi_mat_t1=np.zeros((3, 3, 3, 3, 2)) #into the matrix: indexes denote: W, M, a, b degree, and finally derivative index (0 for none, 1 for x, 2 for z)
-        Ksi_mat_t1[1, 0, 0, 0, 0]=Ksi_W
-        Ksi_mat_t1[1, 0, 0, 0, 1]=dKsi_W_ddp
-        Ksi_mat_t1[2, 0, 0, 0, 0]=Ksi_W2
-        Ksi_mat_t1[2, 0, 0, 0, 1]=dKsi_W2_ddp
-        Ksi_mat_t1[1, 0, 1, 0, 0]=Ksi_Wa
-        Ksi_mat_t1[1, 0, 1, 0, 1]=dKsi_Wa_ddp
-        Ksi_mat_t1[1, 0, 0, 1, 0]=Ksi_Wb
-        Ksi_mat_t1[1, 0, 0, 1, 1]=dKsi_Wb_ddp
-        Ksi_mat_t1[1, 1, 0, 0, 0]=Ksi_WM
-        Ksi_mat_t1[1, 1, 0, 0, 1]=dKsi_WM_ddp
-        Ksi_mat_t1[1, 1, 1, 0, 0]=Ksi_WMa
-        Ksi_mat_t1[1, 1, 1, 0, 1]=dKsi_WMa_ddp
-        Ksi_mat_t1[1, 1, 0, 1, 0]=Ksi_WMb
-        Ksi_mat_t1[1, 1, 0, 1, 1]=dKsi_WMb_ddp
-        Ksi_mat_t1[2, 1, 0, 0, 0]=Ksi_W2M
-        Ksi_mat_t1[2, 1, 0, 0, 1]=dKsi_W2M_ddp
-        Ksi_mat_t1[2, 2, 0, 0, 0]=Ksi_W2M2
-        Ksi_mat_t1[2, 2, 0, 0, 1]=dKsi_W2M2_ddp
-        Ksi_mat_t1[1, 2, 1, 0, 0]=Ksi_WM2a
-        Ksi_mat_t1[1, 2, 1, 0, 1]=dKsi_WM2a_ddp
-        Ksi_mat_t1[1, 2, 0, 1, 0]=Ksi_WM2b
-        Ksi_mat_t1[1, 2, 0, 1, 1]=dKsi_WM2b_ddp
-        Ksi_mat_t1[0, 0, 1, 0, 0]=self.clsr.Ksi_a
-        Ksi_mat_t1[0, 0, 0, 1, 0]=self.clsr.Ksi_b
-        Ksi_mat_t1[0, 0, 1, 1, 0]=self.clsr.Ksi_ab
-        Ksi_mat_t1[0, 0, 2, 0, 0]=self.clsr.Ksi_a2
-        Ksi_mat_t1[0, 0, 0, 2, 0]=self.clsr.Ksi_b2
-        Ksi_mat_t1[0, 1, 1, 0, 0]=self.clsr.Ksi_Ma
-        Ksi_mat_t1[0, 1, 0, 1, 0]=self.clsr.Ksi_Mb
-        Ksi_mat_t1[0, 1, 1, 1, 0]=self.clsr.Ksi_Mab
-        Ksi_mat_t1[0, 1, 2, 0, 0]=self.clsr.Ksi_Ma2
-        Ksi_mat_t1[0, 1, 0, 2, 0]=self.clsr.Ksi_Mb2
-        Ksi_mat_t1[0, 2, 1, 1, 0]=self.clsr.Ksi_M2ab
-        Ksi_mat_t1[0, 2, 2, 0, 0]=self.clsr.Ksi_M2a2
-        Ksi_mat_t1[0, 2, 0, 2, 0]=self.clsr.Ksi_M2b2
-
-        self.dC_dUt=-self.up_edge
-        self.dC_ddp=-self.up_prime_edge*self.Ut
-        return Ksi_mat_t1
-    def turb_it(self, Ut): #function defining a single iteration for Newton's method
-        return self.Red*Ut**2*(1.0-np.cos(self.beta))+self.pp_w*(1.0-Ut*self.clsr.LOTW(self.Red*Ut))
-    def eqns_solve(self, Ksi_mat_t1=np.zeros((3, 3, 3, 3, 2))):
-        if self.delta!=0.0:
-            #structure: A{dd_dx, dd_dz}.T+b={dthxx_dx+dthxz_dz, dthzx_dx+dthzz_dz}.T
-            thxx_0x, thxz_0x, thzx_0x, thzz_0x=self.calc_derivs_x(dd_dx_seed=0.0, Ksi_mat_t1_arg=Ksi_mat_t1)
-            thxx_0z, thxz_0z, thzx_0z, thzz_0z=self.calc_derivs_z(dd_dz_seed=0.0, Ksi_mat_t1_arg=Ksi_mat_t1)
-            thxx_1x, thxz_1x, thzx_1x, thzz_1x=self.calc_derivs_x(dd_dx_seed=1.0, Ksi_mat_t1_arg=Ksi_mat_t1)
-            thxx_1z, thxz_1z, thzx_1z, thzz_1z=self.calc_derivs_z(dd_dz_seed=1.0, Ksi_mat_t1_arg=Ksi_mat_t1)
-            b=np.array([thxx_0x+thxz_0z, thzx_0x+thzz_0z])
-            A=np.array([[thxx_1x-thxx_0x, thxz_1z-thxz_0z], [thzx_1x-thzx_0x, thzz_1z-thzz_0z]])
-            RHS=np.array([np.cos(self.beta), np.sin(self.beta)])*self.Cf/2+np.array([-(self.deltax_bar*self.dq_dx+self.deltaz_bar*self.dq_dz), self.dq_dx*np.tan(self.beta)])*self.delta/self.qe-\
-                np.array([self.Thetaxx*self.dq_dx+self.Thetaxz*self.dq_dz, self.Thetazx*self.dq_dx+self.Thetazz*self.dq_dz])*(2.0-self.Me**2)*self.delta/self.qe
+            #solve linear system
             rank=lg.matrix_rank(A)
+
             if rank==2:
                 return lg.solve(A, RHS-b)
             else:
-                return (RHS-b)[0]/A[0, 0], 0.0
+                return (RHS-b)[0]/A[0, 0], 0.0 #solve only on streamwise axis if matrix is ill-conditioned
         else:
             return np.array([0.0, 0.0])
-    def calcpropag(self, Ut_initguess=0.1):
-        Ksi_mat_t1=self.calc_data(Ut_initguess=Ut_initguess)
-        return self.eqns_solve(Ksi_mat_t1=Ksi_mat_t1)
-        
+
+    def calc_data(self):
+        '''
+        function to calculate local flow data regardless of derivatives
+        '''
+
+        #calculating local thicknesses according to closure relationships
+        if self.delta!=0.0:
+            th, dx, dz, Cf=self.clsr(self.Lambda, self.Red)
+        else:
+            th=np.zeros((2, 2))
+            dx=0.0
+            dz=0.0
+            Cf=0.0
+
+        #applying crossflow
+        tanb=np.tan(self.beta)
+        cross=np.array([[1.0, tanb], [tanb, tanb**2]])
+
+        #compute thicknesses
+        self.th=th*cross*self.delta
+        self.dx=dx*self.delta
+        self.dz=dz*self.delta
+        self.Cf=Cf
+
+    def calcpropag(self):
+        return self._eqns_solve()

@@ -116,7 +116,7 @@ class closure:
         self.w=w
         self.M=M
 
-    def build(self, Lambdas=np.linspace(-2.0, 4.0, 50), Reds=10**np.linspace(2.0, 6.0, 50), disc=100, \
+    def build(self, Lambdas=np.linspace(-2.0, 4.9, 50), Reds=10**np.linspace(2.0, 6.0, 50), disc=100, \
         strategy=lambda x: x, Ut_initguess=0.1, log_Reynolds=True):
         '''
         build the closure relationships for a given range of Lambdas and thickness Reynolds numbers. strategy and disc arguments
@@ -168,7 +168,7 @@ class closure:
         if nu:
             #return theta tensor Lambda and Red derivatives
             return np.array([[self.thxx(Lambda, rd, dx=1), self.thxz(Lambda, rd, dx=1)], [self.thzx(Lambda, rd, dx=1), self.thzz(Lambda, rd, dx=1)]]), \
-                np.array([[self.thxx(Lambda, rd, dy=1), self.thxz(Lambda, rd, dy=1)], [self.thzx(Lambda, rd, dy=1), self.thzz(Lambda, rd, dy=1)]])/(rd if self.log_Reynolds else 1.0)
+                np.array([[self.thxx(Lambda, rd, dy=1), self.thxz(Lambda, rd, dy=1)], [self.thzx(Lambda, rd, dy=1), self.thzz(Lambda, rd, dy=1)]])/(Red if self.log_Reynolds else 1.0)
         
         else:
             #return tensor, dx, dz, Cf
@@ -207,12 +207,15 @@ def read_closure(fname, ext_append=True):
 
 #look for default closure relationships in package folder
 ordir=os.getcwd()
+
 os.chdir(os.path.dirname(__file__))
-if os.path.exists('defclosure.cls'):
+if os.path.exists('defclosure.cls'): #change and False later
     defclosure=read_closure('defclosure')
+
 else:
     defclosure=closure()
     defclosure.build()
     defclosure.dump('defclosure')
+    
 os.chdir(ordir)
 del ordir
