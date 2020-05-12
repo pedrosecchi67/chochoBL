@@ -251,10 +251,10 @@ class mesh:
         self._propagate()
 
 
-'''nm=5000
+nm=5000
 nn=2
-L=0.1
-Uinf=10.0
+L=3.0
+Uinf=20.0
 xs=np.linspace(0.0, L, nm)
 ys=np.linspace(0.0, 1.0, nn)
 posits=np.zeros((nm, nn, 3))
@@ -270,10 +270,15 @@ msh.calculate()
 print(tm.time()-t)
 ds=np.array([[elem.delta for elem in strip] for strip in msh.matrix])
 
-print(ds[-1, -1], 5.0*L/np.sqrt(1.224*L*Uinf/1.72e-5))
+for i in range(len(msh.matrix[0])):
+    print([msh.matrix[j][i].has_transition() for j in range(len(msh.matrix))])
+    print([msh.matrix[j][i].transition for j in range(len(msh.matrix))])
+
+print(ds[-1, -1], 0.665*np.sqrt(stat.defatm.mu*L/(Uinf*stat.defatm.rho)))
+print('ReL: ', stat.defatm.rho*L*Uinf/stat.defatm.mu)
 
 xxs, yys=np.meshgrid(xs, ys)
 fig=plt.figure()
 ax=plt.axes(projection='3d')
 ax.plot_surface(xxs, yys, ds)
-plt.show()'''
+plt.show()

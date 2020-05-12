@@ -14,3 +14,13 @@ class abaqus:
     def __call__(self, x, y, dx=0, dy=0):
         
         return self.rule(x, y, dx=dx, dy=dy)[0]
+
+class abaqus_1d:
+    def __init__(self, x, y):
+        self.rule=sinterp.UnivariateSpline(x, y)
+
+        self.xlims=[np.amin(x), np.amax(x)]
+    
+    def __call__(self, x, dx=0):
+        
+        return self.rule(x, nu=dx)
