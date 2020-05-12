@@ -19,22 +19,24 @@ def Gersten_Herwig_LOTW(yp):
         Gersten_Herwig_Lambda*yp+1.0))/3+(np.arctan((2*Gersten_Herwig_Lambda*yp-1.0)/np.sqrt(3))+np.pi/6)/np.sqrt(3))/Gersten_Herwig_Lambda+\
             np.log(1.0+Von_Karman_kappa*Gersten_Herwig_B*(yp)**4)/(4*Von_Karman_kappa)
 
-def laminar_profile_analyse(fun, M, disc=100, strategy=lambda x: x):
+def laminar_profile_analyse(Lambda, Red, a, b, M, disc=100, strategy=lambda x: x):
     '''
     Analyse laminar profile, according to function describing streamwise profile (fun) and
     crossflow profile (M, uc/q=M(eta)*fun(eta)*tan(crossflow))
     ======
     parameters
     ======
-    * fun: streamwise profile function
+    * a, b: streamwise profile functions: f(eta)=a(eta)+b(eta)*Lambda, Lambda equal to fpp at the wall
     * M: crossflow profile (M, uc/q=M(eta)*fun(eta)*tan(crossflow))
     * disc: discretization for integration along the boundary layer
     * strategy: function distributing etas across BL (etas=strategy(np.linspace(0.0, 1.0, disc)))
     ======
     returns
     ======
-    deltastar_x/delta, deltastar_z/delta, thxx/delta, thxz/(delta*tan(crossflow)), thzx/(delta*tan(crossflow)), thzz/(delta*tan(crossflow)**2)
+    deltastar_x/delta, deltastar_z/delta, thxx/delta, thxz/(delta*tan(crossflow)), thzx/(delta*tan(crossflow)), thzz/(delta*tan(crossflow)**2), Cf
     '''
+
+    fun=lambda eta: a(eta)+Lambda*b(eta)
 
     etas=strategy(np.linspace(0.0, 1.0, disc))
     fs=fun(etas)
@@ -53,7 +55,11 @@ def laminar_profile_analyse(fun, M, disc=100, strategy=lambda x: x):
     thzx=f2m
     thzz=f2m2
 
-    return dx, dz, thxx, thxz, thzx, thzz
+    h=1.0/disc
+    fp=fun(h)/h
+    Cf=fp*2/Red #Cf*Reynolds number in respect to delta
+
+    return dx, dz, thxx, thxz, thzx, thzz, Cf
 
 def turbulent_profile_analyse(A, deltastar, M=lambda x: 1.0-x**2, LOTW=Gersten_Herwig_LOTW, outter_profile=lambda x: np.sin(np.pi*x/2)**2, disc=100, strategy=lambda x: x):
     '''
@@ -103,42 +109,28 @@ def turbulent_profile_analyse(A, deltastar, M=lambda x: 1.0-x**2, LOTW=Gersten_H
 
     return dx, dz, thxx, thxz, thzx, thzz, Cf
 
-def get_A_dst(Lambda, wpp_w, Red, LOTW, initguess):
-    Ut=sopt.fsolve(lambda Ut: (1.0-Lambda/wpp_w)-Ut*LOTW(Red*Ut), x0=initguess)[0]
-    A=Lambda/(Ut*wpp_w)
-    return A, Ut*Red
-
 class closure:
-    def __init__(self, M=lambda eta: 1.0-eta**2, LOTW=Gersten_Herwig_LOTW, w=lambda x: np.sin(np.pi*x/2)**2, disc=100):
-        h=1.0/disc
-        self.wpp_w=(w(h)-2*w(0)+w(-h))/h**2
-        self.LOTW=LOTW
-        self.w=w
-        self.M=M
+    def __init__(self, disc):
+        self.disc=disc
 
-    def build(self, Lambdas=np.linspace(-2.0, 4.9, 50), Reds=10**np.linspace(2.0, 6.0, 50), disc=100, \
-        strategy=lambda x: x, Ut_initguess=0.1, log_Reynolds=True):
+    def dump(self, fname, ext_append=True):
         '''
-        build the closure relationships for a given range of Lambdas and thickness Reynolds numbers. strategy and disc arguments
-        are referrent to function turbulent_profile_analyse(). log_Reynolds set input Reynolds numbers to logarythmic scale before splining.
+        method to dump a set of closure relationships to a binary file.
+        ======
+        args
+        ======
+        fname: file name (or complete directory) within which to save the pickled closure relationships
+        ext_append: wether to add .cls to file name
         '''
 
-        nm=len(Lambdas)
-        nn=len(Reds)
-
-        dx=np.zeros((nm, nn))
-        dz=np.zeros((nm, nn))
-        thxx=np.zeros((nm, nn))
-        thxz=np.zeros((nm, nn))
-        thzx=np.zeros((nm, nn))
-        thzz=np.zeros((nm, nn))
-        Cf=np.zeros((nm, nn))
-
-        for i, l in enumerate(Lambdas):
-            for j, rd in enumerate(Reds):
-                a, d=get_A_dst(Lambda=l, wpp_w=self.wpp_w, Red=rd, LOTW=self.LOTW, initguess=Ut_initguess)
-                dx[i, j], dz[i, j], thxx[i, j], thxz[i, j], thzx[i, j], thzz[i, j], Cf[i, j]=turbulent_profile_analyse(a, d, \
-                    M=self.M, LOTW=self.LOTW, outter_profile=self.w, disc=disc, strategy=strategy)
+        fil=open(fname+'.cls' if ext_append else '', 'wb')
+        pck.dump(self, fil)
+        fil.close()
+    
+    def build(self, Lambdas, Reds, thxx, thxz, thzx, thzz, dx, dz, Cf, log_Reynolds=False):
+        '''
+        Build closure relationship as a spline mapping of provided properties
+        '''
 
         self.thxx=abq.abaqus(Lambdas, np.log(Reds) if log_Reynolds else Reds, thxx)
         self.thxz=abq.abaqus(Lambdas, np.log(Reds) if log_Reynolds else Reds, thxz)
@@ -175,19 +167,82 @@ class closure:
             return np.array([[self.thxx(Lambda, rd), self.thxz(Lambda, rd)], [self.thzx(Lambda, rd), self.thzz(Lambda, rd)]]), \
                 self.dx(Lambda, rd), self.dz(Lambda, rd), self.Cf(Lambda, rd)
 
-    def dump(self, fname, ext_append=True):
+class laminar_closure(closure):
+    def __init__(self, disc=100, a=lambda x: 2*x-2*x**3+x**4, b=lambda x: -x*(1.0-x)**3/6, M=lambda eta: 1.0-eta**2):
+        super().__init__(disc)
+
+        #recording velocity profiles: f(eta)=a(eta)+Lambda*b(eta), Lambda=fpp at the wall
+        self.a=a
+        self.b=b
+        self.M=M
+    
+    def build(self, Lambdas=np.linspace(-2.0, 4.9, 50), Reds=10**np.linspace(2.0, 6.0, 50), \
+        strategy=lambda x: x, log_Reynolds=True):
         '''
-        method to dump a set of closure relationships to a binary file.
-        ======
-        args
-        ======
-        fname: file name (or complete directory) within which to save the pickled closure relationships
-        ext_append: wether to add .cls to file name
+        Build laminar closure relationships for laminar flow for velocity profile f(eta)=a(eta)+Lambda*b(eta), 
+        Lambda=fpp at the wall (deduced from freestream). log_Reynolds sets input Reynolds numbers to logarythmic scale before splining.
         '''
 
-        fil=open(fname+'.cls' if ext_append else '', 'wb')
-        pck.dump(self, fil)
-        fil.close()
+        nm=len(Lambdas)
+        nn=len(Reds)
+
+        dx=np.zeros((nm, nn))
+        dz=np.zeros((nm, nn))
+        thxx=np.zeros((nm, nn))
+        thxz=np.zeros((nm, nn))
+        thzx=np.zeros((nm, nn))
+        thzz=np.zeros((nm, nn))
+        Cf=np.zeros((nm, nn))
+
+        for i, l in enumerate(Lambdas):
+            for j, rd in enumerate(Reds):
+                dx[i, j], dz[i, j], thxx[i, j], thxz[i, j], thzx[i, j], thzz[i, j], Cf[i, j]=laminar_profile_analyse(l, rd, \
+                    a=self.a, b=self.b, M=self.M, disc=self.disc, strategy=strategy)
+        
+        super().build(Lambdas=Lambdas, Reds=Reds, thxx=thxx, thxz=thxz, thzx=thzx, thzz=thzz, dx=dx, dz=dz, Cf=Cf, log_Reynolds=log_Reynolds)
+
+def get_A_dst(Lambda, wpp_w, Red, LOTW, initguess):
+    Ut=sopt.fsolve(lambda Ut: (1.0-Lambda/wpp_w)-Ut*LOTW(Red*Ut), x0=initguess)[0]
+    A=Lambda/(Ut*wpp_w)
+    return A, Ut*Red
+
+class turbulent_closure(closure):
+    def __init__(self, M=lambda eta: 1.0-eta**2, LOTW=Gersten_Herwig_LOTW, w=lambda x: np.sin(np.pi*x/2)**2, disc=100):
+        h=1.0/disc
+        self.wpp_w=(w(h)-2*w(0)+w(-h))/h**2
+        self.LOTW=LOTW
+        self.w=w
+        self.M=M
+
+        super().__init__(disc)
+
+    def build(self, Lambdas=np.linspace(-2.0, 4.9, 50), Reds=10**np.linspace(2.0, 6.0, 50), \
+        strategy=lambda x: x, Ut_initguess=0.1, log_Reynolds=True):
+        '''
+        Build the closure relationships for a given range of Lambdas and thickness Reynolds numbers. strategy and disc arguments
+        are referrent to function turbulent_profile_analyse(). log_Reynolds sets input Reynolds numbers to logarythmic scale before splining.
+        '''
+
+        nm=len(Lambdas)
+        nn=len(Reds)
+
+        dx=np.zeros((nm, nn))
+        dz=np.zeros((nm, nn))
+        thxx=np.zeros((nm, nn))
+        thxz=np.zeros((nm, nn))
+        thzx=np.zeros((nm, nn))
+        thzz=np.zeros((nm, nn))
+        Cf=np.zeros((nm, nn))
+
+        for i, l in enumerate(Lambdas):
+            for j, rd in enumerate(Reds):
+                a, d=get_A_dst(Lambda=l, wpp_w=self.wpp_w, Red=rd, LOTW=self.LOTW, initguess=Ut_initguess)
+                dx[i, j], dz[i, j], thxx[i, j], thxz[i, j], thzx[i, j], thzz[i, j], Cf[i, j]=turbulent_profile_analyse(a, d, \
+                    M=self.M, LOTW=self.LOTW, outter_profile=self.w, disc=self.disc, strategy=strategy)
+        
+        super().build(Lambdas=Lambdas, Reds=Reds, thxx=thxx, thxz=thxz, thzx=thzx, thzz=thzz, dx=dx, dz=dz, Cf=Cf, log_Reynolds=log_Reynolds)
+
+
 
 def read_closure(fname, ext_append=True):
     '''
@@ -209,13 +264,22 @@ def read_closure(fname, ext_append=True):
 ordir=os.getcwd()
 
 os.chdir(os.path.dirname(__file__))
-if os.path.exists('defclosure.cls'): #change and False later
-    defclosure=read_closure('defclosure')
+
+if os.path.exists('lam_defclosure.cls'): #change and False later
+    lam_defclosure=read_closure('lam_defclosure')
 
 else:
-    defclosure=closure()
-    defclosure.build()
-    defclosure.dump('defclosure')
+    lam_defclosure=laminar_closure()
+    lam_defclosure.build()
+    lam_defclosure.dump('lam_defclosure')
+
+if os.path.exists('turb_defclosure.cls'): #change and False later
+    turb_defclosure=read_closure('turb_defclosure')
+
+else:
+    turb_defclosure=turbulent_closure()
+    turb_defclosure.build()
+    turb_defclosure.dump('turb_defclosure')
     
 os.chdir(ordir)
 del ordir

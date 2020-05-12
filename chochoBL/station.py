@@ -9,14 +9,15 @@ import fluids.atmosphere as atm
 
 import abaqus as abq
 from closure import *
+import transition as trans
 
 defatm=atm.ATMOSPHERE_1976(Z=0.0, dT=0.0)
 
 class station:
-    def __init__(self, clsr=defclosure, delta=0.0, dq_dx=0.0, dq_dz=0.0, d2q_dx2=0.0, d2q_dxdz=0.0, beta=0.0, dbeta_dx=0.0, dbeta_dz=0.0, props=defatm, \
-        qe=1.0, Uinf=1.0, gamma=1.4):
+    def __init__(self, turb_clsr=def_turb_closure, lam_clsr=def_lam_clsr, delta=0.0, dq_dx=0.0, dq_dz=0.0, d2q_dx2=0.0, d2q_dxdz=0.0, beta=0.0, dbeta_dx=0.0, dbeta_dz=0.0, props=defatm, \
+        qe=1.0, Uinf=1.0, gamma=1.4, transition=False):
         #closure relationships as input
-        self.clsr=clsr
+        self.turb_clsr=turb_clsr
 
         #define thicknesses
         self.delta=delta
