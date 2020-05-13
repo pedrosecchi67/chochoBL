@@ -9,11 +9,11 @@ from closure import *
 import station as stat
 import transition as trans
 
-def FS_extrap_wall(s, m, nu, Uinf): #returns Falkner-Skan boundary layer thickness according to a normal-to-wall inviscid solution (wedge angle=pi rad)
-    return np.sqrt(2*s*nu/(Uinf*(m+1)))
+def flat_plate_extrap(s,nu, Uinf): #returns Falkner-Skan boundary layer thickness according to a normal-to-wall inviscid solution (wedge angle=pi rad)
+    return 5.5*np.sqrt(s*nu/(Uinf))
 
 class mesh:
-    def __init__(self, atm_props=stat.defatm, turb_clsr=def_turb_closure, lam_clsr=def_lam_closure, posits=np.zeros((2, 2, 3)), vels=np.zeros((2, 2, 3)), Uinf=1.0, extrapfun=FS_extrap_wall, gamma=1.4, \
+    def __init__(self, atm_props=stat.defatm, turb_clsr=def_turb_closure, lam_clsr=def_lam_closure, posits=np.zeros((2, 2, 3)), vels=np.zeros((2, 2, 3)), Uinf=1.0, extrapfun=flat_plate_extrap, gamma=1.4, \
         transition_envelope=trans.Tollmien_Schlichting_Drela):
         #freestream properties
         self.Uinf=Uinf
@@ -48,7 +48,7 @@ class mesh:
         self._contour_aply()
 
         #insert extrapolation function
-        self.extrap=lambda s, m: extrapfun(s, m, self.atm_props.mu/(self.atm_props.rho*(1.0+(gamma-1.0)*(Uinf/self.atm_props.v_sonic)**2/2)**(gamma/(gamma-1.0))), Uinf)
+        self.extrap=lambda s: extrapfun(s, self.atm_props.mu/(self.atm_props.rho*(1.0+(gamma-1.0)*(Uinf/self.atm_props.v_sonic)**2/2)**(gamma/(gamma-1.0))), Uinf)
     def _local_coordinate_define(self):
         #define derivatives of coordinates in cartesian axes based on auxiliary coordinates
         self.dxdlx, self.dxdly=self._calc_derivative_aux(self.posits[:, :, 0])
@@ -211,14 +211,12 @@ class mesh:
         for i, ind in zip(range(self.nn), self.attachinds):
             if ind!=self.nm:
                 s=self.s[ind+1, i, :]@(self.posits[ind+1, i, :]-self.posits[ind, i, :])
-                m=self.dq_dx[ind+1, i]*s/self.qes[ind+1, i]
-                self.matrix[i][ind+1]=stat.station(delta=self.extrap(s, m), qe=self.qes[ind+1, i], dq_dx=self.dq_dx[ind+1, i], \
+                self.matrix[i][ind+1]=stat.station(delta=self.extrap(s), qe=self.qes[ind+1, i], dq_dx=self.dq_dx[ind+1, i], \
                     dq_dz=self.dq_dz[ind+1, i], d2q_dx2=self.d2q_dx2[ind+1, i], d2q_dxdz=self.d2q_dxdz[ind+1, i], props=self.atm_props, Uinf=self.Uinf, \
                         turb_clsr=self.turb_clsr, lam_clsr=self.lam_clsr, transition_envelope=self.transition_envelope, transition=False)
             if ind!=0:
                 s=self.s[ind-1, i, :]@(self.posits[ind-1, i, :]-self.posits[ind, i, :])
-                m=self.dq_dx[ind-1, i]*s/self.qes[ind-1, i]
-                self.matrix[i][ind-1]=stat.station(delta=self.extrap(s, m), qe=self.qes[ind-1, i], dq_dx=self.dq_dx[ind-1, i], \
+                self.matrix[i][ind-1]=stat.station(delta=self.extrap(s), qe=self.qes[ind-1, i], dq_dx=self.dq_dx[ind-1, i], \
                     dq_dz=self.dq_dz[ind-1, i], d2q_dx2=self.d2q_dx2[ind-1, i], d2q_dxdz=self.d2q_dxdz[ind-1, i], props=self.atm_props, Uinf=self.Uinf, \
                         turb_clsr=self.turb_clsr, lam_clsr=self.lam_clsr, transition_envelope=self.transition_envelope, transition=False)
         
@@ -250,12 +248,12 @@ class mesh:
         self._LE_extrapolate()
         self._propagate()
 
-
-nm=5000
+'''
+nm=30
 nn=2
-L=3.0
-Uinf=20.0
-xs=np.linspace(0.0, L, nm)
+L=1.0
+Uinf=1.0
+xs=np.sin(np.pi*np.linspace(0.0, 1.0, nm)/2)**2*L
 ys=np.linspace(0.0, 1.0, nn)
 posits=np.zeros((nm, nn, 3))
 for i in range(nm):
@@ -268,11 +266,12 @@ t=tm.time()
 msh=mesh(posits=posits, vels=vels)
 msh.calculate()
 print(tm.time()-t)
-ds=np.array([[elem.delta for elem in strip] for strip in msh.matrix])
+ds=np.array([[elem.th[0, 0] for elem in strip] for strip in msh.matrix])
 
+'''
 for i in range(len(msh.matrix[0])):
     print([msh.matrix[j][i].has_transition() for j in range(len(msh.matrix))])
-    print([msh.matrix[j][i].transition for j in range(len(msh.matrix))])
+    print([msh.matrix[j][i].transition for j in range(len(msh.matrix))])'''
 
 print(ds[-1, -1], 0.665*np.sqrt(stat.defatm.mu*L/(Uinf*stat.defatm.rho)))
 print('ReL: ', stat.defatm.rho*L*Uinf/stat.defatm.mu)
@@ -282,3 +281,4 @@ fig=plt.figure()
 ax=plt.axes(projection='3d')
 ax.plot_surface(xxs, yys, ds)
 plt.show()
+'''

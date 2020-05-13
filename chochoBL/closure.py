@@ -284,7 +284,7 @@ def read_closure(fname, ext_append=True):
 ordir=os.getcwd()
 os.chdir(os.path.dirname(__file__))
 
-if os.path.exists('lam_defclosure.cls') and False: #change and False later
+if os.path.exists('lam_defclosure.cls'): #change and False later
     def_lam_closure=read_closure('lam_defclosure')
 
 else:
@@ -293,7 +293,7 @@ else:
     def_lam_closure.build()
     def_lam_closure.dump('lam_defclosure')
 
-if os.path.exists('turb_defclosure.cls') and False: #change and False later
+if os.path.exists('turb_defclosure.cls'): #change and False later
     def_turb_closure=read_closure('turb_defclosure')
 
 else:

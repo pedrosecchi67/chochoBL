@@ -19,7 +19,7 @@ class station:
         #closure relationships as input
         self.turb_clsr=turb_clsr
         self.lam_clsr=lam_clsr
-        self.transition=False
+        self.transition=transition
         self.transition_envelope=transition_envelope
 
         #define thicknesses
@@ -173,7 +173,7 @@ class station:
         self.Cf=Cf
     
     def has_transition(self):
-        return self.transition_envelope(self)
+        return self.transition_envelope(self) or self.transition
 
     def calcpropag(self):
         return self._eqns_solve()
