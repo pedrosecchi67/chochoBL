@@ -31,15 +31,11 @@ class station:
 
         #calculate local densities and momentum variation rates
         self.rho=props.rho*(1.0-self.Me**2*(qe-Uinf)/Uinf) #also a small disturbance assumption: Drho/rho=-Me**2*DV/V
-        self.drhoq_dx=(1.0-self.Me**2)*self.rho*dq_dx
-        self.drhoq_dz=(1.0-self.Me**2)*self.rho*dq_dz
-        drho_dx=-self.Me*self.rho*dq_dx/props.v_sonic
-        drho_dz=-self.Me*self.rho*dq_dz/props.v_sonic
-        self.d2rhoq_dx2=-2*self.Me*(dq_dx**2)*self.rho/props.v_sonic+(1.0-self.Me**2)*(drho_dx*dq_dx+self.rho*d2q_dx2)
-        self.d2rhoq_dxdz=-2*self.Me*dq_dx*dq_dz*self.rho/props.v_sonic+(1.0-self.Me**2)*(drho_dz*dq_dx+self.rho*d2q_dxdz)
+        self.drho_dx=-self.Me**2*self.rho*dq_dx/qe
+        self.drho_dz=-self.Me**2*self.rho*dq_dz/qe
 
         #calculating shape parameter Lambda=fpp
-        self.Lambda=-delta**2*self.drhoq_dx/props.mu
+        self.Lambda=-self.rho*delta**2*dq_dx/props.mu
 
         #setting crossflow and its variations along the axes
         self.beta=beta
@@ -53,17 +49,19 @@ class station:
         self.qe=qe
         self.dq_dx=dq_dx
         self.dq_dz=dq_dz
+        self.d2q_dx2=d2q_dx2
+        self.d2q_dxdz=d2q_dxdz
         self.dyn_press=self.rho*qe**2/2
 
         #setting local Reynolds number in respect to thickness
         self.Red=self.rho*self.qe*self.delta/props.mu
     
     def _calc_parameter_derivatives(self, dd_dx, dd_dz):
-        dLambda_dx=-self.delta*(2*dd_dx*self.drhoq_dx+self.delta*self.d2rhoq_dx2)/self.atm_props.mu
-        dLambda_dz=-self.delta*(2*dd_dz*self.drhoq_dx+self.delta*self.d2rhoq_dxdz)/self.atm_props.mu
+        dLambda_dx=-self.delta*(2*dd_dx*self.rho*self.dq_dx+self.delta*self.drho_dx*self.dq_dx+self.delta*self.rho*self.d2q_dx2)/self.atm_props.mu
+        dLambda_dz=-self.delta*(2*dd_dz*self.rho*self.dq_dx+self.delta*self.drho_dz*self.dq_dx+self.delta*self.rho*self.d2q_dxdz)/self.atm_props.mu
 
-        dRed_dx=(self.qe*self.rho*dd_dx+self.drhoq_dx*self.delta)/self.atm_props.mu
-        dRed_dz=(self.qe*self.rho*dd_dz+self.drhoq_dz*self.delta)/self.atm_props.mu
+        dRed_dx=(self.qe*self.rho*dd_dx+self.drho_dx*self.qe*self.delta+self.rho*self.dq_dx*self.delta)/self.atm_props.mu
+        dRed_dz=(self.qe*self.rho*dd_dz+self.drho_dz*self.qe*self.delta+self.rho*self.dq_dz*self.delta)/self.atm_props.mu
 
         return dLambda_dx, dLambda_dz, dRed_dx, dRed_dz
 

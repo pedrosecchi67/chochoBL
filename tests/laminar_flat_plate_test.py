@@ -29,7 +29,7 @@ def test_laminar_flat_plate():
 
     dif=abs(ds[-1, -1]-0.665*np.sqrt(defatm.mu*L/(Uinf*defatm.rho)))
 
-    assert dif/ds[-1, -1]<1e-1, 'Wrong theta measured'
+    assert dif/ds[-1, -1]<1e-1, 'Wrong theta measured at edge on comparison to Blausius solution, Re %e, perc. error %f\%' % ((Uinf*L*defatm.rho)/defatm.mu, 100*dif/ds[-1, -1])
 
 #xxs, yys=np.meshgrid(xs, ys)
 #fig=plt.figure()
