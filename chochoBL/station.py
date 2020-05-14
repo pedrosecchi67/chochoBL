@@ -137,7 +137,7 @@ class station:
 
             #solve linear system
             if lg.norm(A[1, :])<tolerance:
-                return np.array([(RHS-b)/A[0, 0], 0.0])
+                return np.array([(RHS-b)[0]/A[0, 0], 0.0])
             else:
                 return lg.solve(A, b=RHS-b)
         else:

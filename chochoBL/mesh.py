@@ -248,7 +248,6 @@ class mesh:
         self._LE_extrapolate()
         self._propagate()
 
-'''
 nm=30
 nn=2
 L=1.0
@@ -280,4 +279,3 @@ fig=plt.figure()
 ax=plt.axes(projection='3d')
 ax.plot_surface(xxs, yys, ds)
 plt.show()
-'''
