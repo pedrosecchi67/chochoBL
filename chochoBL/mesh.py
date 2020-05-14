@@ -45,7 +45,7 @@ class mesh:
         self.attachinds=self._identify_starting_points()
 
         #apply contour conditions
-        self._contour_aply()
+        self._contour_apply()
 
         #insert extrapolation function
         self.extrap=lambda s: extrapfun(s, self.atm_props.mu/(self.atm_props.rho*(1.0+(gamma-1.0)*(Uinf/self.atm_props.v_sonic)**2/2)**(gamma/(gamma-1.0))), Uinf)
@@ -157,6 +157,14 @@ class mesh:
         
         #multiply gradients
         return veldirs[:, :, 0]*trans[0, :, :]+veldirs[:, :, 1]*trans[1, :, :]+veldirs[:, :, 2]*trans[2, :, :]
+    
+    def _local_coordinate_derivative(self, data):
+        #derivate in universal coordinate system
+        dvdx, dvdy, dvdz=self._calc_derivative(data)
+
+        #return as converted to local system
+        return self.s[:, :, 0]*dvdx+self.s[:, :, 1]*dvdy+self.s[:, :, 2]*dvdz, \
+            self.c[:, :, 0]*dvdx+self.c[:, :, 1]*dvdy+self.c[:, :, 2]*dvdz
 
     def calc_Hessian(self, props):
         #calculate Hessian of property
@@ -198,7 +206,7 @@ class mesh:
         
         return startinds
 
-    def _contour_aply(self):
+    def _contour_apply(self):
         #apply contour conditions as delta=0.0 at attachment line
 
         for i, ind in zip(range(self.nn), self.attachinds):
@@ -243,6 +251,28 @@ class mesh:
                     props=self.atm_props, Uinf=self.Uinf, turb_clsr=self.turb_clsr, lam_clsr=self.lam_clsr, transition_envelope=self.transition_envelope, transition=self.matrix[i][j+1].has_transition())
             self.matrix[i][-1].calc_data()
             self.matrix[i][0].calc_data()
+    
+    def transpiration(self):
+        '''
+        Calculate transpiration at every station
+        '''
+
+        #streamwise and crossflow mass fluxes
+        Mx=np.zeros((self.nm, self.nn))
+        Mz=np.zeros((self.nm, self.nn))
+        rhos=np.zeros((self.nm, self.nn))
+
+        for j, strip in enumerate(self.matrix):
+            for i, elem in enumerate(strip):
+                Mx[i, j]=elem.rho*elem.qe*elem.dx
+                Mz[i, j]=elem.rho*elem.qe*elem.dz
+                rho[i, j]=elem.rho
+        
+        #calculate divergence
+        dMx_dx, _=self._local_coordinate_derivative(Mx)
+        _, dMz_dz=self._local_coordinate_derivative(Mz)
+
+        return (dMx_dx+dMz_dz)/rhos
 
     def calculate(self):
         self._LE_extrapolate()
