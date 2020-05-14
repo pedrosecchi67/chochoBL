@@ -220,14 +220,14 @@ class mesh:
                     dq_dz=self.dq_dz[ind-1, i], d2q_dx2=self.d2q_dx2[ind-1, i], d2q_dxdz=self.d2q_dxdz[ind-1, i], props=self.atm_props, Uinf=self.Uinf, \
                         turb_clsr=self.turb_clsr, lam_clsr=self.lam_clsr, transition_envelope=self.transition_envelope, transition=False)
         
-    def _propagate(self):
+    def _propagate(self, tolerance=1e-5):
         #propagate growth in boundary layer from row to row
 
         for i in range(self.nn):
             self.matrix[i][self.attachinds[i]].calc_data() #calculate attachment line properties
 
             for j in range(self.attachinds[i]+2, self.nm):
-                ds, dc=self.matrix[i][j-1].calcpropag()
+                ds, dc=self.matrix[i][j-1].calcpropag(tolerance=tolerance)
                 relpos=self.posits[j, i, :]-self.posits[j-1, i, :]
                 d=self.matrix[i][j-1].delta+ds*relpos@self.s[j-1, i, :]+dc*relpos@self.c[j-1, i, :]
                 self.matrix[i][j]=stat.station(delta=d, qe=self.qes[j, i], dq_dx=self.dq_dx[j, i], dq_dz=self.dq_dz[j, i], d2q_dx2=self.d2q_dx2[j, i], d2q_dxdz=self.d2q_dxdz[j, i], \
@@ -236,7 +236,7 @@ class mesh:
             #go in the other direction where qe is in the opposite direction
 
             for j in range(self.attachinds[i]-2, -1, -1):
-                ds, dc=self.matrix[i][j+1].calcpropag()
+                ds, dc=self.matrix[i][j+1].calcpropag(tolerance=tolerance)
                 relpos=self.posits[j, i, :]-self.posits[j+1, i, :]
                 d=self.matrix[i][j+1].delta+ds*relpos@self.s[j+1, i, :]+dc*relpos@self.c[j+1, i, :]
                 self.matrix[i][j]=stat.station(delta=d, qe=self.qes[j, i], dq_dx=self.dq_dx[j, i], dq_dz=self.dq_dz[j, i], d2q_dx2=self.d2q_dx2[j, i], d2q_dxdz=self.d2q_dxdz[j, i], \
@@ -268,10 +268,9 @@ msh.calculate()
 print(tm.time()-t)
 ds=np.array([[elem.th[0, 0] for elem in strip] for strip in msh.matrix])
 
-'''
 for i in range(len(msh.matrix[0])):
     print([msh.matrix[j][i].has_transition() for j in range(len(msh.matrix))])
-    print([msh.matrix[j][i].transition for j in range(len(msh.matrix))])'''
+    print([msh.matrix[j][i].transition for j in range(len(msh.matrix))])
 
 print(ds[-1, -1], 0.665*np.sqrt(stat.defatm.mu*L/(Uinf*stat.defatm.rho)))
 print('ReL: ', stat.defatm.rho*L*Uinf/stat.defatm.mu)

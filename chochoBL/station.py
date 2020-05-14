@@ -67,7 +67,7 @@ class station:
 
         return dLambda_dx, dLambda_dz, dRed_dx, dRed_dz
 
-    def _eqns_solve(self, Ksi_mat_t1=np.zeros((3, 3, 3, 3, 2))):
+    def _eqns_solve(self, tolerance=1e-5):
         if self.delta!=0.0:
             #calculating local thicknesses according to closure relationships
             #calculating thickness tensor derivatives
@@ -136,12 +136,10 @@ class station:
             RHS[1]=Cf*np.sin(self.beta)/2+self.delta*self.dq_dx*tanb/self.qe-(2.0-self.Me**2)*(self.th[1, 0]*self.dq_dx+self.th[1, 1]*self.dq_dz)/self.qe
 
             #solve linear system
-            rank=lg.matrix_rank(A)
-
-            if rank==2:
-                return lg.solve(A, RHS-b)
+            if lg.norm(A[1, :])<tolerance:
+                return np.array([(RHS-b)/A[0, 0], 0.0])
             else:
-                return (RHS-b)[0]/A[0, 0], 0.0 #solve only on streamwise axis if matrix is ill-conditioned
+                return lg.solve(A, b=RHS-b)
         else:
             return np.array([0.0, 0.0])
 
@@ -175,5 +173,5 @@ class station:
     def has_transition(self):
         return self.transition_envelope(self) or self.transition
 
-    def calcpropag(self):
-        return self._eqns_solve()
+    def calcpropag(self, tolerance=1e-5):
+        return self._eqns_solve(tolerance=tolerance)
