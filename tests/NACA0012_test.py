@@ -42,13 +42,13 @@ def test_NACA0012():
     for i, strip in enumerate(msh.matrix):
         for j, elem in enumerate(strip):
             ds[i, j]=elem.delta
-            Lambdas[i, j]=elem.Lambda
+            Lambdas[i, j]=elem.th[0, 0]
     
     plt.plot(posits[38:-3, 20, 0], ds[20, 38:-3])
     plt.ylim((0.0, 0.008))
     plt.show()
     plt.plot(posits[38:-3, 20, 0], Lambdas[20, 38:-3])
-    plt.ylim((-12.0, 12.0))
+    plt.ylim((0.0, 0.003))
     plt.show()
 
     #ax.plot_surface()
