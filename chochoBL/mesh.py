@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 from mpl_toolkits import mplot3d
 
 from garlekin import *
+from differentiation import *
 
 def _gen_orthonormal(u, n):
     '''
@@ -74,6 +75,14 @@ class cell:
         self.indset=self.indset[order]
         self.xs=self.xs[order]
         self.zs=self.zs[order]
+        
+        self.tensor_conversion=tensor_convert_to_bidim(self.Mtosys)
+
+        self.Rv=v_residual_matrix(self.xs, self.zs)
+        self.Rdvdx=dvdx_residual_matrix(self.xs, self.zs)
+        self.Rdvdz=dvdy_residual_matrix(self.xs, self.zs)
+        self.Rudvdx=udvdx_residual_matrix(self.xs, self.zs)
+        self.Rudvdz=udvdy_residual_matrix(self.xs, self.zs)
 
 class mesh:
     '''

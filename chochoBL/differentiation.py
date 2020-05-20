@@ -92,7 +92,7 @@ class funcset:
     def Jacobian(self, arglist, mtype='dense'):
         '''
         Returns the Jacobian as a function. Kwarg mtype identifies type of matrix to be returned 
-        (csr_matrix, csc_matrix, lil_matrix or dense, passed as string)
+        (csr_matrix, csc_matrix, lil_matrix or dense, passed as string).
         '''
 
         shape=(self.outn, self.argn)
@@ -187,7 +187,7 @@ def tensor_conversion_Jacobian(Mtosys):
     J=np.zeros((9, 9))
 
     for i in range(9):
-        v=0.0
+        v[:]=0.0
         v[i]=1.0
 
         J[:, i]=_tensor_convert(v.reshape((3, 3)), Mtosys).reshape(9)
