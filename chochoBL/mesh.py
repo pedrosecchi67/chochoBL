@@ -125,3 +125,4 @@ class mesh:
             newcells[-1].local_system_build(self.nodes[newcells[-1].indset, :], normals[newcells[-1].indset, :])
         
         self.cells=newcells
+        self.cellmatrix=np.array([list(c.indset) for c in newcells], dtype='int')
