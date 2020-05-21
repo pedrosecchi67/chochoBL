@@ -24,7 +24,9 @@ def test_function_evaluation():
 
     fset=funcset(fs=[f, g, h], arglens=[2, 2], outlens=[1, 2, 2])
 
-    assert np.all(fset(arglist)==np.array([1.0, 1.0, 0.0, 0.0, 0.0])), "Function set evaluation failed"
+    fval=fset(arglist)
+
+    assert np.all(fval==np.array([1.0, 1.0, 0.0, 0.0, 0.0])), "Function set evaluation failed"
     assert np.all(
         fset.Jacobian(arglist)==np.array(
             [
@@ -36,6 +38,14 @@ def test_function_evaluation():
             ]
         )
     ), "Function set Jacobian evaluation failed"
+
+    seplist=fset.out_unpack(fval)
+
+    assert (
+        np.all(seplist[0]==np.array([1.0])) and \
+            np.all(seplist[1]==np.array([1.0, 0.0])) and \
+                np.all(seplist[2]==np.array([0.0, 0.0]))
+    ), "Function set output separation failed"
 
 def test_vector_mixing():
     a=np.arange(0, 3, 1, dtype='int')

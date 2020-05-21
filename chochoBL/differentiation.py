@@ -58,6 +58,8 @@ class funcset:
                 lastinds.append(l)
             else:
                 lastinds.append(l+lastinds[-1])
+
+        self.arglims=[[0 if i==0 else lastinds[i-1], lastinds[i]] for i in range(len(arglens))]
         
         arginds=[np.arange(0 if i==0 else lastinds[i-1], lastinds[i], 1, dtype='int') for i in range(len(arglens))]
 
@@ -112,6 +114,24 @@ class funcset:
             J[outi[0]:outi[1], argi]=f.Jacobian(arglist)
         
         return J
+
+    def out_unpack(self, f):
+        '''
+        Recieves an output in the form of a stacked vector and decomposes it into the individual functions
+        that formed it.
+        '''
+
+        return [f[outi[0]:outi[1]] for outi in self.outinds]
+    
+    def in_unpack(self, x):
+        '''
+        Recieves an input in the form of a stacked vector and decomposes it into the individual
+        arguments that formed it.
+        '''
+
+        arguments=[x[lim[0]:lim[1]] for lim in self.arglims]
+
+        return [float(a) if np.size(a)==1 else a for a in arguments]
 
 def mix_vectors(vecs, format='csr'):
     '''
@@ -209,7 +229,7 @@ def LT_node_mix(T):
     Convert a linear transformation matrix to mixed nodal value format.
 
     Example: converting A{J11, J12, ..., J33}={Jxx, ..., Jzz} to nodal form would return
-    B{J1_11, J2_11, ..., J4_33}={J1_xx, J2_xx, ..., J4_zz}
+    B{J1_11, J1_12, ..., J4_33}={J1_xx, J1_xy, ..., J4_zz}
     '''
 
     m=np.size(T, axis=0)
