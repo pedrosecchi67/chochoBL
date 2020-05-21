@@ -57,8 +57,8 @@ def q2_fset(npan):
     (see notation in Drela's IBL3 presentation)
     '''
 
-    fx=func(q2x_fromq1, (q2x_dq1y, q2x_dq1z,), [1, 2], haspassive=True)
-    fy=func(q2y_fromq1, (q2y_dq1x, q2y_dq1z,), [0, 2], haspassive=True)
-    fz=func(q2z_fromq1, (q2z_dq1x, q2z_dq1y,), [0, 1], haspassive=True)
+    fx=func(q2x_fromq1, (q2x_dq1y, q2x_dq1z,), [1, 2], haspassive=True, sparse=True)
+    fy=func(q2y_fromq1, (q2y_dq1x, q2y_dq1z,), [0, 2], haspassive=True, sparse=True)
+    fz=func(q2z_fromq1, (q2z_dq1x, q2z_dq1y,), [0, 1], haspassive=True, sparse=True)
 
-    return funcset(fs=[fx, fy, fz], arglens=[npan, npan, npan], outlens=[npan, npan, npan])
+    return funcset(fs=[fx, fy, fz], arglens=[npan, npan, npan], outlens=[npan, npan, npan], sparse=True)

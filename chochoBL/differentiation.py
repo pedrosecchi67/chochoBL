@@ -11,17 +11,19 @@ class func:
     Class defining as function application, with argument list
     '''
 
-    def __init__(self, f, derivs, args, haspassive=False):
+    def __init__(self, f, derivs, args, haspassive=False, sparse=False):
         '''
         Class containing info about a given function, recieving its argument indexes.
         Passive should be a dictionary containing variables to be called without
-        being regarded as differentiation variables. haspassive should be a boolean indicating if the function should recieve a passive
+        being regarded as differentiation variables. haspassive should be a boolean indicating if the function should recieve a passive.
+        Treats matrixes as sparse (using scipy.sps) if sparse is set to True
         '''
 
         self.f=f
         self.derivs=derivs
         self.args=args #list of argument indexes
         self.haspassive=haspassive
+        self.sparse=sparse
     
     def __call__(self, arglist, passive={}):
         '''
@@ -44,23 +46,32 @@ class func:
         being regarded as differentiation variables
         '''
 
-        if self.haspassive:
-            return np.hstack([d(*(tuple(arglist[i] for i in self.args)+(passive,))) for d in self.derivs])
+        if self.sparse:
+            if self.haspassive:
+                return sps.hstack([d(*(tuple(arglist[i] for i in self.args)+(passive,))) for d in self.derivs])
+            else:
+                return sps.hstack([d(*tuple(arglist[i] for i in self.args)) for d in self.derivs])
+        
         else:
-            return np.hstack([d(*tuple(arglist[i] for i in self.args)) for d in self.derivs])
+            if self.haspassive:
+                return np.hstack([d(*(tuple(arglist[i] for i in self.args)+(passive,))) for d in self.derivs])
+            else:
+                return np.hstack([d(*tuple(arglist[i] for i in self.args)) for d in self.derivs])
 
 class funcset:
     '''
     Class defining a set of functions
     '''
 
-    def __init__(self, fs=[], arglens=[], outlens=[]):
+    def __init__(self, fs=[], arglens=[], outlens=[], sparse=False):
         '''
         Define a set of functions based on a list of its function classes and a list of it's argument array lengths
-        and output array lengths
+        and output array lengths. Treats matrixes according to scipy.sparse if sparse kwarg flag is set to True
         '''
 
         self.fs=fs
+
+        self.sparse=sparse
 
         self.argn=sum(arglens)
         self.outn=sum(outlens)
@@ -109,26 +120,39 @@ class funcset:
     def Jacobian(self, arglist, mtype='dense', passive={}):
         '''
         Returns the Jacobian as a function. Kwarg mtype identifies type of matrix to be returned 
-        (csr_matrix, csc_matrix, lil_matrix or dense, passed as string).
+        (csr, csc, lil or dense, passed as string).
         Passive should be a dictionary containing variables to be called without
         being regarded as differentiation variables
         '''
 
         shape=(self.outn, self.argn)
 
-        if mtype=='csr_matrix':
+        if mtype=='csr':
             J=sps.csr_matrix(shape)
-        elif mtype=='csc_matrix':
+            conv=lambda x: sps.csr_matrix(x)
+        elif mtype=='csc':
             J=sps.csc_matrix(shape)
-        elif mtype=='lil_matrix':
+            conv=lambda x: sps.csc_matrix(x)
+        elif mtype=='lil':
             J=sps.lil_matrix(shape)
+            conv=lambda x: sps.lil_matrix(x)
         elif mtype=='dense':
             J=np.zeros(shape)
+            conv=lambda x: np.todense()
         else:
             raise Exception('Matrix type for function set Jacobian not identified')
+
+        if self.sparse and mtype=='dense':
+            raise Exception('Function set specified as sparse, but Jacobian requested as dense')
         
         for f, (argi, outi) in zip(self.fs, zip(self.arginds, self.outinds)):
-            J[outi[0]:outi[1], argi]=f.Jacobian(arglist, passive=passive)
+            jac=f.Jacobian(arglist, passive=passive)
+
+            if self.sparse:
+                J[outi[0]:outi[1], argi]=jac if f.sparse else conv(jac)
+            
+            else:
+                J[outi[0]:outi[1], argi]=jac.todense() if f.sparse else conv(jac)
         
         return J
 

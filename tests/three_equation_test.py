@@ -26,8 +26,14 @@ def test_q2_conversion():
 
     arglist=[q1x, q1y, q1z]
 
-    outlist=q2f.out_unpack(q2f(arglist, passive))
+    output=q2f(arglist, passive)
+
+    J=q2f.Jacobian(arglist, passive=passive, mtype='lil')
+
+    outlist=q2f.out_unpack(output)
 
     assert np.all(outlist[0]==np.array([1.0, -1.0])), "q2x calculation failed"
     assert np.all(outlist[1]==np.array([0.0, 0.0])), "q2y calculation failed"
     assert np.all(outlist[2]==np.array([1.0, 3.0])), "q2z calculation failed"
+    
+    assert np.all(output==J.todense()@np.hstack((q1x, q1y, q1z))), "Jacobian calculation failed"
