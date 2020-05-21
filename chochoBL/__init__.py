@@ -9,11 +9,13 @@ sys.path.insert(0, os.getcwd())
 py_compile.compile('abaqus.py')
 py_compile.compile('closure.py')
 py_compile.compile('differentiation.py')
+py_compile.compile('three_equation.py')
 py_compile.compile('mesh.py')
 py_compile.compile('garlekin.py')
 from abaqus import *
 from closure import *
 from differentiation import *
+from three_equation import *
 from mesh import *
 from garlekin import *
 os.chdir(ordir)

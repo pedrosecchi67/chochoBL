@@ -11,30 +11,43 @@ class func:
     Class defining as function application, with argument list
     '''
 
-    def __init__(self, f, derivs, args):
+    def __init__(self, f, derivs, args, haspassive=False):
         '''
-        Class containing info about a given function, recieving its argument indexes
+        Class containing info about a given function, recieving its argument indexes.
+        Passive should be a dictionary containing variables to be called without
+        being regarded as differentiation variables. haspassive should be a boolean indicating if the function should recieve a passive
         '''
 
         self.f=f
         self.derivs=derivs
         self.args=args #list of argument indexes
+        self.haspassive=haspassive
     
-    def __call__(self, arglist):
+    def __call__(self, arglist, passive={}):
         '''
         Return the evaluation of a function according to arguments in arglist with their indexes listed
-        in self.args
+        in self.args.
+        Passive should be a dictionary containing variables to be called without
+        being regarded as differentiation variables
         '''
 
-        return self.f(*tuple(arglist[i] for i in self.args))
+        if self.haspassive:
+            return self.f(*(tuple(arglist[i] for i in self.args)+(passive,)))
+        else:
+            return self.f(*tuple(arglist[i] for i in self.args))
 
-    def Jacobian(self, arglist):
+    def Jacobian(self, arglist, passive={}):
         '''
         Return the evaluation of a function's Jacobian according to arguments in arglist with their indexes listed
-        in self.args
+        in self.args.
+        Passive should be a dictionary containing variables to be called without
+        being regarded as differentiation variables
         '''
 
-        return np.hstack([d(*tuple([arglist[i] for i in self.args])) for d in self.derivs])
+        if self.haspassive:
+            return np.hstack([d(*(tuple(arglist[i] for i in self.args)+(passive,))) for d in self.derivs])
+        else:
+            return np.hstack([d(*tuple(arglist[i] for i in self.args)) for d in self.derivs])
 
 class funcset:
     '''
@@ -80,21 +93,25 @@ class funcset:
         
         self.outinds=[[0 if i==0 else lastinds[i-1], lastinds[i]] for i in range(len(fs))]
 
-    def __call__(self, arglist):
+    def __call__(self, arglist, passive={}):
         '''
-        Evaluate a function and return its output as a vector
+        Evaluate a function and return its output as a vector.
+        Passive should be a dictionary containing variables to be called without
+        being regarded as differentiation variables
         '''
 
         return np.hstack(
             [
-                f(arglist) for f in self.fs
+                f(arglist, passive=passive) for f in self.fs
             ]
         )
     
-    def Jacobian(self, arglist, mtype='dense'):
+    def Jacobian(self, arglist, mtype='dense', passive={}):
         '''
         Returns the Jacobian as a function. Kwarg mtype identifies type of matrix to be returned 
         (csr_matrix, csc_matrix, lil_matrix or dense, passed as string).
+        Passive should be a dictionary containing variables to be called without
+        being regarded as differentiation variables
         '''
 
         shape=(self.outn, self.argn)
@@ -111,7 +128,7 @@ class funcset:
             raise Exception('Matrix type for function set Jacobian not identified')
         
         for f, (argi, outi) in zip(self.fs, zip(self.arginds, self.outinds)):
-            J[outi[0]:outi[1], argi]=f.Jacobian(arglist)
+            J[outi[0]:outi[1], argi]=f.Jacobian(arglist, passive=passive)
         
         return J
 
