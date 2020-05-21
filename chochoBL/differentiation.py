@@ -138,7 +138,7 @@ class funcset:
             conv=lambda x: sps.lil_matrix(x)
         elif mtype=='dense':
             J=np.zeros(shape)
-            conv=lambda x: np.todense()
+            conv=lambda x: x.todense()
         else:
             raise Exception('Matrix type for function set Jacobian not identified')
 
@@ -149,10 +149,10 @@ class funcset:
             jac=f.Jacobian(arglist, passive=passive)
 
             if self.sparse:
-                J[outi[0]:outi[1], argi]=jac if f.sparse else conv(jac)
+                J[outi[0]:outi[1], argi]=jac if sps.issparse(jac) else conv(jac)
             
             else:
-                J[outi[0]:outi[1], argi]=jac.todense() if f.sparse else conv(jac)
+                J[outi[0]:outi[1], argi]=jac.todense() if sps.issparse(jac) else jac
         
         return J
 
@@ -173,6 +173,61 @@ class funcset:
         arguments=[x[lim[0]:lim[1]] for lim in self.arglims]
 
         return [float(a) if np.size(a)==1 else a for a in arguments]
+
+class chain:
+    '''
+    Class to contain information about a change in variables passed to a function/function set.
+    '''
+
+    def __init__(self, f, transfer):
+        '''
+        Instantiate a chain class object. See help(chain) for more info.
+
+        * f:
+        function object to be wrapped in this class\'s instance
+        * transfer: 
+        function such that f(transfer(args, [passive]), [passive]) is to be returned by __call__
+
+        When a Jacobian is to be computed, chain.Jacobian() method should return f.Jacobian()@transfer.Jacobian()
+        '''
+
+        self.f=f
+        self.transfer=transfer
+    
+    def __call__(self, arglist, passive={}):
+        '''
+        Return f(transfer(args, [passive]), [passive])
+        '''
+
+        newargs=self.transfer(arglist, passive)
+
+        if type(self.transfer)==funcset:
+            newargs=self.transfer.out_unpack(newargs)
+        
+        return self.f(newargs, passive=passive)
+    
+    def Jacobian(self, arglist, passive={}):
+        '''
+        Return f.Jacobian()@transfer.Jacobian()
+        '''
+
+        newargs=self.transfer.out_unpack(self.transfer(arglist, passive))
+
+        return self.f.Jacobian(newargs, passive=passive)@self.transfer.Jacobian(arglist, passive=passive)
+    
+    def out_unpack(self, f):
+        '''
+        Unpack results in the form of stacked vectors
+        '''
+
+        return self.f.out_unpack(f)
+    
+    def in_unpack(self, x):
+        '''
+        Unpack arguments in the form of stacked vectors
+        '''
+
+        return self.transfer.in_unpack(x)
 
 def mix_vectors(vecs, format='csr'):
     '''

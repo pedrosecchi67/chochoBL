@@ -106,3 +106,31 @@ def test_LT_node_mix():
     mixres, _=mix_vectors((Ta, Tb, Tc, Td))
 
     assert np.all(Tnew@mixvars==mixres), "LT node mixing test failed"
+
+def test_chain():
+    f=func(f=lambda x: x**2, derivs=(lambda x: 2*np.diag(x),), args=[0])
+    g=func(f=lambda y: np.sqrt(y), derivs=(lambda y: 1.0/(2*np.sqrt(y)),), args=[1])
+
+    def t(x, y):
+        v=np.hstack((x, y))
+
+        return np.array([v@v])
+    
+    def dt_dx(x, y):
+        return np.hstack((np.ones_like(x), np.zeros_like(y)))
+    
+    def dt_dy(x, y):
+        return np.hstack((np.zeros_like(x), np.ones_like(y)))
+    
+    transf=func(f=t, derivs=(dt_dx, dt_dy,), args=[0, 1])
+
+    fs=funcset(fs=[f, g], arglens=[2, 2], outlens=[2, 2])
+
+    h=func(f=lambda x: x**2, derivs=(lambda x: 2*x,), args=[0])
+
+    ch=chain(f=h, transfer=transf)
+    ch2=chain(f=ch, transfer=fs)
+
+    arglist=[np.array([1.0, 2.0]), np.array([3.0, 4.0])]
+
+    assert ch2(arglist)==576.0, "Chain rule evaluation failed"
