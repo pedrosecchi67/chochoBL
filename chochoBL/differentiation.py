@@ -173,6 +173,16 @@ class funcset:
         arguments=[x[lim[0]:lim[1]] for lim in self.arglims]
 
         return [float(a) if np.size(a)==1 else a for a in arguments]
+    
+    def J_unpack(self, J):
+        '''
+        Recieves as input a Jacobian in matricial form and returns a list of lists with each block component,
+        according to a function-argument correspondence.
+        '''
+
+        return [
+            [J[outi[0]:outi[1], argi[0]:argi[1]] for argi in self.arglims] for outi in self.outinds
+        ]
 
 class chain:
     '''
@@ -228,6 +238,162 @@ class chain:
         '''
 
         return self.transfer.in_unpack(x)
+
+class edge:
+    '''
+    Class defining an edge for an algorithmic differentiation graph.
+    '''
+
+    def __init__(self, n1, n2, k):
+        '''
+        Define an edge taking a certain set of keys (k, in any iterable format) from a node (n1) to another (k2).
+        '''
+
+        self.n1=n1
+        self.n2=n2
+        self.k=k
+
+        self.n1.add_output(self)
+        self.n2.add_input(self)
+    
+    def value_from_upstream(self, k):
+        '''
+        Obtain a value from an upstream node according to key
+        '''
+
+        while not self.n1.summoned:
+            self.n1.calculate()
+        
+        return self.n1.value[k]
+
+class node:
+    '''
+    Class defining a node in an algorithmic differentiation graph.
+    '''
+
+    def __init__(self, f, args_to_inds, outs_to_inds, passive={}):
+        '''
+        Define a graph node using a function or function set and a dictionary pointing 
+        argument keys to argument list indexes
+        '''
+
+        self.f=f
+
+        self.passive=passive
+
+        self.args_to_inds=args_to_inds
+        self.outs_to_inds=outs_to_inds
+
+        if type(self.args_to_inds)!=dict:
+            self.args_to_inds={k:i for i, k in enumerate(self.args_to_inds)}
+        
+        if type(self.outs_to_inds)!=dict:
+            self.outs_to_inds={k:i for i, k in enumerate(self.outs_to_inds)}
+
+        self.summoned=False
+
+        self.value=None
+        self.Jac=None
+
+        self.up_edges=[]
+        self.down_edges=[]
+    
+    def clean_summoning(self):
+        '''
+        Clean summoning status for node
+        '''
+
+        self.summoned=False
+
+    def add_input(self, e):
+        '''
+        Add an input (upstream) edge to list node.up_edges
+        '''
+
+        self.up_edges.append(e)
+    
+    def add_output(self, e):
+        '''
+        Add an output (downstream) edge to list node.down_edges
+        '''
+
+        self.down_edges.append(e)
+    
+    def calculate(self):
+        '''
+        Calculate the value according to calls to upstream edges
+        '''
+
+        self.summoned=True
+
+        #assembling inputs
+        arglist=[None]*len(self.args_to_inds)
+
+        for ue in self.up_edges:
+            for k in ue.k:
+                arglist[self.args_to_inds[k]]=ue.value_from_upstream(k)
+        
+        if type(self.f)!=func or self.f.haspassive:
+            output=self.f(arglist, passive=self.passive)
+            jac=self.f.Jacobian(arglist, passive=self.passive)
+        else:
+            output=self.f(arglist)
+            jac=self.f.Jacobian(arglist)
+        
+        if type(self.f)==func:
+            output=[output]
+        else:
+            output=self.f.out_unpack(output)
+        
+        #convert output to dictionary form
+        self.value={k:output[self.outs_to_inds[k]] for k in self.outs_to_inds}
+
+        #convert Jacobian to dictionary form
+        #calculate argument and output limits
+        if type(self.f)==funcset:
+            arglims=self.f.arglims
+            outlims=self.f.outlims
+        else:
+            arglims=[]
+            outlims=[]
+
+            for i, arg in enumerate(arglist):
+                if i==0:
+                    arglims.append([0, len(arg)])
+                else:
+                    arglims.append([arglims[-1][1], arglims[-1][1]+len(arg)])
+            
+            for i, out in enumerate(output):
+                if i==0:
+                    outlims.append([0, len(out)])
+                else:
+                    outlims.append([outlims[-1][1], outlims[-1][1]+len(out)])
+            
+        self.Jac={}
+
+        for outn in self.outs_to_inds:
+            self.Jac[outn]={}
+            outl=outlims[self.outs_to_inds[outn]]
+
+            for argn in self.args_to_inds:
+                argl=arglims[self.args_to_inds[argn]]
+
+                self.Jac[outn][argn]=jac[outl[0]:outl[1], argl[0]:argl[1]]
+    
+    def set(self, v):
+        '''
+        Set value independently of calculations based on upstream nodes.
+        '''
+        
+        self.summoned=True
+
+        if type(v)==list:
+            self.value={k:v[self.outs_to_inds[k]] for k in self.outs_to_inds}
+        elif type(v)==dict:
+            self.value=v
+        else:
+            #assuming it's a scalar:
+            self.value={self.outs_to_inds.keys()[0]:v}
 
 def mix_vectors(vecs, format='csr'):
     '''
@@ -293,32 +459,6 @@ def dcell_dnode_Jacobian(vset, correspondence):
 
 def _tensor_convert(T, Mtosys):
     return Mtosys.T@T@Mtosys
-
-def tensor_conversion_Jacobian(Mtosys):
-    '''
-    Function to return a coordinate system conversion Jacobian for a 3x3 tensor (inputed as a length 9 vector)
-    '''
-
-    v=np.empty(9)
-    J=np.zeros((9, 9))
-
-    for i in range(9):
-        v[:]=0.0
-        v[i]=1.0
-
-        J[:, i]=_tensor_convert(v.reshape((3, 3)), Mtosys).reshape(9)
-    
-    return J
-
-def tensor_convert_to_bidim(Mtosys):
-    '''
-    Function to return a coordinate system conversion Jacobian from a 3x3 tensor to a 2x2 bidimensional considering
-    only axes x and z
-    '''
-
-    C=tensor_conversion_Jacobian(Mtosys)
-
-    return C[np.array([0, 2, 6, 8], dtype='int'), :]
 
 def LT_node_mix(T):
     '''
