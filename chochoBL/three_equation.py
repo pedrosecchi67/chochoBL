@@ -3,7 +3,11 @@ import scipy.sparse as sps
 
 '''
 Module containing functions and classes referrant to the application of a three-equation
-boundary layer solver
+boundary layer solver.
+
+Include in passive dictionary:
+\'normal\' key with normal vectors, stacked (shape (npan, 3))
+\'cells\' key with list of cells
 '''
 
 from differentiation import *
@@ -62,3 +66,45 @@ def q2_fset(npan):
     fz=func(q2z_fromq1, (q2z_dq1x, q2z_dq1y,), [0, 1], haspassive=True, sparse=True)
 
     return funcset(fs=[fx, fy, fz], arglens=[npan, npan, npan], outlens=[npan, npan, npan], sparse=True)
+
+def qx_nodal_matrix(nnodes, cells):
+    '''
+    Function recieving a number of nodes and a set of cells and returning a set of
+    (sparse) matrixes for the linear transformation:
+    qx(nodal notation)=Tx.qx+Ty.qy+Tz.qz (inputted as raw vectors)
+    '''
+
+    ncells=len(cells)
+
+    Tx=sps.lil_matrix((ncells*4, nnodes))
+    Ty=sps.lil_matrix((ncells*4, nnodes))
+    Tz=sps.lil_matrix((ncells*4, nnodes))
+
+    for i, c in enumerate(cells):
+        for j in range(4):
+            Tx[4*i+j, c.indset[j]]=c.Mtosys[0, 0]
+            Ty[4*i+j, c.indset[j]]=c.Mtosys[0, 1]
+            Tz[4*i+j, c.indset[j]]=c.Mtosys[0, 2]
+    
+    return Tx, Ty, Tz
+
+def qz_nodal_matrix(nnodes, cells):
+    '''
+    Function recieving a number of nodes and a set of cells and returning a set of
+    (sparse) matrixes for the linear transformation:
+    qz(nodal notation)=Tx.qx+Ty.qy+Tz.qz (inputted as raw vectors)
+    '''
+
+    ncells=len(cells)
+
+    Tx=sps.lil_matrix((ncells*4, nnodes))
+    Ty=sps.lil_matrix((ncells*4, nnodes))
+    Tz=sps.lil_matrix((ncells*4, nnodes))
+
+    for i, c in enumerate(cells):
+        for j in range(4):
+            Tx[4*i+j, c.indset[j]]=c.Mtosys[2, 0]
+            Ty[4*i+j, c.indset[j]]=c.Mtosys[2, 1]
+            Tz[4*i+j, c.indset[j]]=c.Mtosys[2, 2]
+    
+    return Tx, Ty, Tz
