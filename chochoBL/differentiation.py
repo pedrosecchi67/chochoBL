@@ -437,6 +437,8 @@ def dcell_dnode_Jacobian(vset, correspondence):
     between cell and node indexes, returns 4 vectors (corresponding to the set of indexes 1, 2, 3, and 4 in the
     cells) and the Jacobian of their combination.
 
+    Argument correspondence corresponds to a shape (ncells, 4) array with cell.indset indexes
+
     The Jacobian is returned with respect to the stacked vectors, not to any mixing.
 
     Example:
@@ -456,9 +458,6 @@ def dcell_dnode_Jacobian(vset, correspondence):
                 J[k*4*nprop+4*j+i, correspondence[k, i]+j*nv]=1.0
     
     return J
-
-def _tensor_convert(T, Mtosys):
-    return Mtosys.T@T@Mtosys
 
 def LT_node_mix(T):
     '''
