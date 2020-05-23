@@ -141,7 +141,7 @@ def test_chain():
 def test_graph_calculate():
     passive={'k':2, 'l':3}
 
-    f=head(dats_to_inds={'x':0, 'y':1, 'z':2}, passive=passive)
+    f=head(outs_to_inds={'x':0, 'y':1, 'z':2}, passive=passive)
 
     def af(y, z, passive={}):
         return y**2*z/passive['k']
@@ -209,3 +209,139 @@ def test_graph_calculate():
         _arr_compare(g.Jac['a']['z'], np.array([[2.0]])) and \
             _arr_compare(g.Jac['b']['y'], np.array([[3.0]])) and \
                 _arr_compare(g.Jac['b']['z'], np.array([[4.0]])), "Node Jacobian evaluation failed"
+
+def test_graph_derivate():
+    x=head(outs_to_inds=['x'])
+    
+    y=head(outs_to_inds=['y'])
+
+    def w1f(x, y):
+        return x*y
+    def dw1f_dx(x, y):
+        return np.diag(y)
+    def dw1f_dy(x, y):
+        return np.diag(x)
+    
+    w1func=func(f=w1f, args=[0, 1], derivs=(dw1f_dx, dw1f_dy,))
+
+    w1=node(f=w1func, args_to_inds=['x', 'y'], outs_to_inds=['w1'])
+
+    def w2f(x, y):
+        return x+y
+    def dw2f_dx(x, y):
+        return np.array([[1.0]])
+    def dw2f_dy(x, y):
+        return np.array([[1.0]])
+
+    w2func=func(f=w2f, args=[0, 1], derivs=(dw2f_dx, dw2f_dy,))
+
+    w2=node(f=w2func, args_to_inds=['x', 'y'], outs_to_inds=['w2'])
+
+    def gf(w1, w2):
+        return w1+w2
+    def dgf_dw1(w1, w2):
+        return np.array([[1.0]])
+    def dgf_dw2(w1, w2):
+        return np.array([[1.0]])
+    
+    gfunc=func(f=gf, derivs=(dgf_dw1, dgf_dw2,), args=[0, 1])
+
+    g=node(f=gfunc, outs_to_inds=['g'], args_to_inds=['w1', 'w2'])
+
+    def ff(w1, w2):
+        return w1+np.exp(w2)
+    def dff_dw1(w1, w2):
+        return np.array([[1.0]])
+    def dff_dw2(w1, w2):
+        return np.diag(np.exp(w2))
+    
+    ffunc=func(f=ff, derivs=(dff_dw1, dff_dw2,), args=[0, 1])
+
+    f=node(f=ffunc, outs_to_inds=['f'], args_to_inds=['w1', 'w2'])
+
+    gr=graph()
+
+    x_w1=edge(x, w1, {'x'})
+    x_w2=edge(x, w2, {'x'})
+    
+    y_w1=edge(y, w1, {'y'})
+    y_w2=edge(y, w2, {'y'})
+
+    w1_f=edge(w1, f, {'w1'})
+    w2_f=edge(w2, f, {'w2'})
+
+    w1_g=edge(w1, g, {'w1'})
+    w2_g=edge(w2, g, {'w2'})
+
+    gr.add_node(x, 'x', head=True)
+    gr.add_node(y, 'y', head=True)
+    gr.add_node(w1, 'w1')
+    gr.add_node(w2, 'w2')
+    gr.add_node(f, 'f', end=True)
+    gr.add_node(g, 'g', end=True)
+
+    x.set_value({'x':np.array([1.0])})
+    y.set_value({'y':np.array([2.0])})
+
+    gr.calculate()
+
+    derivs_f=gr.get_derivs('f')
+    derivs_g=gr.get_derivs('g')
+
+    assert _arr_compare(derivs_f['x'], np.exp(3)+2) and \
+        _arr_compare(derivs_f['y'], np.exp(3)+1) and \
+            _arr_compare(derivs_g['x'], 3) and \
+                _arr_compare(derivs_g['y'], 2)
+
+def test_graph_funcset():
+    xv=np.array([1.0, 2.0])
+    yv=np.array([-2.0, -3.0])
+
+    q=np.array([5.0, 4.0])
+
+    P=np.array(
+        [
+            [1.0, -1.0],
+            [3.0, 2.0]
+        ]
+    )
+
+    def ff(x, y):
+        return x@P@y
+    def dff_dx(x, y):
+        return (P@y).reshape((1, 2))
+    def dff_dy(x, y):
+        return (x@P).reshape((1, 2))
+    
+    def gf(y):
+        return q@y
+    def dgf_dy(y):
+        return q.reshape((1, 2))
+    
+    ffunc=func(f=ff, derivs=(dff_dx, dff_dy,), args=[0, 1])
+    gfunc=func(f=gf, args=[1], derivs=(dgf_dy,))
+
+    fset=funcset(fs=[ffunc, gfunc], arglens=[2, 2], outlens=[1, 1])
+
+    gr=graph()
+
+    n1=head(outs_to_inds=['x', 'y'])
+    n2=node(f=fset, args_to_inds=['x', 'y'], outs_to_inds=['f', 'g'])
+
+    e1=edge(n1, n2, {'x', 'y'})
+
+    gr.add_node(n1, 'n1', head=True)
+    gr.add_node(n2, 'n2', end=True)
+    
+    gr.add_edge(e1)
+
+    n1.set_value({'x':xv, 'y':yv})
+
+    gr.calculate()
+
+    derivs_f=gr.get_derivs('f')
+    derivs_g=gr.get_derivs('g')
+
+    assert _arr_compare(derivs_f['x'], P@yv) and _arr_compare(derivs_f['y'], xv@P) and _arr_compare(derivs_g['y'], q), "Function set derivation failed"
+
+test_graph_funcset()

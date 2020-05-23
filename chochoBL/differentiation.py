@@ -6,6 +6,24 @@ Module with functions and classes to assist in Jacobian handling
 and automatic differentiation
 '''
 
+def _addnone(a, b):
+    if a is None:
+        if b is None:
+            return None
+        else:
+            return b
+    else:
+        if b is None:
+            return a
+        else:
+            return a+b
+
+def _matmulnone(A, B):
+    if A is None or B is None:
+        return None
+    else:
+        return A@B
+
 class func:
     '''
     Class defining as function application, with argument list
@@ -271,6 +289,26 @@ class edge:
             self.n1.calculate()
         
         return self.n1.value[k]
+    
+    def buffer_from_downstream(self):
+        '''
+        Method to obtain a buffer seed value from a downstream node
+        '''
+
+        while not self.n2.summoned:
+            self.n2.calculate_buffer()
+        
+        return self.n2.buffer
+    
+    def Jac_from_downstream(self, x, y):
+        '''
+        Method to pull a Jacobian (dy/dx) from downstream node, given keys for the desired properties
+        '''
+
+        if self.n2.Jac is None:
+            raise Exception('A Jacobian has been requested from a not yet calculated node in alg. differentiation')
+
+        return self.n2.Jac[y][x]
 
 class node:
     '''
@@ -301,6 +339,8 @@ class node:
         self.value=None
         self.Jac=None
 
+        self.buffer={}
+
         self.up_edges=[]
         self.down_edges=[]
     
@@ -310,6 +350,13 @@ class node:
         '''
 
         self.summoned=False
+
+    def clean_buffer(self):
+        '''
+        Clean node buffer
+        '''
+
+        self.buffer={}
 
     def add_input(self, e):
         '''
@@ -404,21 +451,37 @@ class node:
         else:
             #assuming it's a scalar:
             self.value={self.outs_to_inds.keys()[0]:v}
+    
+    def calculate_buffer(self):
+        '''
+        Calculate a buffer from downstream node seeds
+        '''
+
+        self.summoned=True
+
+        self.buffer={k:None for k in self.outs_to_inds}
+
+        for de in self.down_edges:
+            seeds=de.buffer_from_downstream()
+
+            for outk in de.k:
+                for prop, seed in zip(seeds, seeds.values()):
+                    self.buffer[outk]=_addnone(self.buffer[outk], _matmulnone(de.Jac_from_downstream(outk, prop).T, seed))
 
 class head(node):
     '''
     A head node for storing input data
     '''
 
-    def __init__(self, dats_to_inds, passive={}):
+    def __init__(self, outs_to_inds, passive={}):
         '''
         Initialize a head based on a dictionary of input data
         '''
 
-        if type(dats_to_inds)!=dict:
-            self.dats_to_inds={k:i for i, k in enumerate(dats_to_inds)}
+        if type(outs_to_inds)!=dict:
+            self.outs_to_inds={k:i for i, k in enumerate(outs_to_inds)}
         else:
-            self.dats_to_inds=dats_to_inds
+            self.outs_to_inds=outs_to_inds
         
         self.passive=passive
 
@@ -429,6 +492,9 @@ class head(node):
     
     def clean_summoning(self):
         super().clean_summoning()
+    
+    def clean_buffer(self):
+        super().clean_buffer()
     
     def add_output(self, e):
         super().add_output(e)
@@ -442,19 +508,10 @@ class head(node):
             raise Exception('Attempting to access unset head data')
     
     def set_value(self, v):
-        '''
-        Set value independently of calculations based on upstream nodes.
-        '''
-        
-        self.summoned=True
-
-        if type(v)==list:
-            self.value={k:v[self.outs_to_inds[k]] for k in self.outs_to_inds}
-        elif type(v)==dict:
-            self.value=v
-        else:
-            #assuming it's a scalar:
-            self.value={self.dats_to_inds.keys()[0]:v} #this is the only difference to super().set_value(v)
+        super().set_value(v)
+    
+    def calculate_buffer(self):
+        super().calculate_buffer()
 
 class graph:
     '''
@@ -517,8 +574,57 @@ class graph:
         Clean summoning status of all graph nodes
         '''
 
-        for n in self.nodes:
-            self.nodes[n].clean_summoning()
+        for n in self.nodes.values():
+            n.clean_summoning()
+    
+    def clean_buffer(self):
+        '''
+        Clean buffers in all graph nodes
+        '''
+
+        for n in self.nodes.values():
+            n.clean_summoning()
+        
+    def set_seed(self, prop, sparse=False):
+        '''
+        Set seed to identity matrix in node containing the named property and to None in all other end nodes
+        '''
+
+        #first of all, clean summoned status and buffers
+        self.clean_summoning()
+        self.clean_buffer()
+
+        for k in self.ends:
+            if self.ends[k].value is None or self.ends[k].Jac is None:
+                raise Exception('End node %s hasn\'t had it\'s value calculated, though reverse AD has been required' % (k,))
+        
+        for e in self.ends.values():
+            e.buffer={outk:None for outk in e.outs_to_inds}
+            
+            if prop in e.buffer:
+                e.buffer[prop]=sps.eye(len(e.value[prop]), format='lil') if sparse else np.eye(len(e.value[prop]))
+
+            e.summoned=True
+    
+    def get_derivs(self, prop, sparse=False):
+        '''
+        Get a dictionary with the derivatives of a property based on its key
+        '''
+
+        self.set_seed(prop, sparse=sparse)
+
+        for n in self.heads.values():
+            n.calculate_buffer()
+
+        derivs={}
+
+        for n in self.heads.values():
+            derivs.update(n.buffer)
+        
+        for e, v in zip(derivs, derivs.values()):
+            derivs[e]=v.T
+        
+        return derivs
 
 def identity(args, format='lil', haspassive=False):
     '''
