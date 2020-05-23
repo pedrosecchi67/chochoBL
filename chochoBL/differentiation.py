@@ -38,7 +38,7 @@ class func:
         else:
             return self.f(*tuple(arglist[i] for i in self.args))
 
-    def Jacobian(self, arglist, passive={}):
+    def Jacobian(self, arglist, mtype='dense', passive={}):
         '''
         Return the evaluation of a function's Jacobian according to arguments in arglist with their indexes listed
         in self.args.
@@ -47,12 +47,18 @@ class func:
         '''
 
         if self.sparse:
+            if mtype=='dense':
+                raise Exception('Function object set to sparse mode, but Jacobian required as dense')
+            
             if self.haspassive:
-                return sps.hstack([d(*(tuple(arglist[i] for i in self.args)+(passive,))) for d in self.derivs])
+                return sps.hstack([d(*(tuple(arglist[i] for i in self.args)+(passive,))) for d in self.derivs], format=mtype)
             else:
-                return sps.hstack([d(*tuple(arglist[i] for i in self.args)) for d in self.derivs])
+                return sps.hstack([d(*tuple(arglist[i] for i in self.args)) for d in self.derivs], format=mtype)
         
         else:
+            if mtype!='dense':
+                raise Exception('Function object set to dense mode, but Jacobian required in format %s' % (mtype,))
+
             if self.haspassive:
                 return np.hstack([d(*(tuple(arglist[i] for i in self.args)+(passive,))) for d in self.derivs])
             else:
@@ -146,7 +152,7 @@ class funcset:
             raise Exception('Function set specified as sparse, but Jacobian requested as dense')
         
         for f, (argi, outi) in zip(self.fs, zip(self.arginds, self.outinds)):
-            jac=f.Jacobian(arglist, passive=passive)
+            jac=f.Jacobian(arglist, mtype=mtype, passive=passive)
 
             if self.sparse:
                 J[outi[0]:outi[1], argi]=jac if sps.issparse(jac) else conv(jac)
@@ -332,13 +338,17 @@ class node:
         for ue in self.up_edges:
             for k in ue.k:
                 arglist[self.args_to_inds[k]]=ue.value_from_upstream(k)
-        
+
         if type(self.f)!=func or self.f.haspassive:
+            mtype='lil' if self.f.sparse else 'dense'
+
             output=self.f(arglist, passive=self.passive)
-            jac=self.f.Jacobian(arglist, passive=self.passive)
+            jac=self.f.Jacobian(arglist, mtype=mtype, passive=self.passive)
         else:
+            mtype='lil' if self.f.sparse else 'dense'
+            
             output=self.f(arglist)
-            jac=self.f.Jacobian(arglist)
+            jac=self.f.Jacobian(arglist, mtype=mtype)
         
         if type(self.f)==func:
             output=[output]
@@ -352,7 +362,7 @@ class node:
         #calculate argument and output limits
         if type(self.f)==funcset:
             arglims=self.f.arglims
-            outlims=self.f.outlims
+            outlims=self.f.outinds
         else:
             arglims=[]
             outlims=[]
@@ -380,7 +390,7 @@ class node:
 
                 self.Jac[outn][argn]=jac[outl[0]:outl[1], argl[0]:argl[1]]
     
-    def set(self, v):
+    def set_value(self, v):
         '''
         Set value independently of calculations based on upstream nodes.
         '''
@@ -394,6 +404,131 @@ class node:
         else:
             #assuming it's a scalar:
             self.value={self.outs_to_inds.keys()[0]:v}
+
+class head(node):
+    '''
+    A head node for storing input data
+    '''
+
+    def __init__(self, dats_to_inds, passive={}):
+        '''
+        Initialize a head based on a dictionary of input data
+        '''
+
+        if type(dats_to_inds)!=dict:
+            self.dats_to_inds={k:i for i, k in enumerate(dats_to_inds)}
+        else:
+            self.dats_to_inds=dats_to_inds
+        
+        self.passive=passive
+
+        self.down_edges=[]
+
+        self.summoned=False
+        self.value=None
+    
+    def clean_summoning(self):
+        super().clean_summoning()
+    
+    def add_output(self, e):
+        super().add_output(e)
+    
+    def calculate(self):
+        '''
+        I. E. check whether data is available
+        '''
+
+        if not self.summoned:
+            raise Exception('Attempting to access unset head data')
+    
+    def set_value(self, v):
+        '''
+        Set value independently of calculations based on upstream nodes.
+        '''
+        
+        self.summoned=True
+
+        if type(v)==list:
+            self.value={k:v[self.outs_to_inds[k]] for k in self.outs_to_inds}
+        elif type(v)==dict:
+            self.value=v
+        else:
+            #assuming it's a scalar:
+            self.value={self.dats_to_inds.keys()[0]:v} #this is the only difference to super().set_value(v)
+
+class graph:
+    '''
+    Class containing info about an algorithmic differentiation graph
+    '''
+
+    def __init__(self):
+        '''
+        Instantiate an empty graph
+        '''
+
+        self.nodes={}
+        self.edges=[]
+
+        self.heads={}
+        self.ends={}
+    
+    def add_node(self, n, name, head=False, end=False):
+        '''
+        Add a node. head and end kwarg flags define wether it is an input variable, an output variable or 
+        a work variable
+        '''
+
+        self.nodes[name]=n
+
+        if head:
+            self.heads[name]=n
+        elif end:
+            self.ends[name]=n
+    
+    def add_edge(self, e):
+        '''
+        Add an edge
+        '''
+
+        self.edges.append(e)
+    
+    def get_input_data(self, d):
+        '''
+        Set input data for head nodes based on provided dictionary
+        '''
+
+        for k in d:
+            self.heads[k].set_value(d[k])
+    
+    def calculate(self):
+        '''
+        Calculate output data
+        '''
+
+        for h in self.heads:
+            if not self.heads[h].summoned:
+                raise Exception('Head node %s hasn\'t been set, though calculation has been required' % (h,))
+
+        for e in self.ends:
+            self.ends[e].calculate()
+
+    def clean_summoning(self):
+        '''
+        Clean summoning status of all graph nodes
+        '''
+
+        for n in self.nodes:
+            self.nodes[n].clean_summoning()
+
+def identity(args, format='lil', haspassive=False):
+    '''
+    Define an identity function object according to matrix format for Jacobian
+    '''
+    if format!='dense':
+        return func(f=lambda x: x, derivs=(lambda x: sps.eye(len(x), format=format),), args=args, haspassive=haspassive, sparse=True)
+    
+    else:
+        return func(f=lambda x: x, derivs=(lambda x: np.eye(len(x)),), args=args, haspassive=haspassive, sparse=False)
 
 def mix_vectors(vecs, format='csr'):
     '''
