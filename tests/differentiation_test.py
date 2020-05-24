@@ -343,5 +343,3 @@ def test_graph_funcset():
     derivs_g=gr.get_derivs('g')
 
     assert _arr_compare(derivs_f['x'], P@yv) and _arr_compare(derivs_f['y'], xv@P) and _arr_compare(derivs_g['y'], q), "Function set derivation failed"
-
-test_graph_funcset()

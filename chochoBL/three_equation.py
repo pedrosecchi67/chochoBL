@@ -12,61 +12,6 @@ Include in passive dictionary:
 
 from differentiation import *
 
-def _linewise_Hadamard(x, B):
-
-    try:
-        return ((B.T).multiply(x)).T
-    except:
-        return np.multiply(x, B.T).T
-
-def q2x_fromq1(q1y, q1z, passive):
-
-    return passive['normal'][:, 2]*q1y-passive['normal'][:, 1]*q1z
-
-def q2x_dq1y(q1y, q1z, passive):
-
-    return _linewise_Hadamard(passive['normal'][:, 2], sps.eye(len(q1y), format='lil'))
-
-def q2x_dq1z(q1y, q1z, passive):
-
-    return -_linewise_Hadamard(passive['normal'][:, 1], sps.eye(len(q1z), format='lil'))
-
-def q2y_fromq1(q1x, q1z, passive):
-
-    return passive['normal'][:, 0]*q1z-passive['normal'][:, 2]*q1x
-
-def q2y_dq1x(q1x, q1z, passive):
-
-    return -_linewise_Hadamard(passive['normal'][:, 2], sps.eye(len(q1x), format='lil'))
-
-def q2y_dq1z(q1x, q1z, passive):
-
-    return _linewise_Hadamard(passive['normal'][:, 0], sps.eye(len(q1z), format='lil'))
-
-def q2z_fromq1(q1x, q1y, passive):
-
-    return passive['normal'][:, 1]*q1x-passive['normal'][:, 0]*q1y
-
-def q2z_dq1x(q1x, q1y, passive):
-
-    return _linewise_Hadamard(passive['normal'][:, 1], sps.eye(len(q1x), format='lil'))
-
-def q2z_dq1y(q1x, q1y, passive):
-
-    return -_linewise_Hadamard(passive['normal'][:, 0], sps.eye(len(q1y), format='lil'))
-
-def q2_fset(npan):
-    '''
-    Function returning a function set taking args q1x, q1y, q1z and returning q2x, q2y, q2z 
-    (see notation in Drela's IBL3 presentation)
-    '''
-
-    fx=func(q2x_fromq1, (q2x_dq1y, q2x_dq1z,), [1, 2], haspassive=True, sparse=True)
-    fy=func(q2y_fromq1, (q2y_dq1x, q2y_dq1z,), [0, 2], haspassive=True, sparse=True)
-    fz=func(q2z_fromq1, (q2z_dq1x, q2z_dq1y,), [0, 1], haspassive=True, sparse=True)
-
-    return funcset(fs=[fx, fy, fz], arglens=[npan, npan, npan], outlens=[npan, npan, npan], sparse=True)
-
 def qx_nodal_matrix(nnodes, cells):
     '''
     Function recieving a number of nodes and a set of cells and returning a set of
@@ -108,3 +53,148 @@ def qz_nodal_matrix(nnodes, cells):
             Tz[4*i+j, c.indset[j]]=c.Mtosys[2, 2]
     
     return Tx, Ty, Tz
+
+def uf(qx, qy, qz, passive):
+    msh=passive['mesh']
+
+    return msh.Juqx@qx+msh.Juqy@qy+msh.Juqz@qz
+
+def duf_dqx(qx, qy, qz, passive):
+
+    return passive['mesh'].Juqx
+
+def duf_dqy(qx, qy, qz, passive):
+
+    return passive['mesh'].Juqy
+
+def duf_dqz(qx, qy, qz, passive):
+
+    return passive['mesh'].Juqz
+
+def wf(qx, qy, qz, passive):
+    msh=passive['mesh']
+
+    return msh.Jwqx@qx+msh.Jwqy@qy+msh.Jwqz@qz
+
+def dwf_dqx(qx, qy, qz, passive):
+
+    return passive['mesh'].Jwqx
+
+def dwf_dqy(qx, qy, qz, passive):
+
+    return passive['mesh'].Jwqy
+
+def dwf_dqz(qx, qy, qz, passive):
+
+    return passive['mesh'].Jwqz
+
+def uw_conversion_getnode(msh):
+    '''
+    Add universal-to-local nodal velocity conversion matrixes and methods to a mesh and return a node for it\'s 
+    qi-uw conversion
+    '''
+
+    nnodes=len(msh.nodes)
+    ncells=len(msh.cells)
+
+    msh.Juqx, msh.Juqy, msh.Juqz=qx_nodal_matrix(nnodes, msh.cells)
+    msh.Jwqx, msh.Jwqy, msh.Jwqz=qz_nodal_matrix(nnodes, msh.cells)
+
+    ufunc=func(f=uf, derivs=(duf_dqx, duf_dqy, duf_dqz,), args=[0, 1, 2], sparse=True, haspassive=True)
+    wfunc=func(f=wf, derivs=(dwf_dqx, dwf_dqy, dwf_dqz,), args=[0, 1, 2], sparse=True, haspassive=True)
+    
+    uwfs=funcset(fs=[ufunc, wfunc], arglens=[nnodes, nnodes, nnodes], outlens=[4*ncells, 4*ncells], sparse=True)
+
+    uwnode=node(f=uwfs, args_to_inds=['qx', 'qy', 'qz'], outs_to_inds=['u', 'w'], passive=msh.passive)
+
+    return uwnode
+
+def qef(qx, qy, qz):
+    return np.sqrt(qx**2+qy**2+qz**2)
+
+def dqef_dqx(qx, qy, qz):
+    return sps.diags(qx/np.sqrt(qx**2+qy**2+qz**2), format='lil')
+
+def dqef_dqy(qx, qy, qz):
+    return sps.diags(qy/np.sqrt(qx**2+qy**2+qz**2), format='lil')
+
+def dqef_dqz(qx, qy, qz):
+    return sps.diags(qz/np.sqrt(qx**2+qy**2+qz**2), format='lil')
+
+def qe_getnode(msh):
+    '''
+    Add qe (scalar) computation functions and return correspondent node, to be used with a mesh
+    '''
+
+    nnodes=len(msh.nodes)
+
+    qefunc=func(f=qef, derivs=(dqef_dqx, dqef_dqy, dqef_dqz,), args=[0, 1, 2], sparse=True, haspassive=False)
+
+    qenode=node(f=qefunc, args_to_inds=['qx', 'qy', 'qz'], outs_to_inds=['qe'], passive=msh.passive)
+
+    return qenode
+
+def Hf(th11, deltastar1):
+    return deltastar1/th11
+
+def dHf_dth11(th11, deltastar1):
+    return sps.diags(-deltastar1/th11**2, format='lil')
+
+def dHf_ddeltastar1(th11, deltastar1):
+    return sps.diags(1.0/th11, format='lil')
+
+def H_getnode(msh):
+    '''
+    Add H (streamwise shape parameter) computation functions and return correspondent node, 
+    to be used with a mesh
+    '''
+
+    Hfunc=func(f=Hf, derivs=(dHf_dth11, dHf_ddeltastar1,), args=[0, 1], sparse=True, haspassive=False)
+
+    Hnode=node(f=Hfunc, args_to_inds=['th11', 'deltastar1'], outs_to_inds=['H'], passive=msh.passive)
+
+    return Hnode
+
+def Mef(qe, passive):
+    return qe/passive['atm'].v_sonic
+
+def dMef_dqe(qe, passive):
+    return sps.eye(len(qe), format='lil')/passive['atm'].v_sonic
+
+def Me_getnode(msh):
+    '''
+    Add Me (external Mach number) computation functions and return correspondent node,
+    to be used with a mesh
+    '''
+
+    Mefunc=func(f=Mef, derivs=(dMef_dqe,), args=[0], sparse=True, haspassive=True)
+
+    Menode=node(f=Mefunc, args_to_inds=['qe'], outs_to_inds=['Me'], passive=msh.passive)
+
+    return Menode
+
+def rhof(Me, passive):
+    a=passive['atm'].v_sonic
+    rho0=passive['atm'].rho
+    Uinf=passive['Uinf']
+
+    return (1.0-Me**2)*(Me*a-Uinf)*rho0/Uinf
+
+def drhof_dMe(Me, passive):
+    a=passive['atm'].v_sonic
+    rho0=passive['atm'].rho
+    Uinf=passive['Uinf']
+
+    return sps.diags(((1.0-Me**2)*a-2*Me*(Me*a-Uinf))*rho0/Uinf, format='lil')
+
+def rho_getnode(msh):
+    '''
+    Add rho (external air density) computation functions and return correspondent node,
+    to be used with a mesh
+    '''
+
+    rhofunc=func(f=rhof, derivs=(drhof_dMe,), args=[0], sparse=True, haspassive=True)
+
+    rho_node=node(f=rhofunc, args_to_inds=['Me'], outs_to_inds=['rho'], passive=msh.passive)
+
+    return rho_node

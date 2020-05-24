@@ -3,9 +3,11 @@ import numpy.linalg as lg
 import time as tm
 import matplotlib.pyplot as plt
 from mpl_toolkits import mplot3d
+import fluids.atmosphere as atm
 
 from garlekin import *
 from differentiation import *
+from three_equation import *
 
 def _gen_orthonormal(u, n):
     '''
@@ -75,8 +77,6 @@ class cell:
         self.indset=self.indset[order]
         self.xs=self.xs[order]
         self.zs=self.zs[order]
-        
-        self.tensor_conversion=tensor_convert_to_bidim(self.Mtosys)
 
         self.Rv=v_residual_matrix(self.xs, self.zs)
         self.Rdvdx=dvdx_residual_matrix(self.xs, self.zs)
@@ -84,12 +84,14 @@ class cell:
         self.Rudvdx=udvdx_residual_matrix(self.xs, self.zs)
         self.Rudvdz=udvdy_residual_matrix(self.xs, self.zs)
 
+defatm=atm.ATMOSPHERE_1976(0.0)
+
 class mesh:
     '''
     Class containing information about a mesh
     '''
 
-    def __init__(self):
+    def __init__(self, atm_props=defatm, Uinf=1.0):
         '''
         Initialize a mesh object without any nodes or cells
         '''
@@ -97,6 +99,8 @@ class mesh:
         self.nodes=[]
         self.cells=[]
         self.node_Mtosys=[]
+
+        self.passive={'mesh':self, 'atm':atm_props, 'Uinf':Uinf}
     
     def add_node(self, coords):
         '''
@@ -135,3 +139,49 @@ class mesh:
         
         self.cells=newcells
         self.cellmatrix=np.array([list(c.indset) for c in newcells], dtype='int')
+
+    def graph_init(self):
+        '''
+        Initialize the generation of a graph for algorithmic differentiation
+        '''
+
+        self.gr=graph()
+
+        #setting heads
+        q_head=head(outs_to_inds=['qx', 'qy', 'qz'], passive=self.passive)
+        theta11_head=head(outs_to_inds=['th11'], passive=self.passive)
+        deltastar1_head=head(outs_to_inds=['deltastar1'], passive=self.passive)
+
+        #adding nodes
+        uw_node=uw_conversion_getnode(self)
+        qe_node=qe_getnode(self)
+        H_node=H_getnode(self)
+        Me_node=Me_getnode(self)
+        rho_node=rho_getnode(self)
+
+        #adding nodes
+        self.gr.add_node(q_head, 'q', head=True)
+        self.gr.add_node(theta11_head, 'th11', head=True)
+        self.gr.add_node(deltastar1_head, 'deltastar1', head=True)
+
+        self.gr.add_node(uw_node, 'uw')
+        self.gr.add_node(qe_node, 'qe')
+        self.gr.add_node(H_node, 'H')
+        self.gr.add_node(Me_node, 'Me')
+        self.gr.add_node(rho_node, 'rho')
+
+        #adding edges
+        e_q_uw=edge(q_head, uw_node, {'qx', 'qy', 'qz'})
+        e_q_qe=edge(q_head, qe_node, {'qx', 'qy', 'qz'})
+        e_q_Me=edge(qe_node, Me_node, {'qe'})
+        e_Me_rho=edge(Me_node, rho_node, {'Me'})
+
+        e_theta11_H=edge(theta11_head, H_node, {'th11'})
+        e_deltastar1_H=edge(deltastar1_head, H_node, {'deltastar1'})
+
+        self.gr.add_edge(e_q_uw)
+        self.gr.add_edge(e_q_qe)
+        self.gr.add_edge(e_q_Me)
+        self.gr.add_edge(e_theta11_H)
+        self.gr.add_edge(e_deltastar1_H)
+        self.gr.add_edge(e_Me_rho)

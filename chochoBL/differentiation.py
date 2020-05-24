@@ -622,7 +622,7 @@ class graph:
             derivs.update(n.buffer)
         
         for e, v in zip(derivs, derivs.values()):
-            derivs[e]=v.T
+            derivs[e]=None if v is None else v.T
         
         return derivs
 
