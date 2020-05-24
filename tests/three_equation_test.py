@@ -120,33 +120,6 @@ def test_qe():
             _arr_compare(dq_dz.todense(), np.diag(vels[:, 2]/qes)), \
                 "External velocity derivative evaluation failed"
 
-def test_H():
-    msh=_get_test_mesh()
-
-    th11=np.array(
-        [1.0, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8]
-    )
-
-    H_ideal=np.linspace(2.0, 4.0, 9)
-
-    deltastar1=H_ideal*th11
-
-    msh.graph_init()
-
-    msh.gr.heads['th11'].set_value({'th11':th11})
-
-    msh.gr.heads['deltastar1'].set_value({'deltastar1':deltastar1})
-
-    msh.gr.nodes['H'].calculate()
-
-    dH_dth11_ideal=np.diag(-deltastar1/th11**2)
-    dH_ddeltastar1_ideal=np.diag(1.0/th11)
-
-    assert _arr_compare(msh.gr.nodes['H'].value['H'], H_ideal), "Shape factor computation failed"
-    assert _arr_compare(msh.gr.nodes['H'].Jac['H']['th11'].todense(), dH_dth11_ideal) and \
-        _arr_compare(msh.gr.nodes['H'].Jac['H']['deltastar1'].todense(), dH_ddeltastar1_ideal), \
-            "Shape factor Jacobian computation failed"
-
 def test_Me_rho():
     msh=_get_test_mesh()
 

@@ -150,23 +150,21 @@ class mesh:
         #setting heads
         q_head=head(outs_to_inds=['qx', 'qy', 'qz'], passive=self.passive)
         theta11_head=head(outs_to_inds=['th11'], passive=self.passive)
-        deltastar1_head=head(outs_to_inds=['deltastar1'], passive=self.passive)
+        H_head=head(outs_to_inds=['H'], passive=self.passive)
 
         #adding nodes
         uw_node=uw_conversion_getnode(self)
         qe_node=qe_getnode(self)
-        H_node=H_getnode(self)
         Me_node=Me_getnode(self)
         rho_node=rho_getnode(self)
 
         #adding nodes
         self.gr.add_node(q_head, 'q', head=True)
         self.gr.add_node(theta11_head, 'th11', head=True)
-        self.gr.add_node(deltastar1_head, 'deltastar1', head=True)
+        self.gr.add_node(H_head, 'H', head=True)
 
         self.gr.add_node(uw_node, 'uw')
         self.gr.add_node(qe_node, 'qe')
-        self.gr.add_node(H_node, 'H')
         self.gr.add_node(Me_node, 'Me')
         self.gr.add_node(rho_node, 'rho')
 
@@ -176,12 +174,7 @@ class mesh:
         e_q_Me=edge(qe_node, Me_node, {'qe'})
         e_Me_rho=edge(Me_node, rho_node, {'Me'})
 
-        e_theta11_H=edge(theta11_head, H_node, {'th11'})
-        e_deltastar1_H=edge(deltastar1_head, H_node, {'deltastar1'})
-
         self.gr.add_edge(e_q_uw)
         self.gr.add_edge(e_q_qe)
         self.gr.add_edge(e_q_Me)
-        self.gr.add_edge(e_theta11_H)
-        self.gr.add_edge(e_deltastar1_H)
         self.gr.add_edge(e_Me_rho)
