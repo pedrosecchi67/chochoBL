@@ -149,11 +149,49 @@ def test_Me_rho():
     Uinf=msh.passive['Uinf']
     rho0=msh.passive['atm'].rho
 
-    rho_ideal=(1.0-(qes/a)**2)*(qes-Uinf)*rho0/Uinf
-    drho_dM=np.diag(((1.0-(qes/a)**2)*a-2*qes*(qes-Uinf)/a)*rho0/Uinf)
+    rho_ideal=(1.0-(qes/a)**2*(qes-Uinf)/Uinf)*rho0
+    drho_dM=np.diag((-(qes/a)**2*(a-Uinf)/Uinf-2*(qes/a)*(qes-Uinf)/Uinf)*rho0)
     
     assert _arr_compare(msh.gr.nodes['Me'].value['Me'], qes/a), "External Mach number computation failed"
     assert _arr_compare(msh.gr.nodes['Me'].Jac['Me']['qe']@qes, msh.gr.nodes['Me'].value['Me']), "External Mach number Jacobian computation failed"
 
     assert _arr_compare(msh.gr.nodes['rho'].value['rho'], rho_ideal), "External air density computation failed"
     assert _arr_compare(msh.gr.nodes['rho'].Jac['rho']['Me'].todense(), drho_dM), "External air density Jacobian computation failed"
+
+def test_Reth():
+    msh=_get_test_mesh()
+
+    vels=np.array(
+        [
+            [1.0, -1.0, 0.0],
+            [1.0, 0.0, 0.0],
+            [1.0, 1.0, 0.0],
+            [2.0, -1.0, 0.0],
+            [2.0, 0.0, 0.0],
+            [2.0, 1.0, 0.0],
+            [3.0, -1.0, 0.0],
+            [3.0, 0.0, 0.0],
+            [3.0, 1.0, 0.0]
+        ]
+    )
+
+    th11=np.linspace(2.5, 3.5, 9)
+
+    msh.graph_init()
+
+    msh.gr.heads['q'].set_value({'qx':vels[:, 0], 'qy':vels[:, 1], 'qz':vels[:, 2]})
+    msh.gr.heads['th11'].set_value({'th11':th11})
+
+    msh.gr.nodes['Reth'].calculate()
+
+    mu=msh.passive['atm'].mu
+    rho=msh.gr.nodes['rho'].value['rho']
+    qe=msh.gr.nodes['qe'].value['qe']
+
+    Reth=msh.gr.nodes['Reth'].value['Reth']
+
+    assert _arr_compare(msh.gr.nodes['Reth'].value['Reth'], qe*rho*th11/mu), "Momentum thickness Reynolds number calculation failed"
+
+    assert _arr_compare(msh.gr.nodes['Reth'].Jac['Reth']['qe'], np.diag(Reth/qe)) and \
+        _arr_compare(msh.gr.nodes['Reth'].Jac['Reth']['rho'], np.diag(Reth/rho)) and \
+            _arr_compare(msh.gr.nodes['Reth'].Jac['Reth']['rho'], np.diag(Reth/rho)), "Momentum thickness Reynolds number Jacobian calculation failed"

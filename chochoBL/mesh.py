@@ -157,6 +157,7 @@ class mesh:
         qe_node=qe_getnode(self)
         Me_node=Me_getnode(self)
         rho_node=rho_getnode(self)
+        Reth_node=Reth_getnode(self)
 
         #adding nodes
         self.gr.add_node(q_head, 'q', head=True)
@@ -167,14 +168,21 @@ class mesh:
         self.gr.add_node(qe_node, 'qe')
         self.gr.add_node(Me_node, 'Me')
         self.gr.add_node(rho_node, 'rho')
+        self.gr.add_node(Reth_node, 'Reth')
 
         #adding edges
         e_q_uw=edge(q_head, uw_node, {'qx', 'qy', 'qz'})
         e_q_qe=edge(q_head, qe_node, {'qx', 'qy', 'qz'})
         e_q_Me=edge(qe_node, Me_node, {'qe'})
         e_Me_rho=edge(Me_node, rho_node, {'Me'})
+        e_qe_Reth=edge(qe_node, Reth_node, {'qe'})
+        e_rho_Reth=edge(rho_node, Reth_node, {'rho'})
+        e_th11_Reth=edge(theta11_head, Reth_node, {'th11'})
 
         self.gr.add_edge(e_q_uw)
         self.gr.add_edge(e_q_qe)
         self.gr.add_edge(e_q_Me)
         self.gr.add_edge(e_Me_rho)
+        self.gr.add_edge(e_qe_Reth)
+        self.gr.add_edge(e_rho_Reth)
+        self.gr.add_edge(e_th11_Reth)

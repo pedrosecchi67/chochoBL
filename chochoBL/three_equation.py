@@ -178,14 +178,14 @@ def rhof(Me, passive):
     rho0=passive['atm'].rho
     Uinf=passive['Uinf']
 
-    return (1.0-Me**2)*(Me*a-Uinf)*rho0/Uinf
+    return (1.0-Me**2*(Me*a-Uinf)/Uinf)*rho0
 
 def drhof_dMe(Me, passive):
     a=passive['atm'].v_sonic
     rho0=passive['atm'].rho
     Uinf=passive['Uinf']
 
-    return sps.diags(((1.0-Me**2)*a-2*Me*(Me*a-Uinf))*rho0/Uinf, format='lil')
+    return sps.diags((-Me**2*(a-Uinf)/Uinf-2*Me*(Me*a-Uinf)/Uinf)*rho0, format='lil')
 
 def rho_getnode(msh):
     '''
@@ -198,3 +198,27 @@ def rho_getnode(msh):
     rho_node=node(f=rhofunc, args_to_inds=['Me'], outs_to_inds=['rho'], passive=msh.passive)
 
     return rho_node
+
+def Rethf(qe, rho, th11, passive):
+    return qe*rho*th11/passive['atm'].mu
+
+def dRethf_dqe(qe, rho, th11, passive):
+    return sps.diags(rho*th11/passive['atm'].mu, format='lil')
+
+def dRethf_drho(qe, rho, th11, passive):
+    return sps.diags(qe*th11/passive['atm'].mu, format='lil')
+
+def dRethf_dth11(qe, rho, th11, passive):
+    return sps.diags(qe*rho/passive['atm'].mu, format='lil')
+
+def Reth_getnode(msh):
+    '''
+    Add Reth (Reynolds number in respect to momentum thickness) computation functions and return correspondent node,
+    for a given mesh
+    '''
+
+    Rethfunc=func(f=Rethf, derivs=(dRethf_dqe, dRethf_drho, dRethf_dth11,), args=[0, 1, 2], sparse=True, haspassive=True)
+
+    Rethnode=node(f=Rethfunc, args_to_inds=['qe', 'rho', 'th11'], outs_to_inds=['Reth'], passive=msh.passive)
+
+    return Rethnode
