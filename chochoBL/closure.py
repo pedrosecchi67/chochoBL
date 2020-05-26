@@ -1,12 +1,6 @@
 import numpy as np
 import scipy.optimize as sopt
-import matplotlib.pyplot as plt
-from mpl_toolkits import mplot3d
-import scipy.interpolate as sinterp
-import time as tm
-import fluids.atmosphere as atm
-import cloudpickle as pck
-import os
+import scipy.sparse as sps
 
 import abaqus as abq
 
@@ -19,288 +13,220 @@ def Gersten_Herwig_LOTW(yp):
         Gersten_Herwig_Lambda*yp+1.0))/3+(np.arctan((2*Gersten_Herwig_Lambda*yp-1.0)/np.sqrt(3))+np.pi/6)/np.sqrt(3))/Gersten_Herwig_Lambda+\
             np.log(1.0+Von_Karman_kappa*Gersten_Herwig_B*(yp)**4)/(4*Von_Karman_kappa)
 
-def laminar_profile_analyse(Lambda, a, b, M, disc=500, strategy=lambda x: x):
+'''
+This module contains functions for modelling closure relations as exposed by
+Giles and Drela in their paper Viscous-Inviscid Analysis of Transonic and Low Reynolds
+Number Airfoils (AAIA Journal, 1987)
+'''
+
+def Hk(H, Me):
     '''
-    Analyse laminar profile, according to function describing streamwise profile (fun) and
-    crossflow profile (M, uc/q=M(eta)*fun(eta)*tan(crossflow))
-    ======
-    parameters
-    ======
-    * a, b: streamwise profile functions: f(eta)=a(eta)+b(eta)*Lambda, Lambda equal to fpp at the wall
-    * M: crossflow profile (M, uc/q=M(eta)*fun(eta)*tan(crossflow))
-    * disc: discretization for integration along the boundary layer
-    * strategy: function distributing etas across BL (etas=strategy(np.linspace(0.0, 1.0, disc)))
-    ======
-    returns
-    ======
-    deltastar_x/delta, deltastar_z/delta, thxx/delta, thxz/(delta*tan(crossflow)), thzx/(delta*tan(crossflow)), thzz/(delta*tan(crossflow)**2), Cf*Red
+    Define density-independant equivalent shape parameter from compressible BL H shape parameter,
+    as defined by Swafford
     '''
 
-    fun=lambda eta: a(eta)+Lambda*b(eta)
+    return (H-0.290*Me**2)/(1.0+0.113*Me**2)
 
-    etas=strategy(np.linspace(0.0, 1.0, disc))
-    fs=fun(etas)
-    ms=M(etas)
+#last function's derivatives
+def dHk_dH(H, Me):
+    return sps.diags(1.0/(1.0+0.113*Me**2))
 
-    f=np.trapz(fs, x=etas)
-    f2=np.trapz(fs**2, x=etas)
-    fm=np.trapz(fs*ms, x=etas)
-    f2m=np.trapz(fs**2*ms, x=etas)
-    f2m2=np.trapz((fs*ms)**2, x=etas)
+def dHk_dMe(H, Me):
+    return sps.diags(-2.0*Me*(0.113*H+0.290)/(0.113*Me**2+1.0))
 
-    dx=1.0-f
-    dz=fm
-    thxx=f-f2
-    thxz=fm-f2m
-    thzx=f2m
-    thzz=f2m2
+def _Hstar_laminar_attach(Hk):
+    return (0.076*(4.0-Hk)**2+1.515)/Hk
 
-    h=1.0/disc
-    fp=fun(h)/h
-    CfRed=fp*2 #Cf*Reynolds number in respect to delta
+def _Hstar_laminar_detach(Hk):
+    return (0.04*(Hk-4.0)**2+1.515)/Hk
 
-    return dx, dz, thxx, thxz, thzx, thzz, CfRed
+def _dHstar_laminar_dHk_attach(Hk):
+    return 0.076-2.731/Hk**2
 
-def turbulent_profile_analyse(A, deltastar, M=lambda x: 1.0-x**2, LOTW=Gersten_Herwig_LOTW, outter_profile=lambda x: np.sin(np.pi*x/2)**2, disc=500, strategy=lambda x: x):
+def _dHstar_laminar_dHk_detach(Hk):
+    return 0.04-2.155/Hk**2
+
+def Hstar_laminar(Hk):
     '''
-    Analyse turbulent profile, according to function describing Law of The Wall (default is Gersten-Herwig's), outter profile and
-    crossflow profile (M, uc/q=M(eta)*f(eta)*tan(crossflow))
-    ======
-    parameters
-    ======
-    * LOTW: Law of The Wall
-    * outter_profile: outter profile shape function. up(yp)=LOTW(yp)+A*w(yp/deltap)
-    * M: crossflow profile (M, uc/q=M(eta)*f(eta)*tan(crossflow))
-    * disc: discretization for integration along the boundary layer
-    * strategy: function distributing etas across BL (etas=strategy(np.linspace(0.0, 1.0, disc)))
-    ======
-    returns
-    ======
-    deltastar_x/delta, deltastar_z/delta, thxx/delta, thxz/(delta*tan(crossflow)), thzx/(delta*tan(crossflow)), thzz/(delta*tan(crossflow)**2), Cf
-    '''
-    etas=strategy(np.linspace(0.0, 1.0, disc))
-    yps=etas*deltastar
-
-    ups=LOTW(yps)+A*outter_profile(etas)
-    
-    h=1.0/disc
-    wpp=(outter_profile(h)-2*outter_profile(0.0)+outter_profile(-h))/h**2
-
-    Ut=1.0/ups[-1]
-    Cf=2*Ut**2
-
-    fs=ups*Ut
-    ms=M(etas)
-
-    f=np.trapz(fs, x=etas)
-    f2=np.trapz(fs**2, x=etas)
-    fm=np.trapz(fs*ms, x=etas)
-    f2m=np.trapz(fs**2*ms, x=etas)
-    f2m2=np.trapz((fs*ms)**2, x=etas)
-
-    dx=1.0-f
-    dz=fm
-    thxx=f-f2
-    thxz=fm-f2m
-    thzx=f2m
-    thzz=f2m2
-
-    Lambda=A*Ut*wpp
-
-    return dx, dz, thxx, thxz, thzx, thzz, Cf
-
-class closure:
-    def __init__(self, disc):
-        self.disc=disc
-
-    def dump(self, fname, ext_append=True):
-        '''
-        method to dump a set of closure relationships to a binary file.
-        ======
-        args
-        ======
-        fname: file name (or complete directory) within which to save the pickled closure relationships
-        ext_append: wether to add .cls to file name
-        '''
-
-        fil=open(fname+'.cls' if ext_append else '', 'wb')
-        pck.dump(self, fil)
-        fil.close()
-
-class laminar_closure(closure):
-    def __init__(self, disc=500, a=lambda x: 2*x-2*x**3+x**4, b=lambda x: -x*(1.0-x)**3/6, M=lambda eta: 1.0-eta**2):
-        super().__init__(disc)
-
-        #recording velocity profiles: f(eta)=a(eta)+Lambda*b(eta), Lambda=fpp at the wall
-        self.a=a
-        self.b=b
-        self.M=M
-    
-    def build(self, Lambdas=np.linspace(-2.0, 4.9, 50), \
-        strategy=lambda x: x):
-        '''
-        Build laminar closure relationships for laminar flow for velocity profile f(eta)=a(eta)+Lambda*b(eta), 
-        Lambda=fpp at the wall (deduced from freestream).
-        '''
-
-        nm=len(Lambdas)
-
-        dx=np.zeros(nm)
-        dz=np.zeros(nm)
-        thxx=np.zeros(nm)
-        thxz=np.zeros(nm)
-        thzx=np.zeros(nm)
-        thzz=np.zeros(nm)
-        CfRed=np.zeros(nm)
-
-        for i, l in enumerate(Lambdas):
-            dx[i], dz[i], thxx[i], thxz[i], thzx[i], thzz[i], CfRed[i]=laminar_profile_analyse(l, \
-                a=self.a, b=self.b, M=self.M, disc=self.disc, strategy=strategy)
-
-        self.dx=abq.abaqus_1d(Lambdas, dx)
-        self.dz=abq.abaqus_1d(Lambdas, dz)
-        self.thxx=abq.abaqus_1d(Lambdas, thxx)
-        self.thxz=abq.abaqus_1d(Lambdas, thxz)
-        self.thzx=abq.abaqus_1d(Lambdas, thzx)
-        self.thzz=abq.abaqus_1d(Lambdas, thzz)
-        self.CfRed=abq.abaqus_1d(Lambdas, CfRed)
-    
-    def __call__(self, Lambda, Red, nu=False):
-        '''
-        return values from closure relationships
-        ======
-        args
-        ======
-        Lambda, Red: x and y values to look for in splines. Lambda is fpp value at the wall, or -delta**2*dq_dx/mu. Red is Reynolds number in
-        respect to delta
-        nu: boolean on whether to differentiate return values. If True, returns theta tensor ((thxx, thxz/tan(crossflow)), (thzx/tan(crossflow), thzz/tan2(crossflow))), 
-        or th, returned as derivated values dth/dLambda and dth/dRed.
-        else returns th, deltastar_x, deltastar_z/tan(crossflow), Cf (not differentiated)
-        '''
-
-        if nu:
-            #return theta tensor Lambda and Red derivatives
-            return np.array([[self.thxx(Lambda, dx=1), self.thxz(Lambda, dx=1)], [self.thzx(Lambda, dx=1), self.thzz(Lambda, dx=1)]]), \
-                np.zeros((2, 2))
-        
-        else:
-            #return tensor, dx, dz, Cf
-            return np.array([[self.thxx(Lambda), self.thxz(Lambda)], [self.thzx(Lambda), self.thzz(Lambda)]]), \
-                self.dx(Lambda), self.dz(Lambda), self.CfRed(Lambda)/Red
-
-def get_A_dst(Lambda, wpp_w, Red, LOTW, initguess):
-    Ut=sopt.fsolve(lambda Ut: (1.0-Lambda/wpp_w)-Ut*LOTW(Red*Ut), x0=initguess)[0]
-    A=Lambda/(Ut*wpp_w)
-    return A, Ut*Red
-
-class turbulent_closure(closure):
-    def __init__(self, M=lambda eta: 1.0-eta**2, LOTW=Gersten_Herwig_LOTW, w=lambda x: np.sin(np.pi*x/2)**2, disc=500):
-        h=1.0/disc
-        self.wpp_w=(w(h)-2*w(0)+w(-h))/h**2
-        self.LOTW=LOTW
-        self.w=w
-        self.M=M
-
-        super().__init__(disc)
-
-    def build(self, Lambdas=np.linspace(-2.0, 4.9, 50), Reds=10**np.linspace(2.0, 6.0, 50), \
-        strategy=lambda x: x, Ut_initguess=0.1, log_Reynolds=True):
-        '''
-        Build the closure relationships for a given range of Lambdas and thickness Reynolds numbers. strategy and disc arguments
-        are referrent to function turbulent_profile_analyse(). log_Reynolds sets input Reynolds numbers to logarythmic scale before splining.
-        '''
-
-        nm=len(Lambdas)
-        nn=len(Reds)
-
-        dx=np.zeros((nm, nn))
-        dz=np.zeros((nm, nn))
-        thxx=np.zeros((nm, nn))
-        thxz=np.zeros((nm, nn))
-        thzx=np.zeros((nm, nn))
-        thzz=np.zeros((nm, nn))
-        Cf=np.zeros((nm, nn))
-
-        for i, l in enumerate(Lambdas):
-            for j, rd in enumerate(Reds):
-                a, d=get_A_dst(Lambda=l, wpp_w=self.wpp_w, Red=rd, LOTW=self.LOTW, initguess=Ut_initguess)
-                dx[i, j], dz[i, j], thxx[i, j], thxz[i, j], thzx[i, j], thzz[i, j], Cf[i, j]=turbulent_profile_analyse(a, d, \
-                    M=self.M, LOTW=self.LOTW, outter_profile=self.w, disc=self.disc, strategy=strategy)
-        
-        self.thxx=abq.abaqus(Lambdas, np.log(Reds) if log_Reynolds else Reds, thxx)
-        self.thxz=abq.abaqus(Lambdas, np.log(Reds) if log_Reynolds else Reds, thxz)
-        self.thzx=abq.abaqus(Lambdas, np.log(Reds) if log_Reynolds else Reds, thzx)
-        self.thzz=abq.abaqus(Lambdas, np.log(Reds) if log_Reynolds else Reds, thzz)
-        self.dx=abq.abaqus(Lambdas, np.log(Reds) if log_Reynolds else Reds, dx)
-        self.dz=abq.abaqus(Lambdas, np.log(Reds) if log_Reynolds else Reds, dz)
-        self.Cf=abq.abaqus(Lambdas, np.log(Reds) if log_Reynolds else Reds, Cf)
-
-        self.log_Reynolds=log_Reynolds
-
-    def __call__(self, Lambda, Red, nu=False):
-        '''
-        return values from closure relationships
-        ======
-        args
-        ======
-        Lambda, Red: x and y values to look for in splines. Lambda is fpp value at the wall, or -delta**2*dq_dx/mu. Red is Reynolds number in
-        respect to delta
-        nu: boolean on whether to differentiate return values. If True, returns theta tensor ((thxx, thxz/tan(crossflow)), (thzx/tan(crossflow), thzz/tan2(crossflow))), 
-        or th, returned as derivated values dth/dLambda and dth/dRed.
-        else returns th, deltastar_x, deltastar_z/tan(crossflow), Cf (not differentiated)
-        '''
-        
-        rd=np.log(Red) if self.log_Reynolds else Red
-
-        if nu:
-            #return theta tensor Lambda and Red derivatives
-            return np.array([[self.thxx(Lambda, rd, dx=1), self.thxz(Lambda, rd, dx=1)], [self.thzx(Lambda, rd, dx=1), self.thzz(Lambda, rd, dx=1)]]), \
-                np.array([[self.thxx(Lambda, rd, dy=1), self.thxz(Lambda, rd, dy=1)], [self.thzx(Lambda, rd, dy=1), self.thzz(Lambda, rd, dy=1)]])/(Red if self.log_Reynolds else 1.0)
-        
-        else:
-            #return tensor, dx, dz, Cf
-            return np.array([[self.thxx(Lambda, rd), self.thxz(Lambda, rd)], [self.thzx(Lambda, rd), self.thzz(Lambda, rd)]]), \
-                self.dx(Lambda, rd), self.dz(Lambda, rd), self.Cf(Lambda, rd)
-
-
-
-def read_closure(fname, ext_append=True):
-    '''
-    function to read a set of closure relationships from a binary file
-    ======
-    args
-    ======
-    fname: file name (or complete directory) within which to save the pickled closure relationships
-    ext_append: whether to expect the name+.cls
+    Return Hstar=thetastar/theta shape parameter
     '''
 
-    fil=open(fname+'.cls' if ext_append else '', 'rb')
-    clsr=pck.load(fil)
-    fil.close()
+    attach=Hk<4.0
+    detach=np.logical_not(attach)
 
-    return clsr
+    Hst=np.zeros_like(Hk)
 
-#look for default closure relationships in package folder
-ordir=os.getcwd()
-os.chdir(os.path.dirname(__file__))
+    Hst[attach]=_Hstar_laminar_attach(Hk[attach])
 
-if os.path.exists('lam_defclosure.cls'): #change and False later
-    def_lam_closure=read_closure('lam_defclosure')
+    Hst[detach]=_Hstar_laminar_detach(Hk[detach])
 
-else:
-    print('Default laminar closure not found. Constructing anew')
-    def_lam_closure=laminar_closure()
-    def_lam_closure.build()
-    def_lam_closure.dump('lam_defclosure')
+    return Hst
 
-if os.path.exists('turb_defclosure.cls'): #change and False later
-    def_turb_closure=read_closure('turb_defclosure')
+def dHstar_laminar_dHk(Hk):
+    '''
+    Return the derivative of the Hstar=thetastar/theta shape parameter
+    in respect to density-independent Hk shape parameter
+    '''
 
-else:
-    print('Default turbulent closure not found. Constructing anew')
-    def_turb_closure=turbulent_closure()
-    def_turb_closure.build()
-    def_turb_closure.dump('turb_defclosure')
-    
-os.chdir(ordir)
-del ordir
+    attach=Hk<4.0
+    detach=np.logical_not(attach)
+
+    Hst=np.zeros_like(Hk)
+
+    Hst[attach]=_dHstar_laminar_dHk_attach(Hk[attach])
+
+    Hst[detach]=_dHstar_laminar_dHk_detach(Hk[detach])
+
+    return Hst
+
+def _Tau_lowH(Hk):
+    return 0.0396*(7.4-Hk)**2/(Hk-1.0)-0.134
+
+def _dTau_lowH_dHk(Hk):
+    return 0.0396*(Hk**2-2*Hk-39.96)/(Hk**2-2*Hk+1)
+
+def _Tau_highH(Hk):
+    return 0.044*(1.0-1.4/(Hk-6.0))**2-0.134
+
+def _dTau_highH_dHk(Hk):
+    return 0.1232*(Hk-7.4)/(Hk-6.0)**3
+
+def _Tau(Hk):
+    lowH=Hk<7.4
+    highH=np.logical_not(lowH)
+
+    T=np.zeros_like(Hk)
+
+    T[lowH]=_Tau_lowH(Hk[lowH])
+
+    T[highH]=_Tau_highH(Hk[highH])
+
+    return T
+
+def _dTau_dHk(Hk):
+    lowH=Hk<7.4
+    highH=np.logical_not(lowH)
+
+    T=np.zeros_like(Hk)
+
+    T[lowH]=_dTau_lowH_dHk(Hk[lowH])
+
+    T[highH]=_dTau_highH_dHk(Hk[highH])
+
+    return T
+
+def Cf_laminar(Reth, Hk):
+    '''
+    Returns the streamwise friction coefficient according to Swafford-Giles-Drela\'s compressible 
+    fit functions, for laminar regime
+    '''
+
+    T=_Tau(Hk)
+
+    return T/Reth
+
+def dCf_laminar_dReth(Reth, Hk):
+    '''
+    Returns the derivative of the streamwise friction coefficient according to Swafford-Giles-Drela\'s
+    compressible fit functions, for laminar regime, in respect to the momentum thickness Reynolds number
+    '''
+
+    T=_Tau(Hk)
+
+    return -T/Reth**2
+
+def dCf_laminar_dHk(Reth, Hk):
+    '''
+    Returns the derivative of the streamwise friction coefficient according to Swafford-Giles-Drela\'s
+    compressible fit functions, for laminar regime, in respect to the density-independent compressible
+    shape parameter Hk
+    '''
+
+    return _dTau_dHk(Hk)/Reth
+
+def Hprime_laminar(Me, Hk):
+    '''
+    Hprime shape factor (deltaprime/theta) for external Mach number Me and compressible, density-
+    -independent shape parameter Hk
+    '''
+
+    return Me**2*(0.251+0.064/(Hk-2.5))
+
+def dHprime_laminar_dMe(Me, Hk):
+    '''
+    Hprime shape factor (deltaprime/theta) derivative for external Mach number Me and compressible, 
+    density-independent shape parameter Hk, in relationship to Me
+    '''
+
+    return Me*(0.502*Hk-0.2736)/(Hk-0.8)
+
+def dHprime_laminar_dHk(Me, Hk):
+    '''
+    Hprime shape factor (deltaprime/theta) derivative for external Mach number Me and compressible, 
+    density-independent shape parameter Hk, in relationship to Hk
+    '''
+
+    return -0.32*Me**2/(Hk-0.8)**2
+
+def _Delta_attached(Hk):
+    return 0.0001025*(4.0-Hk)**5.5+0.1035
+
+def _dDelta_attached_dHk(Hk):
+    return -0.00564*(4.0-Hk)**4.5
+
+def _Delta_detached(Hk):
+    return -3.0*(Hk-4.0)**2/(40.0*(Hk-4.0)**2+2000.0)+0.1035
+
+def _dDelta_detached_dHk(Hk):
+    return (30.0-7.5*Hk)/(Hk**4-16.0*Hk**3+196*Hk**2-1056*Hk**2+4356)
+
+def Cd_laminar(Reth, Hk):
+    '''
+    Returns the dissipation coefficient according to Swafford-Giles-Drela compressible fit functions,
+    given Reth, Me and Hk data
+    '''
+
+    attach=Hk<4.0
+    detach=np.logical_not(attach)
+
+    coef=np.zeros_like(Reth)
+
+    coef[attach]=_Delta_attached(Hk[attach])
+    coef[detach]=_Delta_detached(Hk[detach])
+
+    par=Hstar_laminar(Hk)
+
+    return (coef*par)/Reth
+
+def dCd_laminar_dReth(Reth, Hk):
+    '''
+    Returns the dissipation coefficient according to Swafford-Giles-Drela compressible fit functions,
+    given Reth and Hk data, derivated by momentum thickness Reynolds number
+    '''
+
+    coef=Cd_laminar(Reth, Me, Hk)
+
+    return -coef/Reth
+
+def dCd_laminar_dHk(Reth, Hk):
+    '''
+    Returns the dissipation coefficient according to Swafford-Giles-Drela compressible fit functions,
+    given Reth and Hk data, derivated by external Mach number
+    '''
+
+    attach=Hk<4.0
+    detach=np.logical_not(attach)
+
+    coef=np.zeros_like(Reth)
+    dcoef=np.zeros_like(Reth)
+
+    dcoef[attach]=_dDelta_attached_dHk(Hk[attach])
+    dcoef[detach]=_dDelta_detached_dHk(Hk[detach])
+
+    coef[attach]=_Delta_attached(Hk[attach])
+    coef[detach]=_Delta_detached(Hk[detach])
+
+    par=Hstar_laminar(Hk)
+    dpar=dHstar_laminar_dHk(Hk)
+
+    return (coef*dpar+dcoef*par)/Reth
