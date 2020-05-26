@@ -158,7 +158,7 @@ def dHprime_laminar_dMe(Me, Hk):
     density-independent shape parameter Hk, in relationship to Me
     '''
 
-    return sps.diags(Me*(0.502*Hk-0.2736)/(Hk-0.8), format='lil')
+    return sps.diags(2*Me*(0.251+0.064/(Hk-2.5)), format='lil')
 
 def dHprime_laminar_dHk(Me, Hk):
     '''
@@ -166,19 +166,19 @@ def dHprime_laminar_dHk(Me, Hk):
     density-independent shape parameter Hk, in relationship to Hk
     '''
 
-    return sps.diags(-0.32*Me**2/(Hk-0.8)**2, format='lil')
+    return sps.diags(Me**2*(-0.064/(Hk-2.5)**2), format='lil')
 
 def _Delta_attached(Hk):
     return 0.0001025*(4.0-Hk)**5.5+0.1035
 
 def _dDelta_attached_dHk(Hk):
-    return -0.00564*(4.0-Hk)**4.5
+    return -5.6375e-4*(4.0-Hk)**4.5
 
 def _Delta_detached(Hk):
-    return -3.0*(Hk-4.0)**2/(40.0*(Hk-4.0)**2+2000.0)+0.1035
+    return (0.207-0.003*(Hk-4.0)**2/(1.0+0.02*(Hk-4.0)**2))/2.0
 
 def _dDelta_detached_dHk(Hk):
-    return (30.0-7.5*Hk)/(Hk**4-16.0*Hk**3+196*Hk**2-1056*Hk**2+4356)
+    return (-0.003*(Hk-4.0)/(1.0+0.02*(Hk-4.0)**2)**2)
 
 def Cd_laminar(Reth, Hk):
     '''
