@@ -29,10 +29,10 @@ def Hk(H, Me):
 
 #last function's derivatives
 def dHk_dH(H, Me):
-    return sps.diags(1.0/(1.0+0.113*Me**2))
+    return sps.diags(1.0/(1.0+0.113*Me**2), format='lil')
 
 def dHk_dMe(H, Me):
-    return sps.diags(-2.0*Me*(0.113*H+0.290)/(0.113*Me**2+1.0))
+    return sps.diags(-2.0*Me*(0.113*H+0.290)/(0.113*Me**2+1.0), format='lil')
 
 def _Hstar_laminar_attach(Hk):
     return (0.076*(4.0-Hk)**2+1.515)/Hk
@@ -77,7 +77,7 @@ def dHstar_laminar_dHk(Hk):
 
     Hst[detach]=_dHstar_laminar_dHk_detach(Hk[detach])
 
-    return Hst
+    return sps.diags(Hst, format='lil')
 
 def _Tau_lowH(Hk):
     return 0.0396*(7.4-Hk)**2/(Hk-1.0)-0.134
@@ -131,9 +131,9 @@ def dCf_laminar_dReth(Reth, Hk):
     compressible fit functions, for laminar regime, in respect to the momentum thickness Reynolds number
     '''
 
-    T=_Tau(Hk)
+    T=-_Tau(Hk)
 
-    return -T/Reth**2
+    return sps.diags(T/Reth**2, format='lil')
 
 def dCf_laminar_dHk(Reth, Hk):
     '''
@@ -142,7 +142,7 @@ def dCf_laminar_dHk(Reth, Hk):
     shape parameter Hk
     '''
 
-    return _dTau_dHk(Hk)/Reth
+    return sps.diags(_dTau_dHk(Hk)/Reth, format='lil')
 
 def Hprime_laminar(Me, Hk):
     '''
@@ -158,7 +158,7 @@ def dHprime_laminar_dMe(Me, Hk):
     density-independent shape parameter Hk, in relationship to Me
     '''
 
-    return Me*(0.502*Hk-0.2736)/(Hk-0.8)
+    return sps.diags(Me*(0.502*Hk-0.2736)/(Hk-0.8), format='lil')
 
 def dHprime_laminar_dHk(Me, Hk):
     '''
@@ -166,7 +166,7 @@ def dHprime_laminar_dHk(Me, Hk):
     density-independent shape parameter Hk, in relationship to Hk
     '''
 
-    return -0.32*Me**2/(Hk-0.8)**2
+    return sps.diags(-0.32*Me**2/(Hk-0.8)**2, format='lil')
 
 def _Delta_attached(Hk):
     return 0.0001025*(4.0-Hk)**5.5+0.1035
@@ -204,9 +204,9 @@ def dCd_laminar_dReth(Reth, Hk):
     given Reth and Hk data, derivated by momentum thickness Reynolds number
     '''
 
-    coef=Cd_laminar(Reth, Me, Hk)
+    coef=-Cd_laminar(Reth, Hk)
 
-    return -coef/Reth
+    return sps.diags(coef/Reth, format='lil')
 
 def dCd_laminar_dHk(Reth, Hk):
     '''
@@ -229,4 +229,206 @@ def dCd_laminar_dHk(Reth, Hk):
     par=Hstar_laminar(Hk)
     dpar=dHstar_laminar_dHk(Hk)
 
-    return (coef*dpar+dcoef*par)/Reth
+    return sps.diags((coef*dpar+dcoef*par)/Reth, format='lil')
+
+def _Hstar_Me0(Hk):
+    return 1.81+3.84*np.exp(-2*Hk)-np.arctan((10.0**(7.0-Hk)-1.0)/1.23)/8.55-\
+        0.146*np.sqrt(np.tanh(2.14*10.0**(4.0-1.46*Hk)))
+
+def _dHstar_Me0_dHk(Hk):
+    return -7.68*np.exp(-2*Hk)+1.872*10.0**(7.0-Hk)/((((10.0**(7-Hk)-1.0)/1.23)**2+1.0)*8.55)+\
+        1.05*10.0**(4.0-1.46*Hk)*(1.0-np.tanh(2.14*10.0**(4-1.46*Hk))**2)/(2.0*np.sqrt(np.tanh(2.14*10.0**(4-1.46*Hk))))
+
+def Hstar_turbulent(Me, Hk):
+    '''
+    Return turbulent shape factor Hstar (thetastar/theta)
+    '''
+    
+    return (_Hstar_Me0(Hk)+0.028*Me**2)/(1.0+0.014*Me**2)
+
+def dHstar_turbulent_dHk(Me, Hk):
+    '''
+    Return turbulent shape factor Hstar (thetastar/theta) derivated by density independent shape
+    parameter Hk
+    '''
+
+    dM0=_dHstar_Me0_dHk(Hk)
+
+    return sps.diags(dM0/(1.0+0.014*Me**2), format='lil')
+
+def dHstar_turbulent_dMe(Me, Hk):
+    '''
+    Return turbulent shape factor Hstar (thetastar/theta) derivated by external Mach number Me
+    '''
+    
+    M0=_Hstar_Me0(Hk)
+
+    return sps.diags(0.028*Me*(2.0-M0)/(0.014*Me+1.0)**2, format='lil')
+
+def Hprime_turbulent(Me, Hk):
+    '''
+    Hprime turbulent shape factor (deltaprime (or deltastarstar)/theta)
+    '''
+
+    return Me**2*(0.251+0.064/(Hk-0.8))
+
+def dHprime_turbulent_dMe(Me, Hk):
+    '''
+    Hprime turbulent shape factor (deltaprime (or deltastarstar)/theta) derivated by external 
+    Mach number Me
+    '''
+
+    return sps.diags(Me*(0.502*Hk-0.2736)/(Hk-0.8), format='lil')
+
+def dHprime_turbulent_dHk(Me, Hk):
+    '''
+    Hprime turbulent shape factor (deltaprime (or deltastarstar)/theta) derivated by external 
+    Mach number Me
+    '''
+
+    return sps.diags(-8.0*Me**2/(5.0*(5.0*Hk-4.0)**2), format='lil')
+
+def _Fc(Me, gamma):
+    return np.sqrt(1.0+(gamma-1.0)*Me**2/2)
+
+def _dFc_dMe(Me, gamma):
+    return (gamma-1.0)*Me/(2.0*np.sqrt(1.0+(gamma-1.0)*Me**2/2))
+
+def _f1(Reth, Hk):
+    return 0.3*(np.log10(Reth))**(-0.31*Hk-1.74)*np.exp(-1.33*Hk)
+
+def _df1_dHk(Reth, Hk):
+    return -(0.093*np.log10(Reth)+0.399)*np.exp(-1.33*Hk)*np.log10(Reth)**(-0.31*Hk-1.74)
+
+def _df1_dReth(Reth, Hk):
+    -(0.093*Hk+0.522)*np.exp(-1.33*Hk)*\
+        np.log10(Reth)**(-0.31*Hk-1.74)/(Reth*np.log(Reth))
+
+def _f2(Hk):
+    return 0.00011*(np.tanh(4.0-8.0*Hk/7.0)-1.0)
+
+def _df2_dHk(Hk):
+    return 1.257e-4*(np.tanh(8.0*Hk/7.0-4.0)**2-1.0)
+
+def _Cf_bar(Reth, Hk):
+    return _f1(Reth, Hk)+_f2(Hk)
+
+def _dCf_bar_dReth(Reth, Hk):
+    return _df1_dReth(Reth, Hk)
+
+def _dCf_bar_dHk(Reth, Hk):
+    return _df1_dHk(Reth, Hk)+_df2_dHk(Hk)
+
+def Cf_turbulent(Reth, Me, Hk, passive):
+    '''
+    Return turbulent friction coefficient
+    '''
+
+    return _Cf_bar(Reth, Hk)/_Fc(Me, passive['gamma'])
+
+def dCf_turbulent_dReth(Reth, Me, Hk, passive):
+    '''
+    Return derivative of turbulent friction coefficient in respect to momentum thickness
+    Reynolds number
+    '''
+
+    gamma=passive['gamma']
+
+    return sps.diags(_dCf_bar_dReth(Reth, Hk)/_Fc(Me, gamma), format='lil')
+
+def dCf_turbulent_dMe(Reth, Me, Hk, passive):
+    '''
+    Return derivative of turbulent friction coefficient in respect to 
+    externam Mach number Me
+    '''
+
+    gamma=passive['gamma']
+
+    return sps.diags(-_dFc_dMe(Me, gamma)*_Cf_bar(Reth, Hk)/_Fc(Me, gamma)**2, format='lil')
+
+def dCf_turbulent_dHk(Reth, Me, Hk, passive):
+    '''
+    Return derivative of turbulent friction coefficient in respect to density-
+    -independent shape parameter Hk
+    '''
+
+    gamma=passive['gamma']
+
+    return sps.diags(_dCf_bar_dHk(Reth, Hk)/_Fc(Me, gamma), format='lil')
+
+def _A(Hk):
+    ishigh=Hk>3.5
+    islow=np.logical_not(ishigh)
+
+    answ=np.zeros_like(Hk)
+
+    answ[ishigh]=0.160*(Hk[ishigh]-3.5)-0.550
+    answ[islow]=0.438-0.280*Hk[islow]
+
+    return answ
+
+def _dA_dHk(Hk):
+    ishigh=Hk>3.5
+    islow=np.logical_not(ishigh)
+
+    answ=np.zeros_like(Hk)
+
+    answ[ishigh]=0.160
+    answ[islow]=-0.280
+
+    return answ
+
+def _B(Hk):
+    return 0.009-0.011*np.exp(-0.15*Hk**2.1)+3e-5*np.exp(0.117*Hk**2)
+
+def _C(Me, gamma):
+    return _Fc(Me, gamma)*(1.0+0.05*Me**1.4)
+
+def _dB_dHk(Hk):
+    return 3.465e-3*Hk**1.1*np.exp(-0.15*Hk**2.1)+7.02e-6*np.exp(0.117*Hk**2)
+
+def _dC_dMe(Me, gamma):
+    return _dFc_dMe(Me, gamma)*(1.0+0.05*Me**1.4)+_Fc(Me, gamma)*0.07*Me**0.4
+
+def _D(Reth):
+    return Reth**(-0.574)
+
+def _dD_dReth(Reth):
+    return -0.574/Reth**1.574
+
+def Cd_turbulent(Reth, Me, Hk, passive):
+    '''
+    Return turbulent dissipation coefficient
+    '''
+
+    gamma=passive['gamma']
+
+    return 2.0*(_B(Hk)+_A(Hk)*_D(Reth))/_C(Me, gamma)
+
+def dCd_turbulent_dReth(Reth, Me, Hk, passive):
+    '''
+    Return turbulent dissipation coefficient differentiated by momentum thickness
+    Reynolds number
+    '''
+
+    gamma=passive['gamma']
+
+    return sps.diags(2.0*_A(Hk)*_dD_dReth(Reth)/_C(Me, gamma), format='lil')
+
+def dCd_turbulent_dMe(Reth, Me, Hk, passive):
+    '''
+    Return turbulent dissipation coefficient
+    '''
+
+    gamma=passive['gamma']
+
+    return sps.diags(-2.0*(_B(Hk)+_A(Hk)*_D(Reth))*_dC_dMe(Me, gamma)/_C(Me, gamma)**2, format='lil')
+
+def dCd_turbulent_dHk(Reth, Me, Hk, passive):
+    '''
+    Return turbulent dissipation coefficient
+    '''
+
+    gamma=passive['gamma']
+
+    return sps.diags(2.0*(_dB_dHk(Hk)+_dA_dHk(Hk)*_D(Reth))/_C(Me, gamma), format='lil')
