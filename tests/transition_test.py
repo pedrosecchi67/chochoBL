@@ -19,14 +19,17 @@ def _standard_perturbations(*args, factor=1e-7, relative=True):
     else:
         return tuple(np.ones_like(a)*factor for a in args)
 
+def _ifvalid_divide(a, b):
+    return np.array([ax/bx if bx!=0.0 else 0.0 for ax, bx in zip(a, b)])
+
 def _arr_compare(a, b, tol=1e-5, relative=None):
     if relative is None:
         return np.all(np.abs(a-b)<tol)
     else:
-        return np.all(np.abs((a-b)/relative)<tol)
+        return np.all(_ifvalid_divide(np.abs(a-b), np.abs(relative))<tol)
 
 def test_p():
-    Reth_std, Me_std, Hk_std, th11_std=_standard_data(10)
+    Reth_std, Me_std, Hk_std, th11_std=_standard_data(100)
     pReth, pMe, pHk, pth11=_standard_perturbations(Reth_std, Me_std, Hk_std, th11_std, \
         relative=False, factor=1e-10)
 

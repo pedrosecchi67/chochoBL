@@ -54,12 +54,12 @@ def dReth_crit_dHk(Hk):
 
     return Reth_crit(Hk)*np.log(10.0)*_dlog10Reth_crit_dHk(Hk)
 
-def dN_dReth(Reth, Hk, A):
+def dN_dReth(Reth, Hk, A, ismult=True):
     Rethc=Reth_crit(Hk)
-
+    
     sg=_sigma((Reth-Rethc)*A)
 
-    return 0.01*np.sqrt((2.4*Hk-3.7+2.5*np.tanh(1.5*Hk-4.65))**2+0.15)
+    return 0.01*np.sqrt((2.4*Hk-3.7+2.5*np.tanh(1.5*Hk-4.65))**2+0.15)*(sg if ismult else 1.0)
 
 def d2N_dReth2(Reth, Hk, A):
     '''
@@ -70,7 +70,7 @@ def d2N_dReth2(Reth, Hk, A):
 
     dsg=A*_dsigma_du((Reth-Rethc)*A)
 
-    return dN_dReth(Reth, Hk, A)*dsg
+    return dN_dReth(Reth, Hk, A, ismult=False)*dsg
 
 def d2N_dHkdReth(Reth, Hk, A):
     '''
@@ -84,7 +84,7 @@ def d2N_dHkdReth(Reth, Hk, A):
     dsg=-A*dRethc*_dsigma_du((Reth-Rethc)*A)
 
     return 0.01*sg*(2.4-3.75*(np.tanh(1.5*Hk-4.65)**2-1.0))*(2.4*Hk-3.7+2.5*np.tanh(1.5*Hk-4.65))/\
-        np.sqrt((2.4*Hk-3.7+2.5*np.tanh(1.5*Hk-4.65))**2+0.15)+dN_dReth(Reth, Hk, A)*dsg
+        np.sqrt((2.4*Hk-3.7+2.5*np.tanh(1.5*Hk-4.65))**2+0.15)+dN_dReth(Reth, Hk, A, ismult=False)*dsg
 
 def _l(Hk):
     return (6.54*Hk-14.07)/Hk**2
