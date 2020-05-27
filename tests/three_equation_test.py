@@ -238,3 +238,56 @@ def test_Reth():
     dHk_dMe_real=np.diag(msh.gr.nodes['Hk'].Jac['Hk']['Me'].todense())
 
     assert _arr_compare(dHk_dMe_expected, dHk_dMe_real), "Hk Me Jacobian evaluation failed"
+
+def test_p():
+    msh=_get_test_mesh()
+
+    vels=np.array(
+        [
+            [1.0, -1.0, 0.0],
+            [1.0, 0.0, 0.0],
+            [1.0, 1.0, 0.0],
+            [2.0, -1.0, 0.0],
+            [2.0, 0.0, 0.0],
+            [2.0, 1.0, 0.0],
+            [3.0, -1.0, 0.0],
+            [3.0, 0.0, 0.0],
+            [3.0, 1.0, 0.0]
+        ]
+    )
+
+    H=np.linspace(2.5, 3.5, 9)
+    th11=10.0**np.linspace(-4.0, -1.0, 9)
+
+    msh.graph_init()
+
+    msh.gr.heads['q'].set_value({'qx':vels[:, 0], 'qy':vels[:, 1], 'qz':vels[:, 2]})
+    msh.gr.heads['H'].set_value({'H':H})
+    msh.gr.heads['th11'].set_value({'th11':th11})
+
+    msh.gr.nodes['p'].calculate()
+
+    Reth=msh.gr.nodes['Reth'].value['Reth']
+    Hk=msh.gr.nodes['Hk'].value['Hk']
+
+    passive=msh.passive
+
+    p_expected=p(Reth, Hk, th11, passive)
+
+    assert _arr_compare(p_expected, msh.gr.nodes['p'].value['p']), \
+        "p value computation failed"
+
+    dp_dHk_expected=np.diag(dp_dHk(Reth, Hk, th11, passive).todense())
+    dp_dHk_real=np.diag(msh.gr.nodes['p'].Jac['p']['Hk'].todense())
+
+    assert _arr_compare(dp_dHk_expected, dp_dHk_real), "p Hk Jacobian evaluation failed"
+
+    dp_dReth_expected=np.diag(dp_dReth(Reth, Hk, th11, passive).todense())
+    dp_dReth_real=np.diag(msh.gr.nodes['p'].Jac['p']['Reth'].todense())
+
+    assert _arr_compare(dp_dReth_expected, dp_dReth_real), "p Reth Jacobian evaluation failed"
+
+    dp_dth11_expected=np.diag(dp_dth11(Reth, Hk, th11, passive).todense())
+    dp_dth11_real=np.diag(msh.gr.nodes['p'].Jac['p']['th11'].todense())
+
+    assert _arr_compare(dp_dth11_expected, dp_dth11_real), "p th11 Jacobian evaluation failed"

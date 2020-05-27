@@ -9,6 +9,7 @@ from garlekin import *
 from differentiation import *
 from three_equation import *
 from closure import *
+from transition import *
 
 def _gen_orthonormal(u, n):
     '''
@@ -161,6 +162,8 @@ class mesh:
         rho_node=rho_getnode(self)
         Reth_node=Reth_getnode(self)
         Hk_node=Hk_getnode(self)
+        p_node=p_getnode(self)
+
 
         #adding nodes
         self.gr.add_node(q_head, 'q', head=True)
@@ -173,6 +176,7 @@ class mesh:
         self.gr.add_node(rho_node, 'rho')
         self.gr.add_node(Reth_node, 'Reth')
         self.gr.add_node(Hk_node, 'Hk')
+        self.gr.add_node(p_node, 'p')
 
         #adding edges
         e_q_uw=edge(q_head, uw_node, {'qx', 'qy', 'qz'})
@@ -184,6 +188,9 @@ class mesh:
         e_th11_Reth=edge(theta11_head, Reth_node, {'th11'})
         e_H_Hk=edge(H_head, Hk_node, {'H'})
         e_Me_Hk=edge(Me_node, Hk_node, {'Me'})
+        e_Hk_p=edge(Hk_node, p_node, {'Hk'})
+        e_Reth_p=edge(Reth_node, p_node, {'Reth'})
+        e_th11_p=edge(theta11_head, p_node, {'th11'})
 
         self.gr.add_edge(e_q_uw)
         self.gr.add_edge(e_q_qe)
@@ -194,3 +201,6 @@ class mesh:
         self.gr.add_edge(e_th11_Reth)
         self.gr.add_edge(e_H_Hk)
         self.gr.add_edge(e_Me_Hk)
+        self.gr.add_edge(e_Hk_p)
+        self.gr.add_edge(e_Reth_p)
+        self.gr.add_edge(e_th11_p)

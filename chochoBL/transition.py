@@ -2,6 +2,8 @@ import numpy as np
 import scipy.sparse as sps
 import scipy.special as special
 
+from differentiation import *
+
 '''
 Module containing functions necessary for transition prediction as exposed by
 Giles and Drela in their paper Viscous-Inviscid Analysis of Transonic and Low Reynolds
@@ -157,3 +159,14 @@ def dsigma_N_dN(N, passive):
     E=np.exp((passive['Ncrit']-N)*A_transition)
 
     return sps.diags(A_transition*E/(E+1.0)**2, format='lil')
+
+def p_getnode(msh):
+    '''
+    Return a node for the function p(Reth, Hk, th11)=dN/ds
+    '''
+
+    pfunc=func(f=p, derivs=(dp_dReth, dp_dHk, dp_dth11,), args=[0, 1, 2], sparse=True, haspassive=True)
+
+    pnode=node(f=pfunc, args_to_inds=['Reth', 'Hk', 'th11'], outs_to_inds=['p'], passive=msh.passive)
+
+    return pnode
