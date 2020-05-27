@@ -298,10 +298,10 @@ def _f1(Reth, Hk):
     return 0.3*(np.log10(Reth))**(-0.31*Hk-1.74)*np.exp(-1.33*Hk)
 
 def _df1_dHk(Reth, Hk):
-    return -(0.093*np.log10(Reth)+0.399)*np.exp(-1.33*Hk)*np.log10(Reth)**(-0.31*Hk-1.74)
+    return -(0.093*np.log(np.log10(Reth))+0.399)*np.exp(-1.33*Hk)*np.log10(Reth)**(-0.31*Hk-1.74)
 
 def _df1_dReth(Reth, Hk):
-    -(0.093*Hk+0.522)*np.exp(-1.33*Hk)*\
+    return -(0.093*Hk+0.522)*np.exp(-1.33*Hk)*\
         np.log10(Reth)**(-0.31*Hk-1.74)/(Reth*np.log(Reth))
 
 def _f2(Hk):
@@ -385,7 +385,7 @@ def _C(Me, gamma):
     return _Fc(Me, gamma)*(1.0+0.05*Me**1.4)
 
 def _dB_dHk(Hk):
-    return 3.465e-3*Hk**1.1*np.exp(-0.15*Hk**2.1)+7.02e-6*np.exp(0.117*Hk**2)
+    return 3.465e-3*Hk**1.1*np.exp(-0.15*Hk**2.1)+7.02e-6*Hk*np.exp(0.117*Hk**2)
 
 def _dC_dMe(Me, gamma):
     return _dFc_dMe(Me, gamma)*(1.0+0.05*Me**1.4)+_Fc(Me, gamma)*0.07*Me**0.4

@@ -121,3 +121,63 @@ def test_Hprime_turbulent():
 
     assert _arr_compare(dydx_an, dydx_num, tol=1e-3, \
         relative=dydx_an)
+
+def test_Cf_turbulent():
+    Reth_std, Me_std, Hk_std=_standard_data(100)
+    pReth, pMe, pHk=_standard_perturbations(Reth_std, Me_std, Hk_std)
+
+    passive={'gamma':1.4}
+
+    dydx_num=(Cf_turbulent(Reth_std, Me_std+pMe, Hk_std, passive)-\
+        Cf_turbulent(Reth_std, Me_std, Hk_std, passive))/pMe
+
+    dydx_an=np.diag(dCf_turbulent_dMe(Reth_std, Me_std, Hk_std, passive).todense())
+
+    assert _arr_compare(dydx_an, dydx_num, tol=1e-3, \
+        relative=dydx_an)
+
+    dydx_num=(Cf_turbulent(Reth_std+pReth, Me_std, Hk_std, passive)-\
+        Cf_turbulent(Reth_std, Me_std, Hk_std, passive))/pReth
+
+    dydx_an=np.diag(dCf_turbulent_dReth(Reth_std, Me_std, Hk_std, passive).todense())
+
+    assert _arr_compare(dydx_an, dydx_num, tol=1e-3, \
+        relative=dydx_an)
+
+    dydx_num=(Cf_turbulent(Reth_std, Me_std, Hk_std+pHk, passive)-\
+        Cf_turbulent(Reth_std, Me_std, Hk_std, passive))/pHk
+
+    dydx_an=np.diag(dCf_turbulent_dHk(Reth_std, Me_std, Hk_std, passive).todense())
+
+    assert _arr_compare(dydx_an, dydx_num, tol=1e-3, \
+        relative=dydx_an)
+
+def test_Cd_turbulent():
+    Reth_std, Me_std, Hk_std=_standard_data(100)
+    pReth, pMe, pHk=_standard_perturbations(Reth_std, Me_std, Hk_std)
+
+    passive={'gamma':1.4}
+
+    dydx_num=(Cd_turbulent(Reth_std, Me_std+pMe, Hk_std, passive)-\
+        Cd_turbulent(Reth_std, Me_std, Hk_std, passive))/pMe
+
+    dydx_an=np.diag(dCd_turbulent_dMe(Reth_std, Me_std, Hk_std, passive).todense())
+
+    assert _arr_compare(dydx_an, dydx_num, tol=1e-3, \
+        relative=dydx_an)
+
+    dydx_num=(Cd_turbulent(Reth_std+pReth, Me_std, Hk_std, passive)-\
+        Cd_turbulent(Reth_std, Me_std, Hk_std, passive))/pReth
+
+    dydx_an=np.diag(dCd_turbulent_dReth(Reth_std, Me_std, Hk_std, passive).todense())
+
+    assert _arr_compare(dydx_an, dydx_num, tol=1e-3, \
+        relative=dydx_an)
+
+    dydx_num=(Cd_turbulent(Reth_std, Me_std, Hk_std+pHk, passive)-\
+        Cd_turbulent(Reth_std, Me_std, Hk_std, passive))/pHk
+
+    dydx_an=np.diag(dCd_turbulent_dHk(Reth_std, Me_std, Hk_std, passive).todense())
+
+    assert _arr_compare(dydx_an, dydx_num, tol=1e-3, \
+        relative=dydx_an)
