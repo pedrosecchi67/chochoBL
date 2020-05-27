@@ -236,8 +236,8 @@ def _Hstar_Me0(Hk):
         0.146*np.sqrt(np.tanh(2.14*10.0**(4.0-1.46*Hk)))
 
 def _dHstar_Me0_dHk(Hk):
-    return -7.68*np.exp(-2*Hk)+1.872*10.0**(7.0-Hk)/((((10.0**(7-Hk)-1.0)/1.23)**2+1.0)*8.55)+\
-        1.05*10.0**(4.0-1.46*Hk)*(1.0-np.tanh(2.14*10.0**(4-1.46*Hk))**2)/(2.0*np.sqrt(np.tanh(2.14*10.0**(4-1.46*Hk))))
+    return -7.68*np.exp(-2*Hk)+1.87202*10.0**(7.0-Hk)/((((10.0**(7-Hk)-1.0)/1.23)**2+1.0)*8.55)+\
+        1.05035*10.0**(4.0-1.46*Hk)*(1.0-np.tanh(2.14*10.0**(4-1.46*Hk))**2)/(2.0*np.sqrt(np.tanh(2.14*10.0**(4-1.46*Hk))))
 
 def Hstar_turbulent(Me, Hk):
     '''
@@ -263,7 +263,7 @@ def dHstar_turbulent_dMe(Me, Hk):
     
     M0=_Hstar_Me0(Hk)
 
-    return sps.diags(0.028*Me*(2.0-M0)/(0.014*Me+1.0)**2, format='lil')
+    return sps.diags(0.028*Me*(2.0-M0)/(0.014*Me**2+1.0)**2, format='lil')
 
 def Hprime_turbulent(Me, Hk):
     '''

@@ -8,7 +8,7 @@ import pytest
 
 def _standard_data(n):
     Hk=np.interp(rnd.random(n), [0.0, 1.0], [2.0, 6.0])
-    Me=np.interp(rnd.random(n), [0.0, 1.0], [0.0, 0.6])
+    Me=np.interp(rnd.random(n), [0.0, 1.0], [0.1, 0.6])
     Reth=10.0**np.interp(rnd.random(n), [0.0, 1.0], [2.0, 8.0])
     return Reth, Me, Hk
 
@@ -68,7 +68,7 @@ def test_Cf_laminar():
     assert _arr_compare(dydx_an, dydx_num, tol=1e-3, \
         relative=dydx_an)
 
-def test_Cd_laminar_Hk():
+def test_Cd_laminar():
     Reth_std, Me_std, Hk_std=_standard_data(100)
     pReth, pMe, pHk=_standard_perturbations(Reth_std, Me_std, Hk_std)
 
@@ -79,13 +79,45 @@ def test_Cd_laminar_Hk():
     assert _arr_compare(dydx_an, dydx_num, tol=1e-3, \
         relative=dydx_an)
 
-def test_Cd_laminar_Reth():
-    Reth_std, Me_std, Hk_std=_standard_data(100)
-    pReth, pMe, pHk=_standard_perturbations(Reth_std, Me_std, Hk_std)
-
     dydx_num=(Cd_laminar(Reth_std+pReth, Hk_std)-Cd_laminar(Reth_std, Hk_std))/pReth
 
     dydx_an=np.diag(dCd_laminar_dReth(Reth_std, Hk_std).todense())
+
+    assert _arr_compare(dydx_an, dydx_num, tol=1e-3, \
+        relative=dydx_an)
+
+def test_Hstar_turbulent():
+    Reth_std, Me_std, Hk_std=_standard_data(100)
+    pReth, pMe, pHk=_standard_perturbations(Reth_std, Me_std, Hk_std)
+
+    dydx_num=(Hstar_turbulent(Me_std+pMe, Hk_std)-Hstar_turbulent(Me_std, Hk_std))/pMe
+
+    dydx_an=np.diag(dHstar_turbulent_dMe(Me_std, Hk_std).todense())
+
+    assert _arr_compare(dydx_an, dydx_num, tol=1e-3, \
+        relative=dydx_an)
+
+    dydx_num=(Hstar_turbulent(Me_std, Hk_std+pHk)-Hstar_turbulent(Me_std, Hk_std))/pHk
+
+    dydx_an=np.diag(dHstar_turbulent_dHk(Me_std, Hk_std).todense())
+
+    assert _arr_compare(dydx_an, dydx_num, tol=1e-2, \
+        relative=dydx_an) #tolerance set higher since only three significative algorisms were considered
+
+def test_Hprime_turbulent():
+    Reth_std, Me_std, Hk_std=_standard_data(100)
+    pReth, pMe, pHk=_standard_perturbations(Reth_std, Me_std, Hk_std)
+
+    dydx_num=(Hprime_turbulent(Me_std+pMe, Hk_std)-Hprime_turbulent(Me_std, Hk_std))/pMe
+
+    dydx_an=np.diag(dHprime_turbulent_dMe(Me_std, Hk_std).todense())
+
+    assert _arr_compare(dydx_an, dydx_num, tol=1e-3, \
+        relative=dydx_an)
+
+    dydx_num=(Hprime_turbulent(Me_std, Hk_std+pHk)-Hprime_turbulent(Me_std, Hk_std))/pHk
+
+    dydx_an=np.diag(dHprime_turbulent_dHk(Me_std, Hk_std).todense())
 
     assert _arr_compare(dydx_an, dydx_num, tol=1e-3, \
         relative=dydx_an)
