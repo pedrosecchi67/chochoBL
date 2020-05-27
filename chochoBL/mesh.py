@@ -91,7 +91,7 @@ class mesh:
     Class containing information about a mesh
     '''
 
-    def __init__(self, atm_props=defatm, Uinf=1.0):
+    def __init__(self, atm_props=defatm, Uinf=1.0, Ncrit=6.0, A_transition=50.0):
         '''
         Initialize a mesh object without any nodes or cells
         '''
@@ -100,7 +100,7 @@ class mesh:
         self.cells=[]
         self.node_Mtosys=[]
 
-        self.passive={'mesh':self, 'atm':atm_props, 'Uinf':Uinf}
+        self.passive={'mesh':self, 'atm':atm_props, 'Uinf':Uinf, 'Ncrit':Ncrit, 'A_transition'=A_transition}
     
     def add_node(self, coords):
         '''

@@ -58,3 +58,23 @@ def dp_th11(Hk, th11):
     '''
 
     return sps.diags(-p(Hk, th11)/th11, format='lil')
+
+def sigma_N(N, passive):
+    '''
+    Return sigma function of transition so that sigma_N*f_turbulent(...)+(1.0-sigma_N)*f_laminar(...)
+    is a suitable transitional behavior approximation
+    '''
+
+    return 1.0/(np.exp((passive['Ncrit']-N)*passive['A_transition'])+1.0)
+
+def dsigma_N_dN(N, passive):
+    '''
+    Return sigma function of transition, so that sigma_N*f_turbulent(...)+(1.0-sigma_N)*f_laminar(...)
+    is a suitable transitional behavior approximation, differentiated by N
+    '''
+
+    A_transition=passive['A_transition']
+
+    E=np.exp((passive['Ncrit']-N)*A_transition)
+
+    return A_transition*E/(E+1.0)**2
