@@ -21,6 +21,27 @@ def _arr_compare(a, b, tol=1e-5, relative=None):
     else:
         return np.all(np.abs((a-b)/relative)<tol)
 
+def test_Hk():
+    H=rnd.random(100)*2.0+2.0
+    Me=rnd.random(100)*0.6+0.1
+
+    pH=1e-7*H
+    pMe=1e-7*Me
+
+    dydx_num=(Hk(H+pH, Me)-Hk(H, Me))/pH
+
+    dydx_an=np.diag(dHk_dH(H, Me).todense())
+
+    assert _arr_compare(dydx_an, dydx_num, tol=1e-3, \
+        relative=dydx_an)
+
+    dydx_num=(Hk(H, Me+pMe)-Hk(H, Me))/pMe
+
+    dydx_an=np.diag(dHk_dMe(H, Me).todense())
+
+    assert _arr_compare(dydx_an, dydx_num, tol=1e-3, \
+        relative=dydx_an)
+
 def test_Hstar_laminar():
     Reth_std, Me_std, Hk_std=_standard_data(100)
     pReth, pMe, pHk=_standard_perturbations(Reth_std, Me_std, Hk_std)

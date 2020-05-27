@@ -2,7 +2,7 @@ import numpy as np
 import scipy.optimize as sopt
 import scipy.sparse as sps
 
-import abaqus as abq
+from differentiation import *
 
 Gersten_Herwig_A=6.1e-4
 Gersten_Herwig_B=1.43e-3
@@ -32,7 +32,18 @@ def dHk_dH(H, Me):
     return sps.diags(1.0/(1.0+0.113*Me**2), format='lil')
 
 def dHk_dMe(H, Me):
-    return sps.diags(-2.0*Me*(0.113*H+0.290)/(0.113*Me**2+1.0), format='lil')
+    return sps.diags(-((H-0.290*Me**2)*0.226*Me/(1.0+0.113*Me**2)+0.580*Me)/(1.0+0.113*Me**2), format='lil')
+
+def Hk_getnode(msh):
+    '''
+    Returns a node containing a function for Hk computation, to be linked to H and Me nodes
+    '''
+
+    Hkfunc=func(f=Hk, derivs=(dHk_dH, dHk_dMe,), sparse=True, haspassive=False)
+
+    Hknode=node(f=Hkfunc, args_to_inds=['H', 'Me'], outs_to_inds=['Hk'], sparse=True, passive=msh.passive)
+
+    return Hknode
 
 def _Hstar_laminar_attach(Hk):
     return (0.076*(4.0-Hk)**2+1.515)/Hk
