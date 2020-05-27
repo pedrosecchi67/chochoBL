@@ -8,12 +8,14 @@ sys.path.insert(0, os.getcwd())
 #these lines ensure pycaching prior to module importation
 py_compile.compile('abaqus.py')
 py_compile.compile('closure.py')
+py_compile.compile('transition.py')
 py_compile.compile('differentiation.py')
 py_compile.compile('three_equation.py')
 py_compile.compile('mesh.py')
 py_compile.compile('garlekin.py')
 from abaqus import *
 from closure import *
+from transition import *
 from differentiation import *
 from three_equation import *
 from mesh import *
