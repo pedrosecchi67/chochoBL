@@ -8,6 +8,7 @@ import fluids.atmosphere as atm
 from garlekin import *
 from differentiation import *
 from three_equation import *
+from closure import *
 
 def _gen_orthonormal(u, n):
     '''
@@ -159,6 +160,7 @@ class mesh:
         Me_node=Me_getnode(self)
         rho_node=rho_getnode(self)
         Reth_node=Reth_getnode(self)
+        Hk_node=Hk_getnode(self)
 
         #adding nodes
         self.gr.add_node(q_head, 'q', head=True)
@@ -170,6 +172,7 @@ class mesh:
         self.gr.add_node(Me_node, 'Me')
         self.gr.add_node(rho_node, 'rho')
         self.gr.add_node(Reth_node, 'Reth')
+        self.gr.add_node(Hk_node, 'Hk')
 
         #adding edges
         e_q_uw=edge(q_head, uw_node, {'qx', 'qy', 'qz'})
@@ -179,6 +182,8 @@ class mesh:
         e_qe_Reth=edge(qe_node, Reth_node, {'qe'})
         e_rho_Reth=edge(rho_node, Reth_node, {'rho'})
         e_th11_Reth=edge(theta11_head, Reth_node, {'th11'})
+        e_H_Hk=edge(H_head, Hk_node, {'H'})
+        e_Me_Hk=edge(Me_node, Hk_node, {'Me'})
 
         self.gr.add_edge(e_q_uw)
         self.gr.add_edge(e_q_qe)
@@ -187,3 +192,5 @@ class mesh:
         self.gr.add_edge(e_qe_Reth)
         self.gr.add_edge(e_rho_Reth)
         self.gr.add_edge(e_th11_Reth)
+        self.gr.add_edge(e_H_Hk)
+        self.gr.add_edge(e_Me_Hk)

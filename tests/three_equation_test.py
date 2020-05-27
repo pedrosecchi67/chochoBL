@@ -195,3 +195,46 @@ def test_Reth():
     assert _arr_compare(msh.gr.nodes['Reth'].Jac['Reth']['qe'], np.diag(Reth/qe)) and \
         _arr_compare(msh.gr.nodes['Reth'].Jac['Reth']['rho'], np.diag(Reth/rho)) and \
             _arr_compare(msh.gr.nodes['Reth'].Jac['Reth']['rho'], np.diag(Reth/rho)), "Momentum thickness Reynolds number Jacobian calculation failed"
+
+def test_Reth():
+    msh=_get_test_mesh()
+
+    vels=np.array(
+        [
+            [1.0, -1.0, 0.0],
+            [1.0, 0.0, 0.0],
+            [1.0, 1.0, 0.0],
+            [2.0, -1.0, 0.0],
+            [2.0, 0.0, 0.0],
+            [2.0, 1.0, 0.0],
+            [3.0, -1.0, 0.0],
+            [3.0, 0.0, 0.0],
+            [3.0, 1.0, 0.0]
+        ]
+    )
+
+    H=np.linspace(2.5, 3.5, 9)
+
+    msh.graph_init()
+
+    msh.gr.heads['q'].set_value({'qx':vels[:, 0], 'qy':vels[:, 1], 'qz':vels[:, 2]})
+    msh.gr.heads['H'].set_value({'H':H})
+
+    msh.gr.nodes['Hk'].calculate()
+
+    Me=msh.gr.nodes['Me'].value['Me']
+
+    Hk_expected=Hk(H, Me)
+
+    assert _arr_compare(Hk_expected, msh.gr.nodes['Hk'].value['Hk']), \
+        "Hk value computation failed"
+
+    dHk_dH_expected=np.diag(dHk_dH(H, Me).todense())
+    dHk_dH_real=np.diag(msh.gr.nodes['Hk'].Jac['Hk']['H'].todense())
+
+    assert _arr_compare(dHk_dH_expected, dHk_dH_real), "Hk H Jacobian evaluation failed"
+
+    dHk_dMe_expected=np.diag(dHk_dMe(H, Me).todense())
+    dHk_dMe_real=np.diag(msh.gr.nodes['Hk'].Jac['Hk']['Me'].todense())
+
+    assert _arr_compare(dHk_dMe_expected, dHk_dMe_real), "Hk Me Jacobian evaluation failed"

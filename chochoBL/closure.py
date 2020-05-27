@@ -39,9 +39,9 @@ def Hk_getnode(msh):
     Returns a node containing a function for Hk computation, to be linked to H and Me nodes
     '''
 
-    Hkfunc=func(f=Hk, derivs=(dHk_dH, dHk_dMe,), sparse=True, haspassive=False)
+    Hkfunc=func(f=Hk, args=[0, 1], derivs=(dHk_dH, dHk_dMe,), sparse=True, haspassive=False)
 
-    Hknode=node(f=Hkfunc, args_to_inds=['H', 'Me'], outs_to_inds=['Hk'], sparse=True, passive=msh.passive)
+    Hknode=node(f=Hkfunc, args_to_inds=['H', 'Me'], outs_to_inds=['Hk'], passive=msh.passive)
 
     return Hknode
 
