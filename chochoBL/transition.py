@@ -127,9 +127,9 @@ def sigma_N(N, passive):
     is a suitable transitional behavior approximation
     '''
 
-    return 1.0/(np.exp((passive['Ncrit']-N)*passive['A_transition'])+1.0)
+    return _sigma((N-passive['Ncrit'])*passive['A_transition'])
 
-def dsigma_N_dN(N, passive):
+def dsigma_N_dN(N, sn, passive):
     '''
     Return sigma function of transition, so that sigma_N*f_turbulent(...)+(1.0-sigma_N)*f_laminar(...)
     is a suitable transitional behavior approximation, differentiated by N
@@ -137,9 +137,7 @@ def dsigma_N_dN(N, passive):
 
     A_transition=passive['A_transition']
 
-    E=np.exp((passive['Ncrit']-N)*A_transition)
-
-    return sps.diags(A_transition*E/(E+1.0)**2, format='lil')
+    return sps.diags(A_transition*sn*(1.0-sn), format='lil')
 
 def p_getnode(msh):
     '''
@@ -191,8 +189,10 @@ def sigma_N_getnode(msh):
     '''
 
     def sigmafunc(N, passive):
-        value={'sigma_N':sigma_N(N, passive)}
-        Jac={'sigma_N':{'N':dsigma_N_dN(N, passive)}}
+        sn=sigma_N(N, passive)
+
+        value={'sigma_N':sn}
+        Jac={'sigma_N':{'N':dsigma_N_dN(N, sn, passive)}}
 
         return value, Jac
 

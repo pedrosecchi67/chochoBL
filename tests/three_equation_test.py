@@ -351,7 +351,7 @@ def test_sigma_N():
 
     SN_read=msh.gr.nodes['sigma_N'].value['sigma_N']
 
-    dS_dN_expected=np.diag(dsigma_N_dN(N, msh.passive).todense())
+    dS_dN_expected=np.diag(dsigma_N_dN(N, SN_expected, msh.passive).todense())
     dS_dN_read=np.diag(msh.gr.nodes['sigma_N'].Jac['sigma_N']['N'].todense())
 
     assert _arr_compare(SN_read, SN_expected), "sigma_N calculation failed"
