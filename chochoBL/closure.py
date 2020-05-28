@@ -50,16 +50,16 @@ def Hk_getnode(msh):
     return Hknode
 
 def _Hstar_laminar_attach(Hk):
-    return (0.076*(4.0-Hk)**2+1.515)/Hk
+    return 0.076*(4.0-Hk)**2/Hk+1.515
 
 def _Hstar_laminar_detach(Hk):
-    return (0.04*(Hk-4.0)**2+1.515)/Hk
+    return 0.04*(Hk-4.0)**2/Hk+1.515
 
 def _dHstar_laminar_dHk_attach(Hk):
-    return 0.076-2.731/Hk**2
+    return 0.076-1.216/Hk**2
 
 def _dHstar_laminar_dHk_detach(Hk):
-    return 0.04-2.155/Hk**2
+    return 0.04-0.64/Hk**2
 
 def Hstar_laminar(Hk):
     '''
