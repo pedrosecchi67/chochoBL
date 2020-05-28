@@ -443,3 +443,147 @@ def dCd_turbulent_dHk(Reth, Me, Hk, passive):
     gamma=passive['gamma']
 
     return sps.diags(2.0*(_dB_dHk(Hk)+_dA_dHk(Hk)*_D(Reth))/_C(Me, gamma), format='lil')
+
+def Hstar(SG, Me, Hk):
+    '''
+    Return Hstar ponderated between laminar and turbulent values according to sigma function
+    for TS waves amplification factor
+    '''
+
+    return Hstar_laminar(Hk)*(1.0-SG)+Hstar_turbulent(Me, Hk)*SG
+
+def dHstar_dSG(SG, Me, Hk):
+    '''
+    Return Hstar ponderated between laminar and turbulent values according to sigma function
+    for TS waves amplification factor, derived by sigma
+    '''
+
+    return Hstar_turbulent(Me, Hk)-Hstar_laminar(Hk)
+
+def dHstar_dMe(SG, Me, Hk):
+    '''
+    Return Hstar ponderated between laminar and turbulent values according to sigma function
+    for TS waves amplification factor, derived by sigma
+    '''
+
+    return dHstar_turbulent_dMe(Me, Hk)*SG
+
+def dHstar_dHk(SG, Me, Hk):
+    '''
+    Return Hstar ponderated between laminar and turbulent values according to sigma function
+    for TS waves amplification factor, derived by sigma
+    '''
+
+    return dHstar_laminar_dHk(Hk)*(1.0-SG)+dHstar_turbulent_dHk(Me, Hk)*SG
+
+def Hprime(SG, Me, Hk):
+    '''
+    Return Hprime ponderated between laminar and turbulent values according to sigma function
+    for TS waves amplification factor
+    '''
+
+    return Hprime_laminar(Me, Hk)*(1.0-SG)+Hprime_turbulent(Me, Hk)*SG
+
+def dHprime_dSG(SG, Me, Hk):
+    '''
+    Return Hprime ponderated between laminar and turbulent values according to sigma function
+    for TS waves amplification factor, derivated by sigma
+    '''
+
+    return Hprime_turbulent(Me, Hk)-Hprime_laminar(Me, Hk)
+
+def dHprime_dMe(SG, Me, Hk):
+    '''
+    Return Hprime ponderated between laminar and turbulent values according to sigma function
+    for TS waves amplification factor, derivated by external Mach number
+    '''
+
+    return dHprime_laminar_dMe(Me, Hk)*(1.0-SG)+dHprime_turbulent_dMe(Me, Hk)*SG
+
+def dHprime_dHk(SG, Me, Hk):
+    '''
+    Return Hprime ponderated between laminar and turbulent values according to sigma function
+    for TS waves amplification factor, derivated by Hk
+    '''
+
+    return dHprime_laminar_dHk(Me, Hk)*(1.0-SG)+dHprime_turbulent_dHk(Me, Hk)*SG
+
+def Cf(SG, Reth, Me, Hk, passive):
+    '''
+    Return Cf ponderated between laminar and turbulent values according to sigma function
+    for TS waves amplification factor
+    '''
+
+    return Cf_laminar(Reth, Hk)*(1.0-SG)+Cf_turbulent(Reth, Me, Hk, passive)*SG
+
+def dCf_dSG(SG, Reth, Me, Hk, passive):
+    '''
+    Return Cf ponderated between laminar and turbulent values according to sigma function
+    for TS waves amplification factor, derivated by sigma
+    '''
+
+    return Cf_turbulent(Reth, Me, Hk, passive)-Cf_laminar(Reth, Hk)
+
+def dCf_dReth(SG, Reth, Me, Hk, passive):
+    '''
+    Return Cf ponderated between laminar and turbulent values according to sigma function
+    for TS waves amplification factor, derivated by momentum thickness Reynolds number
+    '''
+
+    return dCf_laminar_dReth(Reth, Hk)*(1.0-SG)+dCf_turbulent_dReth(Reth, Me, Hk, passive)*SG
+
+def dCf_dMe(SG, Reth, Me, Hk, passive):
+    '''
+    Return Cf ponderated between laminar and turbulent values according to sigma function
+    for TS waves amplification factor, derivated by external Mach number
+    '''
+
+    return dCf_turbulent_dMe(Reth, Me, Hk, passive)*SG
+
+def dCf_dHk(SG, Reth, Me, Hk, passive):
+    '''
+    Return Cf ponderated between laminar and turbulent values according to sigma function
+    for TS waves amplification factor, derivated by Hk
+    '''
+
+    return dCf_laminar_dHk(Reth, Hk)*(1.0-SG)+dCf_turbulent_dHk(Reth, Me, Hk, passive)*SG
+
+def Cd(SG, Reth, Me, Hk, passive):
+    '''
+    Return Cd ponderated between laminar and turbulent values according to sigma function for TS 
+    waves amplification factor
+    '''
+
+    return Cd_laminar(Reth, Hk)*(1.0-SG)+Cd_turbulent(Reth, Me, Hk, passive)*SG
+
+def dCd_dSG(SG, Reth, Me, Hk, passive):
+    '''
+    Return Cd ponderated between laminar and turbulent values according to sigma function for TS 
+    waves amplification factor, derivated by SG
+    '''
+
+    return Cd_turbulent(Reth, Me, Hk, passive)-Cd_laminar(Reth, Hk)
+
+def dCd_dReth(SG, Reth, Me, Hk, passive):
+    '''
+    Return Cd ponderated between laminar and turbulent values according to sigma function for TS 
+    waves amplification factor, derivated by Reynolds number momentum thickness
+    '''
+
+    return dCd_laminar_dReth(Reth, Hk)*(1.0-SG)+dCd_turbulent_dReth(Reth, Me, Hk, passive)*SG
+
+def dCd_dMe(SG, Reth, Me, Hk, passive):
+    '''
+    Return Cd ponderated between laminar and turbulent values according to sigma function for TS 
+    waves amplification factor, derivated by external Mach number
+    '''
+
+    return dCd_turbulent_dMe(Reth, Me, Hk, passive)*SG
+
+def dCd_dHk(SG, Reth, Me, Hk, passive):
+    '''
+    Return Cd ponderated between laminar and turbulent values according to sigma function for TS 
+    waves amplification factor, derivated by external Mach number
+    '''
+
+    return dCd_laminar_dHk(Reth, Hk)*(1.0-SG)+dCd_turbulent_dHk(Reth, Me, Hk, passive)*SG

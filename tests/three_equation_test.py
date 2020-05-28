@@ -1,4 +1,5 @@
 import numpy as np
+import numpy.random as rnd
 import scipy.sparse as sps
 
 from chochoBL import *
@@ -291,3 +292,24 @@ def test_p():
     dp_dth11_real=np.diag(msh.gr.nodes['p'].Jac['p']['th11'].todense())
 
     assert _arr_compare(dp_dth11_expected, dp_dth11_real), "p th11 Jacobian evaluation failed"
+
+def test_sigma_N():
+    msh=_get_test_mesh()
+
+    N=rnd.random(9)*9.0
+
+    msh.graph_init()
+
+    msh.gr.heads['N'].set_value({'N':N})
+
+    msh.gr.nodes['sigma_N'].calculate()
+
+    SN_expected=sigma_N(N, msh.passive)
+
+    SN_read=msh.gr.nodes['sigma_N'].value['sigma_N']
+
+    dS_dN_expected=np.diag(dsigma_N_dN(N, msh.passive).todense())
+    dS_dN_read=np.diag(msh.gr.nodes['sigma_N'].Jac['sigma_N']['N'].todense())
+
+    assert _arr_compare(SN_read, SN_expected), "sigma_N calculation failed"
+    assert _arr_compare(dS_dN_read, dS_dN_expected), "sigma_N Jacobian calculation failed"

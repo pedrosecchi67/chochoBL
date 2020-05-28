@@ -170,3 +170,14 @@ def p_getnode(msh):
     pnode=node(f=pfunc, args_to_inds=['Reth', 'Hk', 'th11'], outs_to_inds=['p'], passive=msh.passive)
 
     return pnode
+
+def sigma_N_getnode(msh):
+    '''
+    Return a node for sigma N prediction
+    '''
+
+    sigmafunc=func(f=sigma_N, args=[0], derivs=(dsigma_N_dN,), haspassive=True, sparse=True)
+
+    sigmanode=node(f=sigmafunc, args_to_inds=['N'], outs_to_inds=['sigma_N'], passive=msh.passive)
+
+    return sigmanode

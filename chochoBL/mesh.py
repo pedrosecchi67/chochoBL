@@ -154,6 +154,7 @@ class mesh:
         q_head=head(outs_to_inds=['qx', 'qy', 'qz'], passive=self.passive)
         theta11_head=head(outs_to_inds=['th11'], passive=self.passive)
         H_head=head(outs_to_inds=['H'], passive=self.passive)
+        N_head=head(outs_to_inds=['N'], passive=self.passive)
 
         #adding nodes
         uw_node=uw_conversion_getnode(self)
@@ -163,12 +164,13 @@ class mesh:
         Reth_node=Reth_getnode(self)
         Hk_node=Hk_getnode(self)
         p_node=p_getnode(self)
-
+        sigma_N_node=sigma_N_getnode(self)
 
         #adding nodes
         self.gr.add_node(q_head, 'q', head=True)
         self.gr.add_node(theta11_head, 'th11', head=True)
         self.gr.add_node(H_head, 'H', head=True)
+        self.gr.add_node(N_head, 'N', head=True)
 
         self.gr.add_node(uw_node, 'uw')
         self.gr.add_node(qe_node, 'qe')
@@ -177,6 +179,7 @@ class mesh:
         self.gr.add_node(Reth_node, 'Reth')
         self.gr.add_node(Hk_node, 'Hk')
         self.gr.add_node(p_node, 'p')
+        self.gr.add_node(sigma_N_node, 'sigma_N')
 
         #adding edges
         e_q_uw=edge(q_head, uw_node, {'qx', 'qy', 'qz'})
@@ -191,6 +194,7 @@ class mesh:
         e_Hk_p=edge(Hk_node, p_node, {'Hk'})
         e_Reth_p=edge(Reth_node, p_node, {'Reth'})
         e_th11_p=edge(theta11_head, p_node, {'th11'})
+        e_N_sigma_N=edge(N_head, sigma_N_node, {'N'})
 
         self.gr.add_edge(e_q_uw)
         self.gr.add_edge(e_q_qe)
@@ -204,3 +208,4 @@ class mesh:
         self.gr.add_edge(e_Hk_p)
         self.gr.add_edge(e_Reth_p)
         self.gr.add_edge(e_th11_p)
+        self.gr.add_edge(e_N_sigma_N)
