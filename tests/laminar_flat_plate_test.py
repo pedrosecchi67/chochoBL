@@ -1,38 +1,78 @@
 from chochoBL import *
 
 import numpy as np
+import time as tm
+
 import pytest
 
 def test_laminar_flat_plate():
-    nm=30
-    nn=2
+    nm=100
+    nn=50
     L=1.0
+
     Uinf=1.0
+
     xs=np.sin(np.pi*np.linspace(0.0, 1.0, nm)/2)**2*L
     ys=np.linspace(0.0, 1.0, nn)
+
     posits=np.zeros((nm, nn, 3))
+    posaux=np.zeros((nm*nn, 3))
+
+    n=0
     for i in range(nm):
         for j in range(nn):
             posits[i, j, 0]=xs[i]
             posits[i, j, 1]=ys[j]
-    vels=np.zeros((nm, nn, 3))
-    vels[:, :, 0]=Uinf
-    #t=tm.time()
-    msh=mesh(posits=posits, vels=vels)
-    msh.calculate()
-    #print(tm.time()-t)
-    ds=np.array([[elem.th[0, 0] for elem in strip] for strip in msh.matrix])
 
-    #for i in range(len(msh.matrix[0])):
-    #    print([msh.matrix[j][i].has_transition() for j in range(len(msh.matrix))])
-    #    print([msh.matrix[j][i].transition for j in range(len(msh.matrix))])
+            posaux[n, 0]=xs[i]
+            posaux[n, 1]=ys[j]
+            n+=1
+    
+    mu=defatm.mu
+    rho0=defatm.rho
 
-    dif=abs(ds[-1, -1]-0.665*np.sqrt(defatm.mu*L/(Uinf*defatm.rho)))
+    th11=0.665*np.sqrt((mu*(posaux[:, 0]+1e-2))/(rho0*Uinf))
+    H=2.5864*np.ones_like(th11)
+    N=np.zeros_like(th11)
+    
+    vels=np.zeros((nm*nn, 3))
+    vels[:, 0]=Uinf
 
-    assert dif/ds[-1, -1]<1e-1, 'Wrong theta measured at edge on comparison to Blausius solution, Re %e, perc. error %f\%' % ((Uinf*L*defatm.rho)/defatm.mu, 100*dif/ds[-1, -1])
+    normals=np.zeros((nm*nn, 3))
+    normals[:, 2]=1.0
+    
+    msh=mesh()
 
-#xxs, yys=np.meshgrid(xs, ys)
-#fig=plt.figure()
-#ax=plt.axes(projection='3d')
-#ax.plot_surface(xxs, yys, ds)
-#plt.show()
+    inds=np.zeros((nm, nn), dtype='int')
+
+    n=0
+    for i in range(nm):
+        for j in range(nn):
+            msh.add_node(posits[i, j, :])
+
+            inds[i, j]=n
+            n+=1
+
+    for i in range(nm-1):
+        for j in range(nn-1):
+            msh.add_cell({inds[i, j], inds[i, j+1], inds[i+1, j+1], inds[i+1, j]})
+    
+    msh.compose(normals)
+
+    t=tm.time()
+
+    msh.graph_init()
+
+    msh.gr.heads['q'].set_value({'qx':vels[:, 0], 'qy':vels[:, 1], 'qz':vels[:, 2]})
+    msh.gr.heads['th11'].set_value({'th11':th11})
+    msh.gr.heads['H'].set_value({'H':H})
+    msh.gr.heads['N'].set_value({'N':N})
+
+    msh.gr.nodes['p'].calculate()
+    msh.gr.nodes['sigma_N'].calculate()
+
+    t=tm.time()-t
+
+    print(t)
+
+test_laminar_flat_plate()
