@@ -65,9 +65,9 @@ def _std_mesh_fulldata(perturbations={}):
         ]
     )
 
-    H=np.linspace(2.5, 3.5, 9)
+    H=np.linspace(2.2, 3.5, 9)
     th11=10.0**np.linspace(-4.0, -1.0, 9)
-    N=rnd.random(9)*9.0
+    N=np.linspace(0.0, 10.0, 9)
 
     msh.graph_init()
 
@@ -120,7 +120,7 @@ def _findiff_testprops(props=[], ends=[], tol=1e-3):
         
         #print(var_an, var_num)
         
-        assert _arr_compare(var_an, var_num, tol=tol, relative=var_an)
+        assert _arr_compare(var_an, var_num, tol=tol, relative=var_an), "Property %s calculation failed" % (p,)
 
 def test_uw_conversion():
     msh=_get_test_mesh()
@@ -323,8 +323,6 @@ def test_Hk_findiff():
 
 def test_Hstar():
     _findiff_testprops(props=['Hstar'], ends=['closure', 'p', 'uw'])
-
-#test_Hstar()
 
 def test_Hprime():
     _findiff_testprops(props=['Hprime'], ends=['closure', 'p', 'uw'])

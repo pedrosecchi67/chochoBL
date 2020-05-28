@@ -496,7 +496,7 @@ def closure_getnode(msh):
         SGC=(1.0-SG)
 
         value={
-            'Hstar':Hst_lam*SGC+Hst_turb*SGC,
+            'Hstar':Hst_lam*SGC+Hst_turb*SG,
             'Hprime':Hpr_lam*SGC+Hpr_turb*SG,
             'Cf':Cf_lam*SGC+Cf_turb*SG,
             'Cd':Cd_lam*SGC+Cd_turb*SG
