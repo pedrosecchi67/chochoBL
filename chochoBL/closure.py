@@ -130,34 +130,30 @@ def _dTau_dHk(Hk):
 
     return T
 
-def Cf_laminar(Reth, Hk):
+def Cf_laminar(T, Reth):
     '''
     Returns the streamwise friction coefficient according to Swafford-Giles-Drela\'s compressible 
     fit functions, for laminar regime
     '''
 
-    T=_Tau(Hk)
-
     return T/Reth
 
-def dCf_laminar_dReth(Reth, Hk):
+def dCf_laminar_dReth(T, Reth):
     '''
     Returns the derivative of the streamwise friction coefficient according to Swafford-Giles-Drela\'s
     compressible fit functions, for laminar regime, in respect to the momentum thickness Reynolds number
     '''
 
-    T=-_Tau(Hk)
+    return -T/Reth**2
 
-    return T/Reth**2
-
-def dCf_laminar_dHk(Reth, Hk):
+def dCf_laminar_dHk(dT, Reth):
     '''
     Returns the derivative of the streamwise friction coefficient according to Swafford-Giles-Drela\'s
     compressible fit functions, for laminar regime, in respect to the density-independent compressible
     shape parameter Hk
     '''
 
-    return _dTau_dHk(Hk)/Reth
+    return dT/Reth
 
 def Hprime_laminar(Me, Hk):
     '''
@@ -195,56 +191,51 @@ def _Delta_detached(Hk):
 def _dDelta_detached_dHk(Hk):
     return (-0.003*(Hk-4.0)/(1.0+0.02*(Hk-4.0)**2)**2)
 
-def Cd_laminar(Reth, Hk):
+def _Delta(Hk):
+    attached=Hk<4.0
+    detached=np.logical_not(attached)
+
+    D=np.zeros_like(Hk)
+
+    D[attached]=_Delta_attached(Hk[attached])
+    D[detached]=_Delta_detached(Hk[detached])
+
+    return D
+
+def _dDelta_dHk(Hk):
+    attached=Hk<4.0
+    detached=np.logical_not(attached)
+
+    D=np.zeros_like(Hk)
+
+    D[attached]=_dDelta_attached_dHk(Hk[attached])
+    D[detached]=_dDelta_detached_dHk(Hk[detached])
+
+    return D
+
+def Cd_laminar(D, Hst, Reth):
     '''
     Returns the dissipation coefficient according to Swafford-Giles-Drela compressible fit functions,
     given Reth, Me and Hk data
     '''
 
-    attach=Hk<4.0
-    detach=np.logical_not(attach)
+    return (D*Hst)/Reth
 
-    coef=np.zeros_like(Reth)
-
-    coef[attach]=_Delta_attached(Hk[attach])
-    coef[detach]=_Delta_detached(Hk[detach])
-
-    par=Hstar_laminar(Hk)
-
-    return (coef*par)/Reth
-
-def dCd_laminar_dReth(Reth, Hk):
+def dCd_laminar_dReth(Cd, Reth):
     '''
     Returns the dissipation coefficient according to Swafford-Giles-Drela compressible fit functions,
     given Reth and Hk data, derivated by momentum thickness Reynolds number
     '''
 
-    coef=-Cd_laminar(Reth, Hk)
+    return -Cd/Reth
 
-    return coef/Reth
-
-def dCd_laminar_dHk(Reth, Hk):
+def dCd_laminar_dHk(D, dD, Hst, dHst, Reth):
     '''
     Returns the dissipation coefficient according to Swafford-Giles-Drela compressible fit functions,
     given Reth and Hk data, derivated by external Mach number
     '''
 
-    attach=Hk<4.0
-    detach=np.logical_not(attach)
-
-    coef=np.zeros_like(Reth)
-    dcoef=np.zeros_like(Reth)
-
-    dcoef[attach]=_dDelta_attached_dHk(Hk[attach])
-    dcoef[detach]=_dDelta_detached_dHk(Hk[detach])
-
-    coef[attach]=_Delta_attached(Hk[attach])
-    coef[detach]=_Delta_detached(Hk[detach])
-
-    par=Hstar_laminar(Hk)
-    dpar=dHstar_laminar_dHk(Hk)
-
-    return (coef*dpar+dcoef*par)/Reth
+    return (D*dHst+dD*Hst)/Reth
 
 def _Hstar_Me0(Hk):
     return 1.81+3.84*np.exp(-2*Hk)-np.arctan((10.0**(7.0-Hk)-1.0)/1.23)/8.55-\
@@ -254,29 +245,25 @@ def _dHstar_Me0_dHk(Hk):
     return -7.68*np.exp(-2*Hk)+1.87202*10.0**(7.0-Hk)/((((10.0**(7-Hk)-1.0)/1.23)**2+1.0)*8.55)+\
         1.05035*10.0**(4.0-1.46*Hk)*(1.0-np.tanh(2.14*10.0**(4-1.46*Hk))**2)/(2.0*np.sqrt(np.tanh(2.14*10.0**(4-1.46*Hk))))
 
-def Hstar_turbulent(Me, Hk):
+def Hstar_turbulent(Hst_Me0, Me):
     '''
     Return turbulent shape factor Hstar (thetastar/theta)
     '''
     
-    return (_Hstar_Me0(Hk)+0.028*Me**2)/(1.0+0.014*Me**2)
+    return (Hst_Me0+0.028*Me**2)/(1.0+0.014*Me**2)
 
-def dHstar_turbulent_dHk(Me, Hk):
+def dHstar_turbulent_dHk(dHst_Me0_dHk, Me):
     '''
     Return turbulent shape factor Hstar (thetastar/theta) derivated by density independent shape
     parameter Hk
     '''
 
-    dM0=_dHstar_Me0_dHk(Hk)
+    return dHst_Me0_dHk/(1.0+0.014*Me**2)
 
-    return dM0/(1.0+0.014*Me**2)
-
-def dHstar_turbulent_dMe(Me, Hk):
+def dHstar_turbulent_dMe(M0, Me):
     '''
     Return turbulent shape factor Hstar (thetastar/theta) derivated by external Mach number Me
     '''
-    
-    M0=_Hstar_Me0(Hk)
 
     return 0.028*Me*(2.0-M0)/(0.014*Me**2+1.0)**2
 
@@ -334,42 +321,36 @@ def _dCf_bar_dReth(Reth, Hk):
 def _dCf_bar_dHk(Reth, Hk):
     return _df1_dHk(Reth, Hk)+_df2_dHk(Hk)
 
-def Cf_turbulent(Reth, Me, Hk, passive):
+def Cf_turbulent(Cf_b, F):
     '''
     Return turbulent friction coefficient
     '''
 
-    return _Cf_bar(Reth, Hk)/_Fc(Me, passive['gamma'])
+    return Cf_b/F
 
-def dCf_turbulent_dReth(Reth, Me, Hk, passive):
+def dCf_turbulent_dReth(dCf_b_dR, F):
     '''
     Return derivative of turbulent friction coefficient in respect to momentum thickness
     Reynolds number
     '''
 
-    gamma=passive['gamma']
+    return dCf_b_dR/F
 
-    return _dCf_bar_dReth(Reth, Hk)/_Fc(Me, gamma)
-
-def dCf_turbulent_dMe(Reth, Me, Hk, passive):
+def dCf_turbulent_dMe(Cf_b, F, dF_dMe):
     '''
     Return derivative of turbulent friction coefficient in respect to 
     externam Mach number Me
     '''
 
-    gamma=passive['gamma']
+    return -dF_dMe*Cf_b/F
 
-    return -_dFc_dMe(Me, gamma)*_Cf_bar(Reth, Hk)/_Fc(Me, gamma)**2
-
-def dCf_turbulent_dHk(Reth, Me, Hk, passive):
+def dCf_turbulent_dHk(dCf_b_dHk, F):
     '''
     Return derivative of turbulent friction coefficient in respect to density-
     -independent shape parameter Hk
     '''
 
-    gamma=passive['gamma']
-
-    return _dCf_bar_dHk(Reth, Hk)/_Fc(Me, gamma)
+    return dCf_b_dHk/F
 
 def _A(Hk):
     ishigh=Hk>3.5
@@ -396,14 +377,14 @@ def _dA_dHk(Hk):
 def _B(Hk):
     return 0.009-0.011*np.exp(-0.15*Hk**2.1)+3e-5*np.exp(0.117*Hk**2)
 
-def _C(Me, gamma):
-    return _Fc(Me, gamma)*(1.0+0.05*Me**1.4)
+def _C(F, Me):
+    return F*(1.0+0.05*Me**1.4)
 
 def _dB_dHk(Hk):
     return 3.465e-3*Hk**1.1*np.exp(-0.15*Hk**2.1)+7.02e-6*Hk*np.exp(0.117*Hk**2)
 
-def _dC_dMe(Me, gamma):
-    return _dFc_dMe(Me, gamma)*(1.0+0.05*Me**1.4)+_Fc(Me, gamma)*0.07*Me**0.4
+def _dC_dMe(F, dF_dMe, Me):
+    return dF_dMe*(1.0+0.05*Me**1.4)+F*0.07*Me**0.4
 
 def _D(Reth):
     return Reth**(-0.574)
@@ -411,189 +392,37 @@ def _D(Reth):
 def _dD_dReth(Reth):
     return -0.574/Reth**1.574
 
-def Cd_turbulent(Reth, Me, Hk, passive):
+def Cd_turbulent(A, B, C, D):
     '''
     Return turbulent dissipation coefficient
     '''
 
-    gamma=passive['gamma']
+    return 2.0*(B+A*D)/C
 
-    return 2.0*(_B(Hk)+_A(Hk)*_D(Reth))/_C(Me, gamma)
-
-def dCd_turbulent_dReth(Reth, Me, Hk, passive):
+def dCd_turbulent_dReth(A, C, dD_dR):
     '''
     Return turbulent dissipation coefficient differentiated by momentum thickness
     Reynolds number
     '''
 
-    gamma=passive['gamma']
+    return 2.0*A*dD_dR/C
 
-    return 2.0*_A(Hk)*_dD_dReth(Reth)/_C(Me, gamma)
-
-def dCd_turbulent_dMe(Reth, Me, Hk, passive):
+def dCd_turbulent_dMe(A, B, C, dC_dMe, D):
     '''
     Return turbulent dissipation coefficient
     '''
 
-    gamma=passive['gamma']
+    return -2.0*(B+A*D)*dC_dMe/C**2
 
-    return -2.0*(_B(Hk)+_A(Hk)*_D(Reth))*_dC_dMe(Me, gamma)/_C(Me, gamma)**2
-
-def dCd_turbulent_dHk(Reth, Me, Hk, passive):
+def dCd_turbulent_dHk(dA_dHk, dB_dHk, C, D):
     '''
     Return turbulent dissipation coefficient
     '''
 
-    gamma=passive['gamma']
-
-    return 2.0*(_dB_dHk(Hk)+_dA_dHk(Hk)*_D(Reth))/_C(Me, gamma)
-
-def Hstar(SG, Me, Hk):
-    '''
-    Return Hstar ponderated between laminar and turbulent values according to sigma function
-    for TS waves amplification factor
-    '''
-
-    return Hstar_laminar(Hk)*(1.0-SG)+Hstar_turbulent(Me, Hk)*SG
+    return 2.0*(dB_dHk+dA_dHk*D)/C
 
 def _diag_lil_convert(v):
     return sps.diags(v, format='lil')
-
-def dHstar_dSG(SG, Me, Hk):
-    '''
-    Return Hstar ponderated between laminar and turbulent values according to sigma function
-    for TS waves amplification factor, derived by sigma
-    '''
-
-    return _diag_lil_convert(Hstar_turbulent(Me, Hk)-Hstar_laminar(Hk))
-
-def dHstar_dMe(SG, Me, Hk):
-    '''
-    Return Hstar ponderated between laminar and turbulent values according to sigma function
-    for TS waves amplification factor, derived by sigma
-    '''
-
-    return _diag_lil_convert(dHstar_turbulent_dMe(Me, Hk)*SG)
-
-def dHstar_dHk(SG, Me, Hk):
-    '''
-    Return Hstar ponderated between laminar and turbulent values according to sigma function
-    for TS waves amplification factor, derived by sigma
-    '''
-
-    return _diag_lil_convert(dHstar_laminar_dHk(Hk)*(1.0-SG)+dHstar_turbulent_dHk(Me, Hk)*SG)
-
-def Hprime(SG, Me, Hk):
-    '''
-    Return Hprime ponderated between laminar and turbulent values according to sigma function
-    for TS waves amplification factor
-    '''
-
-    return Hprime_laminar(Me, Hk)*(1.0-SG)+Hprime_turbulent(Me, Hk)*SG
-
-def dHprime_dSG(SG, Me, Hk):
-    '''
-    Return Hprime ponderated between laminar and turbulent values according to sigma function
-    for TS waves amplification factor, derivated by sigma
-    '''
-
-    return _diag_lil_convert(Hprime_turbulent(Me, Hk)-Hprime_laminar(Me, Hk))
-
-def dHprime_dMe(SG, Me, Hk):
-    '''
-    Return Hprime ponderated between laminar and turbulent values according to sigma function
-    for TS waves amplification factor, derivated by external Mach number
-    '''
-
-    return _diag_lil_convert(dHprime_laminar_dMe(Me, Hk)*(1.0-SG)+dHprime_turbulent_dMe(Me, Hk)*SG)
-
-def dHprime_dHk(SG, Me, Hk):
-    '''
-    Return Hprime ponderated between laminar and turbulent values according to sigma function
-    for TS waves amplification factor, derivated by Hk
-    '''
-
-    return _diag_lil_convert(dHprime_laminar_dHk(Me, Hk)*(1.0-SG)+dHprime_turbulent_dHk(Me, Hk)*SG)
-
-def Cf(SG, Reth, Me, Hk, passive):
-    '''
-    Return Cf ponderated between laminar and turbulent values according to sigma function
-    for TS waves amplification factor
-    '''
-
-    return Cf_laminar(Reth, Hk)*(1.0-SG)+Cf_turbulent(Reth, Me, Hk, passive)*SG
-
-def dCf_dSG(SG, Reth, Me, Hk, passive):
-    '''
-    Return Cf ponderated between laminar and turbulent values according to sigma function
-    for TS waves amplification factor, derivated by sigma
-    '''
-
-    return _diag_lil_convert(Cf_turbulent(Reth, Me, Hk, passive)-Cf_laminar(Reth, Hk))
-
-def dCf_dReth(SG, Reth, Me, Hk, passive):
-    '''
-    Return Cf ponderated between laminar and turbulent values according to sigma function
-    for TS waves amplification factor, derivated by momentum thickness Reynolds number
-    '''
-
-    return _diag_lil_convert(dCf_laminar_dReth(Reth, Hk)*(1.0-SG)+dCf_turbulent_dReth(Reth, Me, Hk, passive)*SG)
-
-def dCf_dMe(SG, Reth, Me, Hk, passive):
-    '''
-    Return Cf ponderated between laminar and turbulent values according to sigma function
-    for TS waves amplification factor, derivated by external Mach number
-    '''
-
-    return _diag_lil_convert(dCf_turbulent_dMe(Reth, Me, Hk, passive)*SG)
-
-def dCf_dHk(SG, Reth, Me, Hk, passive):
-    '''
-    Return Cf ponderated between laminar and turbulent values according to sigma function
-    for TS waves amplification factor, derivated by Hk
-    '''
-
-    return _diag_lil_convert(dCf_laminar_dHk(Reth, Hk)*(1.0-SG)+dCf_turbulent_dHk(Reth, Me, Hk, passive)*SG)
-
-def Cd(SG, Reth, Me, Hk, passive):
-    '''
-    Return Cd ponderated between laminar and turbulent values according to sigma function for TS 
-    waves amplification factor
-    '''
-
-    return Cd_laminar(Reth, Hk)*(1.0-SG)+Cd_turbulent(Reth, Me, Hk, passive)*SG
-
-def dCd_dSG(SG, Reth, Me, Hk, passive):
-    '''
-    Return Cd ponderated between laminar and turbulent values according to sigma function for TS 
-    waves amplification factor, derivated by SG
-    '''
-
-    return _diag_lil_convert(Cd_turbulent(Reth, Me, Hk, passive)-Cd_laminar(Reth, Hk))
-
-def dCd_dReth(SG, Reth, Me, Hk, passive):
-    '''
-    Return Cd ponderated between laminar and turbulent values according to sigma function for TS 
-    waves amplification factor, derivated by Reynolds number momentum thickness
-    '''
-
-    return _diag_lil_convert(dCd_laminar_dReth(Reth, Hk)*(1.0-SG)+dCd_turbulent_dReth(Reth, Me, Hk, passive)*SG)
-
-def dCd_dMe(SG, Reth, Me, Hk, passive):
-    '''
-    Return Cd ponderated between laminar and turbulent values according to sigma function for TS 
-    waves amplification factor, derivated by external Mach number
-    '''
-
-    return _diag_lil_convert(dCd_turbulent_dMe(Reth, Me, Hk, passive)*SG)
-
-def dCd_dHk(SG, Reth, Me, Hk, passive):
-    '''
-    Return Cd ponderated between laminar and turbulent values according to sigma function for TS 
-    waves amplification factor, derivated by external Mach number
-    '''
-
-    return _diag_lil_convert(dCd_laminar_dHk(Reth, Hk)*(1.0-SG)+dCd_turbulent_dHk(Reth, Me, Hk, passive)*SG)
 
 def closure_getnode(msh):
     '''
@@ -601,15 +430,108 @@ def closure_getnode(msh):
     Hprime, Cf, Cd
     '''
 
-    nnodes=len(msh.nodes)
+    def fset(SG, Reth, Me, Hk, passive):
+        Hst_lam=Hstar_laminar(Hk)
+        dHst_lam_dHk=dHstar_laminar_dHk(Hk)
 
-    Hstar_func=func(f=Hstar, args=[0, 2, 3], derivs=(dHstar_dSG, dHstar_dMe, dHstar_dHk,), haspassive=False, sparse=True)
-    Hprime_func=func(f=Hprime, args=[0, 2, 3], derivs=(dHprime_dSG, dHprime_dMe, dHprime_dHk,), haspassive=False, sparse=True)
-    Cf_func=func(f=Cf, args=[0, 1, 2, 3], derivs=(dCf_dSG, dCf_dReth, dCf_dMe, dCf_dHk,), haspassive=True, sparse=True)
-    Cd_func=func(f=Cd, args=[0, 1, 2, 3], derivs=(dCd_dSG, dCd_dReth, dCd_dMe, dCd_dHk,), haspassive=True, sparse=True)
+        Hpr_lam=Hprime_laminar(Me, Hk)
+        dHpr_lam_dMe=dHprime_laminar_dMe(Me, Hk)
+        dHpr_lam_dHk=dHprime_laminar_dHk(Me, Hk)
 
-    fset=funcset(fs=[Hstar_func, Hprime_func, Cf_func, Cd_func], arglens=[nnodes]*4, outlens=[nnodes]*4, sparse=True)
+        T=_Tau(Hk)
+        dT=_dTau_dHk(Hk)
 
-    newnode=node(f=fset, passive=msh.passive, args_to_inds=['sigma_N', 'Reth', 'Me', 'Hk'], outs_to_inds=['Hstar', 'Hprime', 'Cf', 'Cd'])
+        Cf_lam=Cf_laminar(T, Reth)
+        dCf_lam_dHk=dCf_laminar_dHk(dT, Reth)
+        dCf_lam_dR=dCf_laminar_dReth(T, Reth)
+
+        D=_Delta(Hk)
+        dD=_dDelta_dHk(Hk)
+
+        Cd_lam=Cd_laminar(D, Hst_lam, Reth)
+        dCd_lam_dR=dCd_laminar_dReth(Cd_lam, Reth)
+        dCd_lam_dHk=dCd_laminar_dHk(D, dD, Hst_lam, dHst_lam_dHk, Reth)
+
+        Hst_Me0=_Hstar_Me0(Hk)
+        dHst_Me0_dHk=_dHstar_Me0_dHk(Hk)
+
+        Hst_turb=Hstar_turbulent(Hst_Me0, Me)
+        dHst_turb_dHk=dHstar_turbulent_dHk(dHst_Me0_dHk, Me)
+        dHst_turb_dMe=dHstar_turbulent_dMe(Hst_Me0, Me)
+
+        Hpr_turb=Hprime_turbulent(Me, Hk)
+        dHpr_turb_dHk=dHprime_turbulent_dHk(Me, Hk)
+        dHpr_turb_dMe=dHprime_turbulent_dMe(Me, Hk)
+
+        gamma=passive['gamma']
+
+        F=_Fc(Me, gamma)
+        dF_dMe=_dFc_dMe(Me, gamma)
+
+        Cf_b=_Cf_bar(Reth, Hk)
+        dCf_b_dR=_dCf_bar_dReth(Reth, Hk)
+        dCf_b_dHk=_dCf_bar_dHk(Reth, Hk)
+
+        Cf_turb=Cf_turbulent(Cf_b, F)
+        dCf_turb_dR=dCf_turbulent_dReth(dCf_b_dR, F)
+        dCf_turb_dHk=dCf_turbulent_dHk(dCf_b_dHk, F)
+        dCf_turb_dMe=dCf_turbulent_dMe(Cf_b, F, dF_dMe)
+
+        A=_A(Hk)
+        dA=_dA_dHk(Hk)
+        B=_B(Hk)
+        dB=_dB_dHk(Hk)
+
+        C=_C(F, Me)
+        dC_dMe=_dC_dMe(F, dF_dMe, Me)
+
+        D=_D(Reth)
+        dD_dR=_dD_dReth(Reth)
+
+        Cd_turb=Cd_turbulent(A, B, C, D)
+        dCd_turb_dR=dCd_turbulent_dReth(A, C, dD_dR)
+        dCd_turb_dMe=dCd_turbulent_dMe(A, B, C, dC_dMe, D)
+        dCd_turb_dHk=dCd_turbulent_dHk(dA, dB, C, D)
+
+        SGC=(1.0-SG)
+
+        value={
+            'Hstar':Hst_lam*SGC+Hst_turb*SGC,
+            'Hprime':Hpr_lam*SGC+Hpr_turb*SG,
+            'Cf':Cf_lam*SGC+Cf_turb*SG,
+            'Cd':Cd_lam*SGC+Cd_turb*SG
+        }
+
+        Jac={
+            'Hstar':{
+                'sigma_N':Hst_turb-Hst_lam,
+                'Reth':None,
+                'Me':SG*dHst_turb_dMe,
+                'Hk':SGC*dHst_lam_dHk+SG*dHst_turb_dHk
+            },
+            'Hprime':{
+                'sigma_N':Hpr_turb-Hpr_lam,
+                'Reth':None,
+                'Me':SGC*dHpr_lam_dMe+SG*dHpr_turb_dMe,
+                'Hk':SGC*dHpr_lam_dHk+SG*dHpr_turb_dHk
+            },
+            'Cf':{
+                'sigma_N':Cf_turb-Cf_lam,
+                'Reth':dCf_lam_dR*SGC+dCf_turb_dR*SG,
+                'Me':dCf_turb_dMe*SG,
+                'Hk':dCf_lam_dHk*SGC+dCf_turb_dHk*SG
+            },
+            'Cd':{
+                'sigma_N':Cd_turb-Cd_lam,
+                'Reth':dCd_lam_dR*SGC+dCd_turb_dR*SG,
+                'Me':dCd_turb_dMe*SG,
+                'Hk':dCd_lam_dHk*SGC+dCd_turb_dHk*SG
+            }
+        }
+
+        return value, Jac
+
+    newnode=node(f=fset, passive=msh.passive, args_to_inds=['sigma_N', 'Reth', 'Me', 'Hk'], outs_to_inds=['Hstar', 'Hprime', 'Cf', 'Cd'], \
+        haspassive=True)
 
     return newnode
