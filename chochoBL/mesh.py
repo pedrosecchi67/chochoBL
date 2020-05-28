@@ -93,7 +93,7 @@ class mesh:
     Class containing information about a mesh
     '''
 
-    def __init__(self, atm_props=defatm, Uinf=1.0, Ncrit=6.0, A_transition=50.0, A_Rethcrit=1.0):
+    def __init__(self, atm_props=defatm, Uinf=1.0, Ncrit=6.0, A_transition=50.0, A_Rethcrit=1.0, gamma=1.4):
         '''
         Initialize a mesh object without any nodes or cells
         '''
@@ -103,7 +103,7 @@ class mesh:
         self.node_Mtosys=[]
 
         self.passive={'mesh':self, 'atm':atm_props, 'Uinf':Uinf, 'Ncrit':Ncrit, 'A_transition':A_transition, \
-            'A_Rethcrit':A_Rethcrit}
+            'A_Rethcrit':A_Rethcrit, 'gamma':gamma}
     
     def add_node(self, coords):
         '''
@@ -165,6 +165,7 @@ class mesh:
         Hk_node=Hk_getnode(self)
         p_node=p_getnode(self)
         sigma_N_node=sigma_N_getnode(self)
+        closure_node=closure_getnode(self)
 
         #adding nodes
         self.gr.add_node(q_head, 'q', head=True)
@@ -180,6 +181,7 @@ class mesh:
         self.gr.add_node(Hk_node, 'Hk')
         self.gr.add_node(p_node, 'p')
         self.gr.add_node(sigma_N_node, 'sigma_N')
+        self.gr.add_node(closure_node, 'closure')
 
         #adding edges
         e_q_uw=edge(q_head, uw_node, {'qx', 'qy', 'qz'})
@@ -195,6 +197,10 @@ class mesh:
         e_Reth_p=edge(Reth_node, p_node, {'Reth'})
         e_th11_p=edge(theta11_head, p_node, {'th11'})
         e_N_sigma_N=edge(N_head, sigma_N_node, {'N'})
+        e_sigma_N_closure=edge(sigma_N_node, closure_node, {'sigma_N'})
+        e_Reth_closure=edge(Reth_node, closure_node, {'Reth'})
+        e_Me_closure=edge(Me_node, closure_node, {'Me'})
+        e_Hk_closure=edge(Hk_node, closure_node, {'Hk'})
 
         self.gr.add_edge(e_q_uw)
         self.gr.add_edge(e_q_qe)
@@ -209,3 +215,7 @@ class mesh:
         self.gr.add_edge(e_Reth_p)
         self.gr.add_edge(e_th11_p)
         self.gr.add_edge(e_N_sigma_N)
+        self.gr.add_edge(e_sigma_N_closure)
+        self.gr.add_edge(e_Reth_closure)
+        self.gr.add_edge(e_Me_closure)
+        self.gr.add_edge(e_Hk_closure)
