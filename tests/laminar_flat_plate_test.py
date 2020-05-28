@@ -68,7 +68,7 @@ def test_laminar_flat_plate():
     msh.gr.heads['H'].set_value({'H':H})
     msh.gr.heads['N'].set_value({'N':N})
 
-    msh.gr.nodes['closure'].calculate()
+    msh.gr.calculate(ends=['closure', 'p', 'uw'])
 
     t=tm.time()-t
 
