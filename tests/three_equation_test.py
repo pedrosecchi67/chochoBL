@@ -333,6 +333,9 @@ def test_Cf():
 def test_Cd():
     _findiff_testprops(props=['Cd'], ends=['closure', 'p', 'uw'])
 
+def test_p():
+    _findiff_testprops(props=['p'], ends=['closure', 'p', 'uw'])
+
 def test_sigma_N():
     msh=_get_test_mesh()
 

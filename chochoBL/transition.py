@@ -60,20 +60,20 @@ def dN_dReth(Rethc, sg, Reth, Hk, A, ismult=True):
 
     return 0.01*np.sqrt((2.4*Hk-3.7+2.5*np.tanh(1.5*Hk-4.65))**2+0.15)*(sg if ismult else 1.0)
 
-def d2N_dReth2(dN_dR, dsg):
+def d2N_dReth2(dN_dR, dsg_dReth):
     '''
     Former parameter differentiated by Reth
     '''
 
-    return dN_dR*dsg
+    return dN_dR*dsg_dReth
 
-def d2N_dHkdReth(Rethc, dRethc, sg, dsg, dN_dR, Reth, Hk, A):
+def d2N_dHkdReth(Rethc, dRethc, sg, dsg_dHk, dN_dR, Reth, Hk, A):
     '''
     Former parameter differentiated by Hk
     '''
 
     return 0.01*sg*(2.4-3.75*(np.tanh(1.5*Hk-4.65)**2-1.0))*(2.4*Hk-3.7+2.5*np.tanh(1.5*Hk-4.65))/\
-        np.sqrt((2.4*Hk-3.7+2.5*np.tanh(1.5*Hk-4.65))**2+0.15)+dN_dR*dsg
+        np.sqrt((2.4*Hk-3.7+2.5*np.tanh(1.5*Hk-4.65))**2+0.15)+dN_dR*dsg_dHk
 
 def _l(Hk):
     return (6.54*Hk-14.07)/Hk**2
@@ -113,7 +113,7 @@ def dp_dth11(pval, th11, passive):
 
     return sps.diags(-pval/th11, format='lil')
 
-def dp_dReth(d2N_dR2, m, dm, l, dl, th11):
+def dp_dReth(d2N_dR2, m, l, th11):
     '''
     Parameter p(Hk, th11)=dN/ds differentiated by momentum thickness
     Reynolds number
@@ -153,12 +153,14 @@ def p_getnode(msh):
         dRethc=dReth_crit_dHk(Hk)
 
         sg=_sigma((Reth-Rethc)*A)
-        dsg=-A*dRethc*_dsigma_du((Reth-Rethc)*A)
+        dsg_loc=_dsigma_du((Reth-Rethc)*A)
+        dsg_dHk=-A*dRethc*dsg_loc
+        dsg_dReth=A*dsg_loc
 
         dNdR=dN_dReth(Rethc, sg, Reth, Hk, A, ismult=False)
 
-        d2NdHkdR=d2N_dHkdReth(Rethc, dRethc, sg, dsg, dNdR, Reth, Hk, A)
-        d2NdR2=d2N_dReth2(dNdR, dsg)
+        d2NdHkdR=d2N_dHkdReth(Rethc, dRethc, sg, dsg_dHk, dNdR, Reth, Hk, A)
+        d2NdR2=d2N_dReth2(dNdR, dsg_dReth)
 
         m=_m(Hk)
         dm=_dm_dHk(Hk)
@@ -166,10 +168,12 @@ def p_getnode(msh):
         l=_l(Hk)
         dl=_dl_dHk(Hk)
 
+        dNdR*=sg
+
         pval=p(dNdR, th11, m, l)
 
         dpdHk=dp_dHk(dNdR, d2NdHkdR, th11, m, dm, l, dl)
-        dpdR=dp_dReth(d2NdR2, m, dm, l, dl, th11)
+        dpdR=dp_dReth(d2NdR2, m, l, th11)
         dpdth11=dp_dth11(pval, th11, passive)
 
         value={'p':pval}
