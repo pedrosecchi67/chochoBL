@@ -24,245 +24,6 @@ def _matmulnone(A, B):
     else:
         return A@B
 
-class func:
-    '''
-    Class defining as function application, with argument list
-    '''
-
-    def __init__(self, f, derivs, args, haspassive=False, sparse=False):
-        '''
-        Class containing info about a given function, recieving its argument indexes.
-        Passive should be a dictionary containing variables to be called without
-        being regarded as differentiation variables. haspassive should be a boolean indicating if the function should recieve a passive.
-        Treats matrixes as sparse (using scipy.sps) if sparse is set to True
-        '''
-
-        self.f=f
-        self.derivs=derivs
-        self.args=args #list of argument indexes
-        self.haspassive=haspassive
-        self.sparse=sparse
-    
-    def __call__(self, arglist, passive={}):
-        '''
-        Return the evaluation of a function according to arguments in arglist with their indexes listed
-        in self.args.
-        Passive should be a dictionary containing variables to be called without
-        being regarded as differentiation variables
-        '''
-
-        if self.haspassive:
-            return self.f(*(tuple(arglist[i] for i in self.args)+(passive,)))
-        else:
-            return self.f(*tuple(arglist[i] for i in self.args))
-
-    def Jacobian(self, arglist, mtype='dense', passive={}):
-        '''
-        Return the evaluation of a function's Jacobian according to arguments in arglist with their indexes listed
-        in self.args.
-        Passive should be a dictionary containing variables to be called without
-        being regarded as differentiation variables
-        '''
-
-        if self.sparse:
-            if mtype=='dense':
-                raise Exception('Function object set to sparse mode, but Jacobian required as dense')
-            
-            if self.haspassive:
-                return sps.hstack([d(*(tuple(arglist[i] for i in self.args)+(passive,))) for d in self.derivs], format=mtype)
-            else:
-                return sps.hstack([d(*tuple(arglist[i] for i in self.args)) for d in self.derivs], format=mtype)
-        
-        else:
-            if mtype!='dense':
-                raise Exception('Function object set to dense mode, but Jacobian required in format %s' % (mtype,))
-
-            if self.haspassive:
-                return np.hstack([d(*(tuple(arglist[i] for i in self.args)+(passive,))) for d in self.derivs])
-            else:
-                return np.hstack([d(*tuple(arglist[i] for i in self.args)) for d in self.derivs])
-
-class funcset:
-    '''
-    Class defining a set of functions
-    '''
-
-    def __init__(self, fs=[], arglens=[], outlens=[], sparse=False):
-        '''
-        Define a set of functions based on a list of its function classes and a list of it's argument array lengths
-        and output array lengths. Treats matrixes according to scipy.sparse if sparse kwarg flag is set to True
-        '''
-
-        self.fs=fs
-
-        self.sparse=sparse
-
-        self.argn=sum(arglens)
-        self.outn=sum(outlens)
-        
-        lastinds=[]
-        for i, l in enumerate(arglens):
-            if i==0:
-                lastinds.append(l)
-            else:
-                lastinds.append(l+lastinds[-1])
-
-        self.arglims=[[0 if i==0 else lastinds[i-1], lastinds[i]] for i in range(len(arglens))]
-        
-        arginds=[np.arange(0 if i==0 else lastinds[i-1], lastinds[i], 1, dtype='int') for i in range(len(arglens))]
-
-        self.arginds=[]
-        for f in self.fs:
-            inds=np.array([], dtype='int')
-            for i in f.args:
-                inds=np.hstack((inds, arginds[i]))
-
-            self.arginds.append(inds)
-
-        lastinds=[]
-        for i, l in enumerate(outlens):
-            if i==0:
-                lastinds.append(l)
-            else:
-                lastinds.append(l+lastinds[-1])
-        
-        self.outinds=[[0 if i==0 else lastinds[i-1], lastinds[i]] for i in range(len(fs))]
-
-    def __call__(self, arglist, passive={}):
-        '''
-        Evaluate a function and return its output as a vector.
-        Passive should be a dictionary containing variables to be called without
-        being regarded as differentiation variables
-        '''
-
-        return np.hstack(
-            [
-                f(arglist, passive=passive) for f in self.fs
-            ]
-        )
-    
-    def Jacobian(self, arglist, mtype='dense', passive={}):
-        '''
-        Returns the Jacobian as a function. Kwarg mtype identifies type of matrix to be returned 
-        (csr, csc, lil or dense, passed as string).
-        Passive should be a dictionary containing variables to be called without
-        being regarded as differentiation variables
-        '''
-
-        shape=(self.outn, self.argn)
-
-        if mtype=='csr':
-            J=sps.csr_matrix(shape)
-            conv=lambda x: sps.csr_matrix(x)
-        elif mtype=='csc':
-            J=sps.csc_matrix(shape)
-            conv=lambda x: sps.csc_matrix(x)
-        elif mtype=='lil':
-            J=sps.lil_matrix(shape)
-            conv=lambda x: sps.lil_matrix(x)
-        elif mtype=='dense':
-            J=np.zeros(shape)
-            conv=lambda x: x.todense()
-        else:
-            raise Exception('Matrix type for function set Jacobian not identified')
-
-        if self.sparse and mtype=='dense':
-            raise Exception('Function set specified as sparse, but Jacobian requested as dense')
-        
-        for f, (argi, outi) in zip(self.fs, zip(self.arginds, self.outinds)):
-            jac=f.Jacobian(arglist, mtype=mtype, passive=passive)
-
-            if self.sparse:
-                J[outi[0]:outi[1], argi]=jac if sps.issparse(jac) else conv(jac)
-            
-            else:
-                J[outi[0]:outi[1], argi]=jac.todense() if sps.issparse(jac) else jac
-        
-        return J
-
-    def out_unpack(self, f):
-        '''
-        Recieves an output in the form of a stacked vector and decomposes it into the individual functions
-        that formed it.
-        '''
-
-        return [f[outi[0]:outi[1]] for outi in self.outinds]
-    
-    def in_unpack(self, x):
-        '''
-        Recieves an input in the form of a stacked vector and decomposes it into the individual
-        arguments that formed it.
-        '''
-
-        arguments=[x[lim[0]:lim[1]] for lim in self.arglims]
-
-        return [float(a) if np.size(a)==1 else a for a in arguments]
-    
-    def J_unpack(self, J):
-        '''
-        Recieves as input a Jacobian in matricial form and returns a list of lists with each block component,
-        according to a function-argument correspondence.
-        '''
-
-        return [
-            [J[outi[0]:outi[1], argi[0]:argi[1]] for argi in self.arglims] for outi in self.outinds
-        ]
-
-class chain:
-    '''
-    Class to contain information about a change in variables passed to a function/function set.
-    '''
-
-    def __init__(self, f, transfer):
-        '''
-        Instantiate a chain class object. See help(chain) for more info.
-
-        * f:
-        function object to be wrapped in this class\'s instance
-        * transfer: 
-        function such that f(transfer(args, [passive]), [passive]) is to be returned by __call__
-
-        When a Jacobian is to be computed, chain.Jacobian() method should return f.Jacobian()@transfer.Jacobian()
-        '''
-
-        self.f=f
-        self.transfer=transfer
-    
-    def __call__(self, arglist, passive={}):
-        '''
-        Return f(transfer(args, [passive]), [passive])
-        '''
-
-        newargs=self.transfer(arglist, passive)
-
-        if type(self.transfer)==funcset:
-            newargs=self.transfer.out_unpack(newargs)
-        
-        return self.f(newargs, passive=passive)
-    
-    def Jacobian(self, arglist, passive={}):
-        '''
-        Return f.Jacobian()@transfer.Jacobian()
-        '''
-
-        newargs=self.transfer.out_unpack(self.transfer(arglist, passive))
-
-        return self.f.Jacobian(newargs, passive=passive)@self.transfer.Jacobian(arglist, passive=passive)
-    
-    def out_unpack(self, f):
-        '''
-        Unpack results in the form of stacked vectors
-        '''
-
-        return self.f.out_unpack(f)
-    
-    def in_unpack(self, x):
-        '''
-        Unpack arguments in the form of stacked vectors
-        '''
-
-        return self.transfer.in_unpack(x)
-
 class edge:
     '''
     Class defining an edge for an algorithmic differentiation graph.
@@ -315,7 +76,7 @@ class node:
     Class defining a node in an algorithmic differentiation graph.
     '''
 
-    def __init__(self, f, args_to_inds, outs_to_inds, passive={}):
+    def __init__(self, f, args_to_inds, outs_to_inds, haspassive=False, passive={}):
         '''
         Define a graph node using a function or function set and a dictionary pointing 
         argument keys to argument list indexes
@@ -335,6 +96,8 @@ class node:
             self.outs_to_inds={k:i for i, k in enumerate(self.outs_to_inds)}
 
         self.summoned=False
+
+        self.haspassive=haspassive
 
         self.value=None
         self.Jac=None
@@ -386,56 +149,11 @@ class node:
             for k in ue.k:
                 arglist[self.args_to_inds[k]]=ue.value_from_upstream(k)
 
-        if type(self.f)!=func or self.f.haspassive:
-            mtype='lil' if self.f.sparse else 'dense'
-
-            output=self.f(arglist, passive=self.passive)
-            jac=self.f.Jacobian(arglist, mtype=mtype, passive=self.passive)
-        else:
-            mtype='lil' if self.f.sparse else 'dense'
-            
-            output=self.f(arglist)
-            jac=self.f.Jacobian(arglist, mtype=mtype)
+        if self.haspassive:
+            self.value, self.Jac=self.f(*tuple(arglist+[self.passive]))
         
-        if type(self.f)==func:
-            output=[output]
         else:
-            output=self.f.out_unpack(output)
-        
-        #convert output to dictionary form
-        self.value={k:output[self.outs_to_inds[k]] for k in self.outs_to_inds}
-
-        #convert Jacobian to dictionary form
-        #calculate argument and output limits
-        if type(self.f)==funcset:
-            arglims=self.f.arglims
-            outlims=self.f.outinds
-        else:
-            arglims=[]
-            outlims=[]
-
-            for i, arg in enumerate(arglist):
-                if i==0:
-                    arglims.append([0, len(arg)])
-                else:
-                    arglims.append([arglims[-1][1], arglims[-1][1]+len(arg)])
-            
-            for i, out in enumerate(output):
-                if i==0:
-                    outlims.append([0, len(out)])
-                else:
-                    outlims.append([outlims[-1][1], outlims[-1][1]+len(out)])
-            
-        self.Jac={}
-
-        for outn in self.outs_to_inds:
-            self.Jac[outn]={}
-            outl=outlims[self.outs_to_inds[outn]]
-
-            for argn in self.args_to_inds:
-                argl=arglims[self.args_to_inds[argn]]
-
-                self.Jac[outn][argn]=jac[outl[0]:outl[1], argl[0]:argl[1]]
+            self.value, self.Jac=self.f(*tuple(arglist))
     
     def set_value(self, v):
         '''
