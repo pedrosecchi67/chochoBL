@@ -22,7 +22,7 @@ def _matmulnone(A, B):
     if A is None or B is None:
         return None
     else:
-        return A@B
+        return A.T@B
 
 class edge:
     '''
@@ -184,7 +184,7 @@ class node:
 
             for outk in de.k:
                 for prop, seed in zip(seeds, seeds.values()):
-                    self.buffer[outk]=_addnone(self.buffer[outk], _matmulnone(de.Jac_from_downstream(outk, prop).T, seed))
+                    self.buffer[outk]=_addnone(self.buffer[outk], _matmulnone(de.Jac_from_downstream(outk, prop), seed))
 
 class head(node):
     '''
@@ -275,7 +275,7 @@ class graph:
         for k in d:
             self.heads[k].set_value(d[k])
     
-    def calculate(self):
+    def calculate(self, ends=None):
         '''
         Calculate output data
         '''
@@ -284,8 +284,13 @@ class graph:
             if not self.heads[h].summoned:
                 raise Exception('Head node %s hasn\'t been set, though calculation has been required' % (h,))
 
-        for e in self.ends:
-            self.ends[e].calculate()
+        if ends is None:
+            ends=self.ends
+        else:
+            ends={e:self.nodes[e] for e in ends}
+
+        for e in ends:
+            ends[e].calculate()
 
     def clean_summoning(self):
         '''
@@ -303,7 +308,7 @@ class graph:
         for n in self.nodes.values():
             n.clean_summoning()
         
-    def set_seed(self, prop, sparse=False):
+    def set_seed(self, prop, ends=None, sparse=False):
         '''
         Set seed to identity matrix in node containing the named property and to None in all other end nodes
         '''
@@ -312,11 +317,16 @@ class graph:
         self.clean_summoning()
         self.clean_buffer()
 
-        for k in self.ends:
-            if self.ends[k].value is None or self.ends[k].Jac is None:
+        if ends is None:
+            ends=self.ends
+        else:
+            ends={e:self.nodes[e] for e in ends}
+
+        for k in ends:
+            if ends[k].value is None or ends[k].Jac is None:
                 raise Exception('End node %s hasn\'t had it\'s value calculated, though reverse AD has been required' % (k,))
         
-        for e in self.ends.values():
+        for e in ends.values():
             e.buffer={outk:None for outk in e.outs_to_inds}
             
             if prop in e.buffer:
@@ -324,12 +334,12 @@ class graph:
 
             e.summoned=True
     
-    def get_derivs(self, prop, sparse=False):
+    def get_derivs(self, prop, ends=None, sparse=False):
         '''
         Get a dictionary with the derivatives of a property based on its key
         '''
 
-        self.set_seed(prop, sparse=sparse)
+        self.set_seed(prop, ends=ends, sparse=sparse)
 
         for n in self.heads.values():
             n.calculate_buffer()
@@ -343,16 +353,6 @@ class graph:
             derivs[e]=None if v is None else v.T
         
         return derivs
-
-def identity(args, format='lil', haspassive=False):
-    '''
-    Define an identity function object according to matrix format for Jacobian
-    '''
-    if format!='dense':
-        return func(f=lambda x: x, derivs=(lambda x: sps.eye(len(x), format=format),), args=args, haspassive=haspassive, sparse=True)
-    
-    else:
-        return func(f=lambda x: x, derivs=(lambda x: np.eye(len(x)),), args=args, haspassive=haspassive, sparse=False)
 
 def mix_vectors(vecs, format='csr'):
     '''
