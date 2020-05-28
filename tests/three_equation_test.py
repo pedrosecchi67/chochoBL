@@ -11,7 +11,7 @@ def _arr_compare(a, b, tol=1e-5, min_div=1e-18, relative=None):
         return np.all(np.abs(a-b)<tol)
     else:
         return np.all(np.abs(a-b)/\
-            np.array([1.0 if np.abs(r)<min_div else np.abs(r) for r in relative])<=tol)
+            np.array([max([min_div, np.abs(r)]) for r in relative])<=tol)
 
 def _get_test_mesh():
     msh=mesh(Uinf=3.0)
@@ -118,9 +118,9 @@ def _findiff_testprops(props=[], ends=[], tol=1e-3):
             if not J is None:
                 var_an+=J@(arg2-arg1)
         
-        print(var_an, var_num)
+        #print(var_an, var_num)
         
-        _arr_compare(var_an, var_num, tol=tol, relative=var_an)
+        assert _arr_compare(var_an, var_num, tol=tol, relative=var_an)
 
 def test_uw_conversion():
     msh=_get_test_mesh()
@@ -323,6 +323,8 @@ def test_Hk_findiff():
 
 def test_Hstar():
     _findiff_testprops(props=['Hstar'], ends=['closure', 'p', 'uw'])
+
+#test_Hstar()
 
 def test_Hprime():
     _findiff_testprops(props=['Hprime'], ends=['closure', 'p', 'uw'])
