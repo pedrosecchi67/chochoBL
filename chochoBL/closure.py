@@ -421,7 +421,7 @@ def dCd_turbulent_dHk(dA_dHk, dB_dHk, C, D):
 
     return 2.0*(dB_dHk+dA_dHk*D)/C
 
-def _diag_lil_convert(v):
+def _diag_lil(v):
     return sps.diags(v, format='lil')
 
 def closure_getnode(msh):
@@ -504,28 +504,28 @@ def closure_getnode(msh):
 
         Jac={
             'Hstar':{
-                'sigma_N':Hst_turb-Hst_lam,
+                'sigma_N':_diag_lil(Hst_turb-Hst_lam),
                 'Reth':None,
-                'Me':SG*dHst_turb_dMe,
-                'Hk':SGC*dHst_lam_dHk+SG*dHst_turb_dHk
+                'Me':_diag_lil(SG*dHst_turb_dMe),
+                'Hk':_diag_lil(SGC*dHst_lam_dHk+SG*dHst_turb_dHk)
             },
             'Hprime':{
-                'sigma_N':Hpr_turb-Hpr_lam,
+                'sigma_N':_diag_lil(Hpr_turb-Hpr_lam),
                 'Reth':None,
-                'Me':SGC*dHpr_lam_dMe+SG*dHpr_turb_dMe,
-                'Hk':SGC*dHpr_lam_dHk+SG*dHpr_turb_dHk
+                'Me':_diag_lil(SGC*dHpr_lam_dMe+SG*dHpr_turb_dMe),
+                'Hk':_diag_lil(SGC*dHpr_lam_dHk+SG*dHpr_turb_dHk)
             },
             'Cf':{
-                'sigma_N':Cf_turb-Cf_lam,
-                'Reth':dCf_lam_dR*SGC+dCf_turb_dR*SG,
-                'Me':dCf_turb_dMe*SG,
-                'Hk':dCf_lam_dHk*SGC+dCf_turb_dHk*SG
+                'sigma_N':_diag_lil(Cf_turb-Cf_lam),
+                'Reth':_diag_lil(dCf_lam_dR*SGC+dCf_turb_dR*SG),
+                'Me':_diag_lil(dCf_turb_dMe*SG),
+                'Hk':_diag_lil(dCf_lam_dHk*SGC+dCf_turb_dHk*SG)
             },
             'Cd':{
-                'sigma_N':Cd_turb-Cd_lam,
-                'Reth':dCd_lam_dR*SGC+dCd_turb_dR*SG,
-                'Me':dCd_turb_dMe*SG,
-                'Hk':dCd_lam_dHk*SGC+dCd_turb_dHk*SG
+                'sigma_N':_diag_lil(Cd_turb-Cd_lam),
+                'Reth':_diag_lil(dCd_lam_dR*SGC+dCd_turb_dR*SG),
+                'Me':_diag_lil(dCd_turb_dMe*SG),
+                'Hk':_diag_lil(dCd_lam_dHk*SGC+dCd_turb_dHk*SG)
             }
         }
 

@@ -353,6 +353,18 @@ class graph:
             derivs[e]=None if v is None else v.T
         
         return derivs
+    
+    def get_value(self, prop):
+        '''
+        Extract a given property from values and return the node object in which it has been found. 
+        For debugging only
+        '''
+
+        for n in self.nodes.values():
+            if prop in n.outs_to_inds:
+                return n.value[prop], n
+        
+        raise Exception('Value %s not found' % (prop,))
 
 def mix_vectors(vecs, format='csr'):
     '''

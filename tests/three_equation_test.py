@@ -6,11 +6,12 @@ from chochoBL import *
 
 import pytest
 
-def _arr_compare(a, b, tol=1e-5, relative=None):
+def _arr_compare(a, b, tol=1e-5, min_div=1e-18, relative=None):
     if relative is None:
         return np.all(np.abs(a-b)<tol)
     else:
-        return np.all(np.abs(a-b)<=np.abs(relative)*tol)
+        return np.all(np.abs(a-b)/\
+            np.array([1.0 if np.abs(r)<min_div else np.abs(r) for r in relative])<=tol)
 
 def _get_test_mesh():
     msh=mesh(Uinf=3.0)
@@ -46,6 +47,80 @@ def _get_test_mesh():
     msh.compose(normals)
 
     return msh
+
+def _std_mesh_fulldata(perturbations={}):
+    msh=_get_test_mesh()
+
+    vels=np.array(
+        [
+            [1.0, -1.0, 0.0],
+            [1.0, 0.0, 0.0],
+            [1.0, 1.0, 0.0],
+            [2.0, -1.0, 0.0],
+            [2.0, 0.0, 0.0],
+            [2.0, 1.0, 0.0],
+            [3.0, -1.0, 0.0],
+            [3.0, 0.0, 0.0],
+            [3.0, 1.0, 0.0]
+        ]
+    )
+
+    H=np.linspace(2.5, 3.5, 9)
+    th11=10.0**np.linspace(-4.0, -1.0, 9)
+    N=rnd.random(9)*9.0
+
+    msh.graph_init()
+
+    data={'q':{'qx':vels[:, 0], 'qy':vels[:, 1], 'qz':vels[:, 2]}, 'th11':{'th11':th11}, 'H':{'H':H}, 'N':{'N':N}}
+
+    for n in data:
+        for d in data[n]:
+            if d in perturbations:
+                data[n][d]+=perturbations[d]
+
+    for n in data:
+        msh.gr.heads[n].set_value(data[n])
+
+    return msh
+
+def _perturbations_from_mesh(msh, factor=1e-7):
+    return {
+        'qx':msh.gr.nodes['q'].value['qx']*factor, 'qy':msh.gr.nodes['q'].value['qy']*factor, 'qz':msh.gr.nodes['q'].value['qz']*factor,
+        'th11':msh.gr.nodes['th11'].value['th11']*factor,
+        'H':msh.gr.nodes['H'].value['H']*factor, 'N':msh.gr.nodes['N'].value['N']*factor
+    }
+
+def _findiff_testprops(props=[], ends=[], tol=1e-3):
+    msh1=_std_mesh_fulldata()
+
+    pert=_perturbations_from_mesh(msh1)
+
+    msh2=_std_mesh_fulldata(pert)
+
+    msh1.gr.calculate(ends)
+    msh2.gr.calculate(ends)
+
+    for p in props:
+        val1, n=msh1.gr.get_value(p)
+        val2, _=msh2.gr.get_value(p)
+
+        argnames=n.args_to_inds
+
+        args1=[msh1.gr.get_value(argname)[0] for argname in argnames]
+        args2=[msh2.gr.get_value(argname)[0] for argname in argnames]
+
+        var_an=np.zeros_like(val1)
+        var_num=val2-val1
+
+        for argname, (arg1, arg2) in zip(argnames, zip(args1, args2)):
+            J=n.Jac[p][argname]
+
+            if not J is None:
+                var_an+=J@(arg2-arg1)
+        
+        print(var_an, var_num)
+        
+        _arr_compare(var_an, var_num, tol=tol, relative=var_an)
 
 def test_uw_conversion():
     msh=_get_test_mesh()
@@ -200,7 +275,7 @@ def test_Reth():
         _arr_compare(msh.gr.nodes['Reth'].Jac['Reth']['rho'], np.diag(Reth/rho)) and \
             _arr_compare(msh.gr.nodes['Reth'].Jac['Reth']['rho'], np.diag(Reth/rho)), "Momentum thickness Reynolds number Jacobian calculation failed"
 
-def test_Reth():
+def test_Hk():
     msh=_get_test_mesh()
 
     vels=np.array(
@@ -243,73 +318,20 @@ def test_Reth():
 
     assert _arr_compare(dHk_dMe_expected, dHk_dMe_real), "Hk Me Jacobian evaluation failed"
 
-def _std_mesh_fulldata(perturbations={}):
-    msh=_get_test_mesh()
+def test_Hk_findiff():
+    _findiff_testprops(props=['Hk'], ends=['closure', 'p', 'uw'])
 
-    vels=np.array(
-        [
-            [1.0, -1.0, 0.0],
-            [1.0, 0.0, 0.0],
-            [1.0, 1.0, 0.0],
-            [2.0, -1.0, 0.0],
-            [2.0, 0.0, 0.0],
-            [2.0, 1.0, 0.0],
-            [3.0, -1.0, 0.0],
-            [3.0, 0.0, 0.0],
-            [3.0, 1.0, 0.0]
-        ]
-    )
+def test_Hstar():
+    _findiff_testprops(props=['Hstar'], ends=['closure', 'p', 'uw'])
 
-    H=np.linspace(2.5, 3.5, 9)
-    th11=10.0**np.linspace(-4.0, -1.0, 9)
-    N=rnd.random(9)*9.0
+def test_Hprime():
+    _findiff_testprops(props=['Hprime'], ends=['closure', 'p', 'uw'])
 
-    msh.graph_init()
+def test_Cf():
+    _findiff_testprops(props=['Cf'], ends=['closure', 'p', 'uw'])
 
-    data={'q':{'qx':vels[:, 0], 'qy':vels[:, 1], 'qz':vels[:, 2]}, 'th11':{'th11':th11}, 'H':{'H':H}, 'N':{'N':N}}
-
-    for n in data:
-        for d in data[n]:
-            if d in perturbations:
-                data[n][d]+=perturbations[d]
-
-    for n in data:
-        msh.gr.heads[n].set_value(data[n])
-
-    return msh
-
-def _perturbations_from_mesh(msh, factor=1e-7):
-    return {
-        'qx':msh.gr.nodes['q'].value['qx']*factor, 'qy':msh.gr.nodes['q'].value['qy']*factor, 'qz':msh.gr.nodes['q'].value['qz']*factor,
-        'th11':msh.gr.nodes['th11'].value['th11']*factor,
-        'H':msh.gr.nodes['H'].value['H']*factor, 'N':msh.gr.nodes['N'].value['N']*factor
-    }
-
-def _findiff_testprops(nodes=[], props=[], ends=[]):
-    msh1=_std_mesh_fulldata()
-
-    pert=_perturbations_from_mesh(msh1)
-
-    msh2=_std_mesh_fulldata(pert)
-
-    msh1.gr.calculate(ends)
-    msh2.gr.calculate(ends)
-
-    for n, ps in zip(nodes, props):
-        for p in ps:
-            derivs=msh1.gr.get_derivs(p, ends=ends)
-
-            var=np.zeros_like(msh1.gr.nodes[n].value[p])
-            for d in derivs:
-                if not derivs[d] is None:
-                    var+=derivs[d]@pert[d]
-            
-            var_num=msh2.gr.nodes[n].value[p]-msh1.gr.nodes[n].value[p]
-
-            assert _arr_compare(var, var_num, relative=var), "Derivative of %s failed" % (p,)
-
-def test_p():
-    _findiff_testprops(nodes=['p'], props=[['p']], ends=['p', 'closure', 'uw', 'sigma_N'])
+def test_Cd():
+    _findiff_testprops(props=['Cd'], ends=['closure', 'p', 'uw'])
 
 def test_sigma_N():
     msh=_get_test_mesh()
