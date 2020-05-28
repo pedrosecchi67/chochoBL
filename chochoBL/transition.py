@@ -56,37 +56,24 @@ def dReth_crit_dHk(Hk):
 
     return Reth_crit(Hk)*np.log(10.0)*_dlog10Reth_crit_dHk(Hk)
 
-def dN_dReth(Reth, Hk, A, ismult=True):
-    Rethc=Reth_crit(Hk)
-    
-    sg=_sigma((Reth-Rethc)*A)
+def dN_dReth(Rethc, sg, Reth, Hk, A, ismult=True):
 
     return 0.01*np.sqrt((2.4*Hk-3.7+2.5*np.tanh(1.5*Hk-4.65))**2+0.15)*(sg if ismult else 1.0)
 
-def d2N_dReth2(Reth, Hk, A):
+def d2N_dReth2(dN_dR, dsg):
     '''
     Former parameter differentiated by Reth
     '''
 
-    Rethc=Reth_crit(Hk)
+    return dN_dR*dsg
 
-    dsg=A*_dsigma_du((Reth-Rethc)*A)
-
-    return dN_dReth(Reth, Hk, A, ismult=False)*dsg
-
-def d2N_dHkdReth(Reth, Hk, A):
+def d2N_dHkdReth(Rethc, dRethc, sg, dsg, dN_dR, Reth, Hk, A):
     '''
     Former parameter differentiated by Hk
     '''
 
-    Rethc=Reth_crit(Hk)
-    dRethc=dReth_crit_dHk(Hk)
-
-    sg=_sigma((Reth-Rethc)*A)
-    dsg=-A*dRethc*_dsigma_du((Reth-Rethc)*A)
-
     return 0.01*sg*(2.4-3.75*(np.tanh(1.5*Hk-4.65)**2-1.0))*(2.4*Hk-3.7+2.5*np.tanh(1.5*Hk-4.65))/\
-        np.sqrt((2.4*Hk-3.7+2.5*np.tanh(1.5*Hk-4.65))**2+0.15)+dN_dReth(Reth, Hk, A, ismult=False)*dsg
+        np.sqrt((2.4*Hk-3.7+2.5*np.tanh(1.5*Hk-4.65))**2+0.15)+dN_dR*dsg
 
 def _l(Hk):
     return (6.54*Hk-14.07)/Hk**2
@@ -101,44 +88,38 @@ def _dm_dHk(Hk):
     return 0.058*(Hk-4.0)*(Hk+2.0)/(Hk-1.0)**2/_l(Hk)-\
         (0.058*(Hk-4.0)**2/(Hk-1.0)-0.068)*_dl_dHk(Hk)/_l(Hk)**2
 
-def p(Reth, Hk, th11, passive):
+def p(dN_dR, th11, m, l):
     '''
     Parameter p(Hk, th11)=dN/ds
     '''
 
-    A=passive['A_Rethcrit']
+    return dN_dR*((m+1.0)/2)*l/th11
 
-    return dN_dReth(Reth, Hk, A)*((_m(Hk)+1.0)/2)*_l(Hk)/th11
-
-def dp_dHk(Reth, Hk, th11, passive):
+def dp_dHk(dN_dR, d2N_dHkdR, th11, m, dm, l, dl):
     '''
     Parameter p(Hk, th11)=dN/ds differentiated by density-independent shape 
     parameter Hk
     '''
 
-    A=passive['A_Rethcrit']
+    return sps.diags((d2N_dHkdR*((m+1.0)/2)*l+\
+        dN_dR*dm*l/2+\
+            dN_dR*((m+1.0)/2)*dl)/th11, format='lil')
 
-    return sps.diags((d2N_dHkdReth(Reth, Hk, A)*((_m(Hk)+1.0)/2)*_l(Hk)+\
-        dN_dReth(Reth, Hk, A)*_dm_dHk(Hk)*_l(Hk)/2+\
-            dN_dReth(Reth, Hk, A)*((_m(Hk)+1.0)/2)*_dl_dHk(Hk))/th11, format='lil')
-
-def dp_dth11(Reth, Hk, th11, passive):
+def dp_dth11(pval, th11, passive):
     '''
     Parameter p(Hk, th11)=dN/ds differentiated by density-independent shape 
     parameter Hk
     '''
 
-    return sps.diags(-p(Reth, Hk, th11, passive)/th11, format='lil')
+    return sps.diags(-pval/th11, format='lil')
 
-def dp_dReth(Reth, Hk, th11, passive):
+def dp_dReth(d2N_dR2, m, dm, l, dl, th11):
     '''
     Parameter p(Hk, th11)=dN/ds differentiated by momentum thickness
     Reynolds number
     '''
 
-    A=passive['A_Rethcrit']
-
-    return sps.diags(d2N_dReth2(Reth, Hk, A)*((_m(Hk)+1.0)/2)*_l(Hk)/th11, format='lil')
+    return sps.diags(d2N_dR2*((m+1.0)/2)*l/th11, format='lil')
 
 def sigma_N(N, passive):
     '''
@@ -165,9 +146,38 @@ def p_getnode(msh):
     Return a node for the function p(Reth, Hk, th11)=dN/ds
     '''
 
-    pfunc=func(f=p, derivs=(dp_dReth, dp_dHk, dp_dth11,), args=[0, 1, 2], sparse=True, haspassive=True)
+    def pfunc(Reth, Hk, th11, passive):
+        A=passive['A_transition']
 
-    pnode=node(f=pfunc, args_to_inds=['Reth', 'Hk', 'th11'], outs_to_inds=['p'], passive=msh.passive)
+        Rethc=Reth_crit(Hk)
+        dRethc=dReth_crit_dHk(Hk)
+
+        sg=_sigma((Reth-Rethc)*A)
+        dsg=-A*dRethc*_dsigma_du((Reth-Rethc)*A)
+
+        dNdR=dN_dReth(Rethc, sg, Reth, Hk, A, ismult=False)
+
+        d2NdHkdR=d2N_dHkdReth(Rethc, dRethc, sg, dsg, dNdR, Reth, Hk, A)
+        d2NdR2=d2N_dReth2(dNdR, dsg)
+
+        m=_m(Hk)
+        dm=_dm_dHk(Hk)
+
+        l=_l(Hk)
+        dl=_dl_dHk(Hk)
+
+        pval=p(dNdR, th11, m, l)
+
+        dpdHk=dp_dHk(dNdR, d2NdHkdR, th11, m, dm, l, dl)
+        dpdR=dp_dReth(d2NdR2, m, dm, l, dl, th11)
+        dpdth11=dp_dth11(pval, th11, passive)
+
+        value={'p':pval}
+        Jac={'p':{'Reth':dpdR, 'Hk':dpdHk, 'th11':dpdth11}}
+
+        return value, Jac
+
+    pnode=node(f=pfunc, args_to_inds=['Reth', 'Hk', 'th11'], outs_to_inds=['p'], passive=msh.passive, haspassive=True)
 
     return pnode
 
@@ -176,8 +186,12 @@ def sigma_N_getnode(msh):
     Return a node for sigma N prediction
     '''
 
-    sigmafunc=func(f=sigma_N, args=[0], derivs=(dsigma_N_dN,), haspassive=True, sparse=True)
+    def sigmafunc(N, passive):
+        value={'sigma_N':sigma_N(N, passive)}
+        Jac={'sigma_N':{'N':dsigma_N_dN(N, passive)}}
 
-    sigmanode=node(f=sigmafunc, args_to_inds=['N'], outs_to_inds=['sigma_N'], passive=msh.passive)
+        return value, Jac
+
+    sigmanode=node(f=sigmafunc, args_to_inds=['N'], outs_to_inds=['sigma_N'], passive=msh.passive, haspassive=True)
 
     return sigmanode
