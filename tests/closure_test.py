@@ -119,9 +119,9 @@ def test_A_crossflow():
     pCf=factor*np.amax(Cf)
     pMe=factor*np.amax(Me)
 
-    A, dA_dCf, dA_dbeta, dA_dMe=A_crossflow(Cf, beta, Me)
+    A, dA_dCf, dA_dbeta, dA_dMe, _, _=A_crossflow(Cf, beta, Me)
 
-    A2, _, _, _=A_crossflow(Cf+pCf, beta, Me)
+    A2, _, _, _, _, _=A_crossflow(Cf+pCf, beta, Me)
 
     dydx_num=(A2-A)/pCf
     dydx_an=dA_dCf
@@ -129,7 +129,7 @@ def test_A_crossflow():
     assert _arr_compare(dydx_an, dydx_num, tol=1e-3, \
         relative=dydx_an)
     
-    A2, _, _, _=A_crossflow(Cf, beta, Me+pMe)
+    A2, _, _, _, _, _=A_crossflow(Cf, beta, Me+pMe)
     
     dydx_num=(A2-A)/pMe
     dydx_an=dA_dMe
@@ -137,7 +137,7 @@ def test_A_crossflow():
     assert _arr_compare(dydx_an, dydx_num, tol=1e-3, \
         relative=dydx_an)
     
-    A2, _, _, _=A_crossflow(Cf, beta+pbeta, Me)
+    A2, _, _, _, _, _=A_crossflow(Cf, beta+pbeta, Me)
     
     dydx_num=(A2-A)/pbeta
     dydx_an=dA_dbeta

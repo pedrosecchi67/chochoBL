@@ -574,17 +574,22 @@ def A_crossflow(Cf, beta, Me):
     dA_dCf=dg_df*tb*df_dCf
     dA_dMe=dg_df*tb*df_dMe
 
-    return A, dA_dCf, dA_dbeta, dA_dMe
+    return A, dA_dCf, dA_dbeta, dA_dMe, tb, 1/cosb**2
 
 def A_crossflow_innode(Cf, beta, Me):
-    A, dA_dCf, dA_dbeta, dA_dMe=A_crossflow(Cf, beta, Me)
+    A, dA_dCf, dA_dbeta, dA_dMe, tanb, dtanb_dbeta=A_crossflow(Cf, beta, Me)
 
-    value={'A':A}
+    value={'A':A, 'tanb':tanb}
     Jac={
         'A':{
             'Cf':_diag_lil(dA_dCf),
             'beta':_diag_lil(dA_dbeta),
             'Me':_diag_lil(dA_dMe)
+        },
+        'tanb':{
+            'Cf':None,
+            'beta':_diag_lil(dtanb_dbeta),
+            'Me':None
         }
     }
 
@@ -595,7 +600,23 @@ def A_getnode(msh):
     Obtain a node for A crossflow parameter
     '''
 
-    A_node=node(f=A_crossflow_innode, args_to_inds=['Cf', 'beta', 'Me'], outs_to_inds=['A'], \
+    A_node=node(f=A_crossflow_innode, args_to_inds=['Cf', 'beta', 'Me'], outs_to_inds=['A', 'tanb'], \
         passive=msh.passive)
 
     return A_node
+
+def streamwise_innode(th11, H, Hstar, Hprime, Cf_1, Cd_1, A, tanb):
+    deltastar_1=H*th11
+    deltastar_2=-A*deltastar_1
+
+    th21=-A*th11
+    th12=th21-deltastar_2
+    th22=-A*th12
+
+    thetastar_1=Hstar*th11
+    thetastar_2=A*(deltastar_1+th11+th22-thetastar_1)
+
+    deltaprime_1=Hprime*th11
+    deltaprime_2=-A*deltaprime_1
+
+    Cf_2=Cf_1*tanb
