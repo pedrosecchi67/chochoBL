@@ -567,19 +567,24 @@ def A_crossflow(Cf, beta, Me):
     df_dbeta=df_crossflow_dbeta(f, tb)
 
     g=g_crossflow(f)
-    dg_df=-dg_crossflow_df(f)
+    dg_df=dg_crossflow_df(f)
 
     A=tb*g
-    dA_dbeta=-g/cosb**2+dg_df*df_dbeta*tb
-    dA_dCf=dg_df*tb*df_dbeta
+    dA_dbeta=g/cosb**2+dg_df*df_dbeta*tb
+    dA_dCf=dg_df*tb*df_dCf
     dA_dMe=dg_df*tb*df_dMe
+
+    return A, dA_dCf, dA_dbeta, dA_dMe
+
+def A_crossflow_innode(Cf, beta, Me):
+    A, dA_dCf, dA_dbeta, dA_dMe=A_crossflow(Cf, beta, Me)
 
     value={'A':A}
     Jac={
         'A':{
-            'beta':dA_dbeta,
-            'Cf':dA_dCf,
-            'Me':dA_dMe
+            'Cf':_diag_lil(dA_dCf),
+            'beta':_diag_lil(dA_dbeta),
+            'Me':_diag_lil(dA_dMe)
         }
     }
 
@@ -590,7 +595,7 @@ def A_getnode(msh):
     Obtain a node for A crossflow parameter
     '''
 
-    A_node=node(f=A_crossflow, args_to_inds=['Cf', 'beta', 'Me'], outs_to_inds=['A'], \
+    A_node=node(f=A_crossflow_innode, args_to_inds=['Cf', 'beta', 'Me'], outs_to_inds=['A'], \
         passive=msh.passive)
 
     return A_node
