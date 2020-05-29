@@ -535,3 +535,62 @@ def closure_getnode(msh):
         haspassive=True)
 
     return newnode
+
+def _f(Cf, cosb, Me):
+    return np.sqrt(Cf*cosb*(1.0+0.18*Me**2))
+
+def _df_dCf(f, Cf):
+    return f/(2*Cf)
+
+def _df_dbeta(f, tb):
+    return -tb*f
+
+def _df_dMe(f, Me):
+    return f*0.18*Me/(1.0+0.18*Me**2)
+
+def _g(f):
+    return f/(f-0.1)+1.0
+
+def _dg_df(f):
+    return -0.1/(f-0.1)**2
+
+def A_crossflow(Cf, beta, Me):
+    cosb=np.cos(beta)
+    tb=np.tan(beta)
+
+    isrev=Cf<0.0
+    cosb[isrev]=-cosb[isrev]
+
+    f=_f(Cf, cosb, Me)
+    df_dCf=_df_dCf(f, Cf)
+    df_dMe=_df_dMe(f, Me)
+    df_dbeta=_df_dbeta(f, tb)
+
+    g=_g(f)
+    dg_df=-_dg_df(f)
+
+    A=tb*g
+    dA_dbeta=-g/cosb**2+dg_df*df_dbeta*tb
+    dA_dCf=dg_df*tb*df_dbeta
+    dA_dMe=dg_df*tb*df_dMe
+
+    value={'A':A}
+    Jac={
+        'A':{
+            'beta':dA_dbeta,
+            'Cf':dA_dCf,
+            'Me':dA_dMe
+        }
+    }
+
+    return value, Jac
+
+def A_getnode(msh):
+    '''
+    Obtain a node for A crossflow parameter
+    '''
+
+    A_node=node(f=A_crossflow, args_to_inds=['Cf', 'beta', 'Me'], outs_to_inds=['A'], \
+        passive=msh.passive)
+
+    return A_node

@@ -1,6 +1,7 @@
 import numpy as np
 import numpy.random as rnd
 import scipy.sparse as sps
+import math
 
 from chochoBL import *
 
@@ -68,10 +69,11 @@ def _std_mesh_fulldata(perturbations={}):
     H=np.linspace(2.2, 3.5, 9)
     th11=10.0**np.linspace(-4.0, -1.0, 9)
     N=np.linspace(0.0, 10.0, 9)
+    beta=np.linspace(-math.radians(45.0), math.radians(45.0), 9)
 
     msh.graph_init()
 
-    data={'q':{'qx':vels[:, 0], 'qy':vels[:, 1], 'qz':vels[:, 2]}, 'th11':{'th11':th11}, 'H':{'H':H}, 'N':{'N':N}}
+    data={'q':{'qx':vels[:, 0], 'qy':vels[:, 1], 'qz':vels[:, 2]}, 'th11':{'th11':th11}, 'H':{'H':H}, 'N':{'N':N}, 'beta':{'beta':beta}}
 
     for n in data:
         for d in data[n]:
@@ -87,7 +89,8 @@ def _perturbations_from_mesh(msh, factor=1e-7):
     return {
         'qx':msh.gr.nodes['q'].value['qx']*factor, 'qy':msh.gr.nodes['q'].value['qy']*factor, 'qz':msh.gr.nodes['q'].value['qz']*factor,
         'th11':msh.gr.nodes['th11'].value['th11']*factor,
-        'H':msh.gr.nodes['H'].value['H']*factor, 'N':msh.gr.nodes['N'].value['N']*factor
+        'H':msh.gr.nodes['H'].value['H']*factor, 'N':msh.gr.nodes['N'].value['N']*factor,
+        'beta':msh.gr.nodes['beta'].value['beta']*factor
     }
 
 def _findiff_testprops(props=[], ends=[], tol=1e-3):
@@ -319,22 +322,25 @@ def test_Hk():
     assert _arr_compare(dHk_dMe_expected, dHk_dMe_real), "Hk Me Jacobian evaluation failed"
 
 def test_Hk_findiff():
-    _findiff_testprops(props=['Hk'], ends=['closure', 'p', 'uw'])
+    _findiff_testprops(props=['Hk'], ends=['closure', 'p', 'uw', 'A'])
 
 def test_Hstar():
-    _findiff_testprops(props=['Hstar'], ends=['closure', 'p', 'uw'])
+    _findiff_testprops(props=['Hstar'], ends=['closure', 'p', 'uw', 'A'])
 
 def test_Hprime():
-    _findiff_testprops(props=['Hprime'], ends=['closure', 'p', 'uw'])
+    _findiff_testprops(props=['Hprime'], ends=['closure', 'p', 'uw', 'A'])
 
 def test_Cf():
-    _findiff_testprops(props=['Cf'], ends=['closure', 'p', 'uw'])
+    _findiff_testprops(props=['Cf'], ends=['closure', 'p', 'uw', 'A'])
 
 def test_Cd():
-    _findiff_testprops(props=['Cd'], ends=['closure', 'p', 'uw'])
+    _findiff_testprops(props=['Cd'], ends=['closure', 'p', 'uw', 'A'])
 
 def test_p():
-    _findiff_testprops(props=['p'], ends=['closure', 'p', 'uw'])
+    _findiff_testprops(props=['p'], ends=['closure', 'p', 'uw', 'A'])
+
+def test_A():
+    _findiff_testprops(props=['A'], ends=['closure', 'p', 'uw', 'A'])
 
 def test_sigma_N():
     msh=_get_test_mesh()
