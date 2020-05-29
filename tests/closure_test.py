@@ -42,163 +42,67 @@ def test_Hk():
     assert _arr_compare(dydx_an, dydx_num, tol=1e-3, \
         relative=dydx_an)
 
-def test_Hstar_laminar():
-    Reth_std, Me_std, Hk_std=_standard_data(100)
-    pReth, pMe, pHk=_standard_perturbations(Reth_std, Me_std, Hk_std)
+def test_f_crossflow():
+    nsamples=1000
+    factor=1e-7
 
-    dHstar_dHk_num=(Hstar_laminar(Hk_std+pHk)-Hstar_laminar(Hk_std))/pHk
+    beta=(rnd.random(nsamples)-0.5)*np.pi/2
+    Cf=rnd.random(nsamples)*0.01
+    Me=rnd.random(nsamples)*0.5
 
-    dHstar_dHk_an=dHstar_laminar_dHk(Hk_std)
+    cosb=np.cos(beta)
+    tb=np.tan(beta)
 
-    assert _arr_compare(dHstar_dHk_an, dHstar_dHk_num, tol=1e-3, \
-        relative=dHstar_dHk_an)
+    f=f_crossflow(Cf, cosb, Me)
 
-def test_Hprime_laminar():
-    Reth_std, Me_std, Hk_std=_standard_data(100)
-    pReth, pMe, pHk=_standard_perturbations(Reth_std, Me_std, Hk_std)
+    df_dCf=df_crossflow_dCf(f, Cf)
+    df_dbeta=df_crossflow_dbeta(f, tb)
+    df_dMe=df_crossflow_dMe(f, Me)
 
-    dydx_num=(Hprime_laminar(Me_std, Hk_std+pHk)-Hprime_laminar(Me_std, Hk_std))/pHk
+    pbeta=factor*np.amax(beta)
+    pCf=factor*np.amax(Cf)
+    pMe=factor*np.amax(Me)
 
-    dydx_an=dHprime_laminar_dHk(Me_std, Hk_std)
+    pcosb=-np.sin(beta)*pbeta
+
+    f2=f_crossflow(Cf+pCf, cosb, Me)
+
+    dydx_num=(f2-f)/pCf
+    dydx_an=df_dCf
+
+    assert _arr_compare(dydx_an, dydx_num, tol=1e-3, \
+        relative=dydx_an)
+    
+    f2=f_crossflow(Cf, cosb+pcosb, Me)
+
+    dydx_num=(f2-f)/pbeta
+    dydx_an=df_dbeta
+
+    assert _arr_compare(dydx_an, dydx_num, tol=1e-3, \
+        relative=dydx_an)
+    
+    f2=f_crossflow(Cf, cosb, Me+pMe)
+
+    dydx_num=(f2-f)/pMe
+    dydx_an=df_dMe
 
     assert _arr_compare(dydx_an, dydx_num, tol=1e-3, \
         relative=dydx_an)
 
-    dydx_num=(Hprime_laminar(Me_std+pMe, Hk_std)-Hprime_laminar(Me_std, Hk_std))/pMe
+def test_g_crossflow():
+    nsamples=100
+    factor=1e-7
 
-    dydx_an=dHprime_laminar_dMe(Me_std, Hk_std)
+    f=rnd.random(nsamples)*0.1-0.05
 
-    assert _arr_compare(dydx_an, dydx_num, tol=1e-3, \
-        relative=dydx_an)
+    pf=np.amax(f)*factor
 
-def test_Cf_laminar():
-    Reth_std, Me_std, Hk_std=_standard_data(100)
-    pReth, pMe, pHk=_standard_perturbations(Reth_std, Me_std, Hk_std)
+    g=g_crossflow(f)
+    g2=g_crossflow(f+pf)
+    dg_df=dg_crossflow_df(f)
 
-    dydx_num=(Cf_laminar(Reth_std, Hk_std+pHk)-Cf_laminar(Reth_std, Hk_std))/pHk
-
-    dydx_an=dCf_laminar_dHk(Reth_std, Hk_std)
-
-    assert _arr_compare(dydx_an, dydx_num, tol=1e-3, \
-        relative=dydx_an)
-
-    dydx_num=(Cf_laminar(Reth_std+pReth, Hk_std)-Cf_laminar(Reth_std, Hk_std))/pReth
-
-    dydx_an=dCf_laminar_dReth(Reth_std, Hk_std)
-
-    assert _arr_compare(dydx_an, dydx_num, tol=1e-3, \
-        relative=dydx_an)
-
-def test_Cd_laminar():
-    Reth_std, Me_std, Hk_std=_standard_data(100)
-    pReth, pMe, pHk=_standard_perturbations(Reth_std, Me_std, Hk_std)
-
-    dydx_num=(Cd_laminar(Reth_std, Hk_std+pHk)-Cd_laminar(Reth_std, Hk_std))/pHk
-
-    dydx_an=dCd_laminar_dHk(Reth_std, Hk_std)
-
-    assert _arr_compare(dydx_an, dydx_num, tol=1e-3, \
-        relative=dydx_an)
-
-    dydx_num=(Cd_laminar(Reth_std+pReth, Hk_std)-Cd_laminar(Reth_std, Hk_std))/pReth
-
-    dydx_an=dCd_laminar_dReth(Reth_std, Hk_std)
-
-    assert _arr_compare(dydx_an, dydx_num, tol=1e-3, \
-        relative=dydx_an)
-
-def test_Hstar_turbulent():
-    Reth_std, Me_std, Hk_std=_standard_data(100)
-    pReth, pMe, pHk=_standard_perturbations(Reth_std, Me_std, Hk_std)
-
-    dydx_num=(Hstar_turbulent(Me_std+pMe, Hk_std)-Hstar_turbulent(Me_std, Hk_std))/pMe
-
-    dydx_an=dHstar_turbulent_dMe(Me_std, Hk_std)
-
-    assert _arr_compare(dydx_an, dydx_num, tol=1e-3, \
-        relative=dydx_an)
-
-    dydx_num=(Hstar_turbulent(Me_std, Hk_std+pHk)-Hstar_turbulent(Me_std, Hk_std))/pHk
-
-    dydx_an=dHstar_turbulent_dHk(Me_std, Hk_std)
-
-    assert _arr_compare(dydx_an, dydx_num, tol=1e-2, \
-        relative=dydx_an) #tolerance set higher since only three significative algorisms were considered
-
-def test_Hprime_turbulent():
-    Reth_std, Me_std, Hk_std=_standard_data(100)
-    pReth, pMe, pHk=_standard_perturbations(Reth_std, Me_std, Hk_std)
-
-    dydx_num=(Hprime_turbulent(Me_std+pMe, Hk_std)-Hprime_turbulent(Me_std, Hk_std))/pMe
-
-    dydx_an=dHprime_turbulent_dMe(Me_std, Hk_std)
-
-    assert _arr_compare(dydx_an, dydx_num, tol=1e-3, \
-        relative=dydx_an)
-
-    dydx_num=(Hprime_turbulent(Me_std, Hk_std+pHk)-Hprime_turbulent(Me_std, Hk_std))/pHk
-
-    dydx_an=dHprime_turbulent_dHk(Me_std, Hk_std)
-
-    assert _arr_compare(dydx_an, dydx_num, tol=1e-3, \
-        relative=dydx_an)
-
-def test_Cf_turbulent():
-    Reth_std, Me_std, Hk_std=_standard_data(100)
-    pReth, pMe, pHk=_standard_perturbations(Reth_std, Me_std, Hk_std)
-
-    passive={'gamma':1.4}
-
-    dydx_num=(Cf_turbulent(Reth_std, Me_std+pMe, Hk_std, passive)-\
-        Cf_turbulent(Reth_std, Me_std, Hk_std, passive))/pMe
-
-    dydx_an=dCf_turbulent_dMe(Reth_std, Me_std, Hk_std, passive)
-
-    assert _arr_compare(dydx_an, dydx_num, tol=1e-3, \
-        relative=dydx_an)
-
-    dydx_num=(Cf_turbulent(Reth_std+pReth, Me_std, Hk_std, passive)-\
-        Cf_turbulent(Reth_std, Me_std, Hk_std, passive))/pReth
-
-    dydx_an=dCf_turbulent_dReth(Reth_std, Me_std, Hk_std, passive)
-
-    assert _arr_compare(dydx_an, dydx_num, tol=1e-3, \
-        relative=dydx_an)
-
-    dydx_num=(Cf_turbulent(Reth_std, Me_std, Hk_std+pHk, passive)-\
-        Cf_turbulent(Reth_std, Me_std, Hk_std, passive))/pHk
-
-    dydx_an=dCf_turbulent_dHk(Reth_std, Me_std, Hk_std, passive)
-
-    assert _arr_compare(dydx_an, dydx_num, tol=1e-3, \
-        relative=dydx_an)
-
-def test_Cd_turbulent():
-    Reth_std, Me_std, Hk_std=_standard_data(100)
-    pReth, pMe, pHk=_standard_perturbations(Reth_std, Me_std, Hk_std)
-
-    passive={'gamma':1.4}
-
-    dydx_num=(Cd_turbulent(Reth_std, Me_std+pMe, Hk_std, passive)-\
-        Cd_turbulent(Reth_std, Me_std, Hk_std, passive))/pMe
-
-    dydx_an=dCd_turbulent_dMe(Reth_std, Me_std, Hk_std, passive)
-
-    assert _arr_compare(dydx_an, dydx_num, tol=1e-3, \
-        relative=dydx_an)
-
-    dydx_num=(Cd_turbulent(Reth_std+pReth, Me_std, Hk_std, passive)-\
-        Cd_turbulent(Reth_std, Me_std, Hk_std, passive))/pReth
-
-    dydx_an=dCd_turbulent_dReth(Reth_std, Me_std, Hk_std, passive)
-
-    assert _arr_compare(dydx_an, dydx_num, tol=1e-3, \
-        relative=dydx_an)
-
-    dydx_num=(Cd_turbulent(Reth_std, Me_std, Hk_std+pHk, passive)-\
-        Cd_turbulent(Reth_std, Me_std, Hk_std, passive))/pHk
-
-    dydx_an=dCd_turbulent_dHk(Reth_std, Me_std, Hk_std, passive)
+    dydx_num=(g2-g)/pf
+    dydx_an=dg_df
 
     assert _arr_compare(dydx_an, dydx_num, tol=1e-3, \
         relative=dydx_an)

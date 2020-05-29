@@ -536,22 +536,22 @@ def closure_getnode(msh):
 
     return newnode
 
-def _f(Cf, cosb, Me):
+def f_crossflow(Cf, cosb, Me):
     return np.sqrt(Cf*cosb*(1.0+0.18*Me**2))
 
-def _df_dCf(f, Cf):
+def df_crossflow_dCf(f, Cf):
     return f/(2*Cf)
 
-def _df_dbeta(f, tb):
-    return -tb*f
+def df_crossflow_dbeta(f, tb):
+    return -tb*f/2
 
-def _df_dMe(f, Me):
+def df_crossflow_dMe(f, Me):
     return f*0.18*Me/(1.0+0.18*Me**2)
 
-def _g(f):
+def g_crossflow(f):
     return f/(f-0.1)+1.0
 
-def _dg_df(f):
+def dg_crossflow_df(f):
     return -0.1/(f-0.1)**2
 
 def A_crossflow(Cf, beta, Me):
@@ -561,13 +561,13 @@ def A_crossflow(Cf, beta, Me):
     isrev=Cf<0.0
     cosb[isrev]=-cosb[isrev]
 
-    f=_f(Cf, cosb, Me)
-    df_dCf=_df_dCf(f, Cf)
-    df_dMe=_df_dMe(f, Me)
-    df_dbeta=_df_dbeta(f, tb)
+    f=f_crossflow(Cf, cosb, Me)
+    df_dCf=df_crossflow_dCf(f, Cf)
+    df_dMe=df_crossflow_dMe(f, Me)
+    df_dbeta=df_crossflow_dbeta(f, tb)
 
-    g=_g(f)
-    dg_df=-_dg_df(f)
+    g=g_crossflow(f)
+    dg_df=-dg_crossflow_df(f)
 
     A=tb*g
     dA_dbeta=-g/cosb**2+dg_df*df_dbeta*tb

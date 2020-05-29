@@ -87,10 +87,13 @@ def _std_mesh_fulldata(perturbations={}):
 
 def _perturbations_from_mesh(msh, factor=1e-7):
     return {
-        'qx':msh.gr.nodes['q'].value['qx']*factor, 'qy':msh.gr.nodes['q'].value['qy']*factor, 'qz':msh.gr.nodes['q'].value['qz']*factor,
-        'th11':msh.gr.nodes['th11'].value['th11']*factor,
-        'H':msh.gr.nodes['H'].value['H']*factor, 'N':msh.gr.nodes['N'].value['N']*factor,
-        'beta':msh.gr.nodes['beta'].value['beta']*factor
+        'qx':np.amax(msh.gr.nodes['q'].value['qx'])*factor,
+        'qy':np.amax(msh.gr.nodes['q'].value['qy'])*factor, 
+        'qz':np.amax(msh.gr.nodes['q'].value['qz'])*factor,
+        'th11':np.amax(msh.gr.nodes['th11'].value['th11'])*factor,
+        'H':np.amax(msh.gr.nodes['H'].value['H'])*factor, 
+        'N':np.amax(msh.gr.nodes['N'].value['N'])*factor,
+        'beta':np.amax(msh.gr.nodes['beta'].value['beta'])*factor
     }
 
 def _findiff_testprops(props=[], ends=[], tol=1e-3):
