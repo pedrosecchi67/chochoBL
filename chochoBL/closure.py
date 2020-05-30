@@ -667,3 +667,49 @@ def Cf_getnode(msh):
     cfnode=node(f=Cf_innode, args_to_inds=['Cf', 'tanb'], outs_to_inds=['Cf_2'], passive=msh.passive)
 
     return cfnode
+
+def theta_innode(th11, A, deltastar_2):
+    th21=-A*th11
+    th12=th21-deltastar_2
+    th22=-A*th12
+
+    dth21_dA=-th11
+    dth21_dth11=-A
+
+    dth12_dA=dth21_dA
+    dth12_dth11=dth21_dth11
+    dth12_ddeltastar_2=-np.ones_like(deltastar_2)
+
+    dth22_dA=-(th12+dth12_dA*A)
+    dth22_dth11=-A*dth12_dth11
+    dth22_ddeltastar_2=-A*dth12_ddeltastar_2
+
+    value={'th12':th12, 'th21':th21, 'th22':th22}
+    Jac={
+        'th12':{
+            'th11':_diag_lil(dth12_dth11),
+            'A':_diag_lil(dth12_dA),
+            'deltastar_2':_diag_lil(dth12_ddeltastar_2)
+        },
+        'th21':{
+            'th11':_diag_lil(dth21_dth11),
+            'A':_diag_lil(dth21_dA),
+            'deltastar_2':None
+        },
+        'th22':{
+            'th11':_diag_lil(dth22_dth11),
+            'A':_diag_lil(dth22_dA),
+            'deltastar_2':_diag_lil(dth22_ddeltastar_2)
+        }
+    }
+
+    return value, Jac
+
+def theta_getnode(msh):
+    '''
+    Obtains a node to calculate theta momentum thicknesses for a mesh
+    '''
+
+    thnode=node(f=theta_innode, args_to_inds=['th11', 'A', 'deltastar_2'], outs_to_inds=['th12', 'th21', 'th22'])
+
+    return thnode

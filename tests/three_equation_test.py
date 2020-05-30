@@ -7,7 +7,7 @@ from chochoBL import *
 
 import pytest
 
-def _arr_compare(a, b, tol=1e-5, min_div=1e-18, relative=None):
+def _arr_compare(a, b, tol=1e-5, min_div=1e-14, relative=None):
     if relative is None:
         return np.all(np.abs(a-b)<tol)
     else:
@@ -96,7 +96,7 @@ def _perturbations_from_mesh(msh, factor=1e-7):
         'beta':np.amax(msh.gr.nodes['beta'].value['beta'])*factor
     }
 
-def _findiff_testprops(props=[], ends=[], tol=1e-3):
+def _findiff_testprops(props=[], ends=[], tol=1e-3, min_div=1e-14):
     msh1=_std_mesh_fulldata()
 
     pert=_perturbations_from_mesh(msh1)
@@ -126,7 +126,7 @@ def _findiff_testprops(props=[], ends=[], tol=1e-3):
         
         #print(var_an, var_num)
         
-        assert _arr_compare(var_an, var_num, tol=tol, relative=var_an), "Property %s calculation failed" % (p,)
+        assert _arr_compare(var_an, var_num, tol=tol, relative=var_an, min_div=min_div), "Property %s calculation failed" % (p,)
 
 def test_uw_conversion():
     msh=_get_test_mesh()
@@ -353,6 +353,9 @@ def test_deltastar():
 
 def test_Cf_2():
     _findiff_testprops(props=['Cf_2'], ends=['closure', 'p', 'uw', 'deltastar', 'Cf'])
+
+def test_theta():
+    _findiff_testprops(props=['th12', 'th21', 'th22'], ends=['closure', 'p', 'uw', 'theta', 'Cf'], min_div=1e-12)
 
 def test_sigma_N():
     msh=_get_test_mesh()
