@@ -642,3 +642,28 @@ def deltastar_getnode(msh):
         passive=msh.passive)
 
     return dnode
+
+def Cf_innode(Cf, tanb):
+    Cf_2=Cf*tanb
+
+    dCf_2_dtanb=Cf
+    dCf_2_dCf=tanb
+
+    value={'Cf_2':Cf_2}
+    Jac={
+        'Cf_2':{
+            'Cf':_diag_lil(dCf_2_dCf),
+            'tanb':_diag_lil(dCf_2_dtanb)
+        }
+    }
+
+    return value, Jac
+
+def Cf_getnode(msh):
+    '''
+    Obtain a node for crossflow friction coefficient
+    '''
+
+    cfnode=node(f=Cf_innode, args_to_inds=['Cf', 'tanb'], outs_to_inds=['Cf_2'], passive=msh.passive)
+
+    return cfnode
