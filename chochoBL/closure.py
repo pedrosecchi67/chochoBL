@@ -29,10 +29,10 @@ def Hk(H, Me):
 
 #last function's derivatives
 def dHk_dH(H, Me):
-    return sps.diags(1.0/(1.0+0.113*Me**2), format='lil')
+    return 1.0/(1.0+0.113*Me**2)
 
 def dHk_dMe(H, Me):
-    return sps.diags(-((H-0.290*Me**2)*0.226*Me/(1.0+0.113*Me**2)+0.580*Me)/(1.0+0.113*Me**2), format='lil')
+    return -((H-0.290*Me**2)*0.226*Me/(1.0+0.113*Me**2)+0.580*Me)/(1.0+0.113*Me**2)
 
 def Hk_getnode(msh):
     '''
@@ -421,9 +421,6 @@ def dCd_turbulent_dHk(dA_dHk, dB_dHk, C, D):
 
     return 2.0*(dB_dHk+dA_dHk*D)/C
 
-def _diag_lil(v):
-    return sps.diags(v, format='lil')
-
 def closure_getnode(msh):
     '''
     Return node for closure relationships, taking SG, Reth, Me and Hk and returning Hstar, 
@@ -504,28 +501,28 @@ def closure_getnode(msh):
 
         Jac={
             'Hstar':{
-                'sigma_N':_diag_lil(Hst_turb-Hst_lam),
+                'sigma_N':(Hst_turb-Hst_lam),
                 'Reth':None,
-                'Me':_diag_lil(SG*dHst_turb_dMe),
-                'Hk':_diag_lil(SGC*dHst_lam_dHk+SG*dHst_turb_dHk)
+                'Me':(SG*dHst_turb_dMe),
+                'Hk':(SGC*dHst_lam_dHk+SG*dHst_turb_dHk)
             },
             'Hprime':{
-                'sigma_N':_diag_lil(Hpr_turb-Hpr_lam),
+                'sigma_N':(Hpr_turb-Hpr_lam),
                 'Reth':None,
-                'Me':_diag_lil(SGC*dHpr_lam_dMe+SG*dHpr_turb_dMe),
-                'Hk':_diag_lil(SGC*dHpr_lam_dHk+SG*dHpr_turb_dHk)
+                'Me':(SGC*dHpr_lam_dMe+SG*dHpr_turb_dMe),
+                'Hk':(SGC*dHpr_lam_dHk+SG*dHpr_turb_dHk)
             },
             'Cf':{
-                'sigma_N':_diag_lil(Cf_turb-Cf_lam),
-                'Reth':_diag_lil(dCf_lam_dR*SGC+dCf_turb_dR*SG),
-                'Me':_diag_lil(dCf_turb_dMe*SG),
-                'Hk':_diag_lil(dCf_lam_dHk*SGC+dCf_turb_dHk*SG)
+                'sigma_N':(Cf_turb-Cf_lam),
+                'Reth':(dCf_lam_dR*SGC+dCf_turb_dR*SG),
+                'Me':(dCf_turb_dMe*SG),
+                'Hk':(dCf_lam_dHk*SGC+dCf_turb_dHk*SG)
             },
             'Cd':{
-                'sigma_N':_diag_lil(Cd_turb-Cd_lam),
-                'Reth':_diag_lil(dCd_lam_dR*SGC+dCd_turb_dR*SG),
-                'Me':_diag_lil(dCd_turb_dMe*SG),
-                'Hk':_diag_lil(dCd_lam_dHk*SGC+dCd_turb_dHk*SG)
+                'sigma_N':(Cd_turb-Cd_lam),
+                'Reth':(dCd_lam_dR*SGC+dCd_turb_dR*SG),
+                'Me':(dCd_turb_dMe*SG),
+                'Hk':(dCd_lam_dHk*SGC+dCd_turb_dHk*SG)
             }
         }
 
@@ -582,13 +579,13 @@ def A_crossflow_innode(Cf, beta, Me):
     value={'A':A, 'tanb':tanb}
     Jac={
         'A':{
-            'Cf':_diag_lil(dA_dCf),
-            'beta':_diag_lil(dA_dbeta),
-            'Me':_diag_lil(dA_dMe)
+            'Cf':(dA_dCf),
+            'beta':(dA_dbeta),
+            'Me':(dA_dMe)
         },
         'tanb':{
             'Cf':None,
-            'beta':_diag_lil(dtanb_dbeta),
+            'beta':(dtanb_dbeta),
             'Me':None
         }
     }
@@ -620,14 +617,14 @@ def deltastar_innode(th11, H, A):
     value={'deltastar_1':deltastar_1, 'deltastar_2':deltastar_2}
     Jac={
         'deltastar_1':{
-            'th11':_diag_lil(ddeltastar_1_dth11),
-            'H':_diag_lil(ddeltastar_1_dH),
+            'th11':(ddeltastar_1_dth11),
+            'H':(ddeltastar_1_dH),
             'A':None
         },
         'deltastar_2':{
-            'th11':_diag_lil(ddeltastar_2_dth11),
-            'H':_diag_lil(ddeltastar_2_dH),
-            'A':_diag_lil(ddeltastar_2_dA)
+            'th11':(ddeltastar_2_dth11),
+            'H':(ddeltastar_2_dH),
+            'A':(ddeltastar_2_dA)
         }
     }
 
@@ -652,8 +649,8 @@ def Cf_innode(Cf, tanb):
     value={'Cf_2':Cf_2}
     Jac={
         'Cf_2':{
-            'Cf':_diag_lil(dCf_2_dCf),
-            'tanb':_diag_lil(dCf_2_dtanb)
+            'Cf':(dCf_2_dCf),
+            'tanb':(dCf_2_dtanb)
         }
     }
 
@@ -687,19 +684,19 @@ def theta_innode(th11, A, deltastar_2):
     value={'th12':th12, 'th21':th21, 'th22':th22}
     Jac={
         'th12':{
-            'th11':_diag_lil(dth12_dth11),
-            'A':_diag_lil(dth12_dA),
-            'deltastar_2':_diag_lil(dth12_ddeltastar_2)
+            'th11':(dth12_dth11),
+            'A':(dth12_dA),
+            'deltastar_2':(dth12_ddeltastar_2)
         },
         'th21':{
-            'th11':_diag_lil(dth21_dth11),
-            'A':_diag_lil(dth21_dA),
+            'th11':(dth21_dth11),
+            'A':(dth21_dA),
             'deltastar_2':None
         },
         'th22':{
-            'th11':_diag_lil(dth22_dth11),
-            'A':_diag_lil(dth22_dA),
-            'deltastar_2':_diag_lil(dth22_ddeltastar_2)
+            'th11':(dth22_dth11),
+            'A':(dth22_dA),
+            'deltastar_2':(dth22_ddeltastar_2)
         }
     }
 
@@ -724,18 +721,18 @@ def thetastar_innode(Hstar, A, deltastar_1, th11, th22):
 
     Jac={
         'thetastar_1':{
-            'Hstar':_diag_lil(th11),
+            'Hstar':(th11),
             'A':None,
             'deltastar_1':None,
-            'th11':_diag_lil(Hstar),
+            'th11':(Hstar),
             'th22':None
         },
         'thetastar_2':{
-            'Hstar':_diag_lil(-A*th11),
-            'A':_diag_lil(parc),
-            'deltastar_1':_diag_lil(A),
-            'th11':_diag_lil(A-A*Hstar),
-            'th22':_diag_lil(A)
+            'Hstar':(-A*th11),
+            'A':(parc),
+            'deltastar_1':(A),
+            'th11':(A-A*Hstar),
+            'th22':(A)
         }
     }
 
@@ -759,14 +756,14 @@ def deltaprime_innode(Hprime, A, th11):
 
     Jac={
         'deltaprime_1':{
-            'Hprime':_diag_lil(th11),
+            'Hprime':(th11),
             'A':None,
-            'th11':_diag_lil(Hprime)
+            'th11':(Hprime)
         },
         'deltaprime_2':{
-            'Hprime':_diag_lil(-A*th11),
-            'A':_diag_lil(-deltaprime_1),
-            'th11':_diag_lil(-A*Hprime)
+            'Hprime':(-A*th11),
+            'A':(-deltaprime_1),
+            'th11':(-A*Hprime)
         }
     }
 

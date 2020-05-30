@@ -91,7 +91,7 @@ def _perturbations_from_mesh(msh, factor=1e-7):
         'qy':np.amax(msh.gr.nodes['q'].value['qy'])*factor, 
         'qz':np.amax(msh.gr.nodes['q'].value['qz'])*factor,
         'th11':np.amax(msh.gr.nodes['th11'].value['th11'])*factor,
-        'H':np.amax(msh.gr.nodes['H'].value['H'])*factor, 
+        'H':np.amax(msh.gr.nodes['H'].value['H'])*factor,
         'N':np.amax(msh.gr.nodes['N'].value['N'])*factor,
         'beta':np.amax(msh.gr.nodes['beta'].value['beta'])*factor
     }
@@ -122,7 +122,10 @@ def _findiff_testprops(props=[], ends=[], tol=1e-3, min_div=1e-14):
             J=n.Jac[p][argname]
 
             if not J is None:
-                var_an+=J@(arg2-arg1)
+                if len(J.shape)==2:
+                    var_an+=J@(arg2-arg1)
+                else:
+                    var_an+=prod_as_diag(J, arg2-arg1)
         
         #print(var_an, var_num)
         
@@ -314,13 +317,13 @@ def test_Hk():
     assert _arr_compare(Hk_expected, msh.gr.nodes['Hk'].value['Hk']), \
         "Hk value computation failed"
 
-    dHk_dH_expected=np.diag(dHk_dH(H, Me).todense())
-    dHk_dH_real=np.diag(msh.gr.nodes['Hk'].Jac['Hk']['H'].todense())
+    dHk_dH_expected=dHk_dH(H, Me)
+    dHk_dH_real=msh.gr.nodes['Hk'].Jac['Hk']['H']
 
     assert _arr_compare(dHk_dH_expected, dHk_dH_real), "Hk H Jacobian evaluation failed"
 
-    dHk_dMe_expected=np.diag(dHk_dMe(H, Me).todense())
-    dHk_dMe_real=np.diag(msh.gr.nodes['Hk'].Jac['Hk']['Me'].todense())
+    dHk_dMe_expected=dHk_dMe(H, Me)
+    dHk_dMe_real=msh.gr.nodes['Hk'].Jac['Hk']['Me']
 
     assert _arr_compare(dHk_dMe_expected, dHk_dMe_real), "Hk Me Jacobian evaluation failed"
 

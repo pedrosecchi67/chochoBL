@@ -18,11 +18,36 @@ def _addnone(a, b):
         else:
             return a+b
 
+def prod_as_diag(A, B):
+    '''
+    Return a product of A.T@B, considering one-dimensional arrays considered to be diagonals
+    '''
+
+    isdiagA=(A.ndim==1)
+    isdiagB=(B.ndim==1)
+
+    if isdiagA:
+        if isdiagB:
+            return A*B
+        else:
+            if sps.issparse(B):
+                return B.T.multiply(A).T
+            else:
+                return np.multiply(B.T, A).T
+    else:
+        if isdiagB:
+            if sps.issparse(A):
+                return A.T.multiply(B)
+            else:
+                return A.T*B
+        else:
+            return A.T@B
+
 def _matmulnone(A, B):
     if A is None or B is None:
         return None
     else:
-        return A.T@B
+        return prod_as_diag(A, B)
 
 class edge:
     '''
@@ -330,7 +355,7 @@ class graph:
             e.buffer={outk:None for outk in e.outs_to_inds}
             
             if prop in e.buffer:
-                e.buffer[prop]=sps.eye(len(e.value[prop]), format='lil') if sparse else np.eye(len(e.value[prop]))
+                e.buffer[prop]=np.ones_like(e.value[prop]) #sps.eye(len(e.value[prop]), format='lil') if sparse else np.eye(len(e.value[prop]))
 
             e.summoned=True
     
