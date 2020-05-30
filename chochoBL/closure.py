@@ -750,3 +750,33 @@ def thetastar_getnode(msh):
         passive=msh.passive)
 
     return thstnode
+
+def deltaprime_innode(Hprime, A, th11):
+    deltaprime_1=Hprime*th11
+    deltaprime_2=-A*deltaprime_1
+
+    value={'deltaprime_1':deltaprime_1, 'deltaprime_2':deltaprime_2}
+
+    Jac={
+        'deltaprime_1':{
+            'Hprime':_diag_lil(th11),
+            'A':None,
+            'th11':_diag_lil(Hprime)
+        },
+        'deltaprime_2':{
+            'Hprime':_diag_lil(-A*th11),
+            'A':_diag_lil(-deltaprime_1),
+            'th11':_diag_lil(-A*Hprime)
+        }
+    }
+
+    return value, Jac
+
+def deltaprime_getnode(msh):
+    '''
+    Obtains a node to calculate deltaprime thickness
+    '''
+
+    deltaprime_node=node(f=deltaprime_innode, args_to_inds=['Hprime', 'A', 'th11'], outs_to_inds=['deltaprime_1', 'deltaprime_2'], passive=msh.passive)
+
+    return deltaprime_node

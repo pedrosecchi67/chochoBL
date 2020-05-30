@@ -69,9 +69,10 @@ def test_laminar_flat_plate():
     msh.gr.heads['N'].set_value({'N':N})
     msh.gr.heads['beta'].set_value({'beta':np.zeros(nm*nn)})
 
-    msh.gr.calculate(ends=['closure', 'p', 'uw', 'thetastar', 'Cf'])
+    msh.gr.calculate(ends=['closure', 'p', 'uw', 'thetastar', 'deltaprime', 'Cf'])
 
-    th22_derivs=msh.gr.get_derivs('thetastar_2')
+    th22_derivs=msh.gr.get_derivs('thetastar_2', ends=['closure', 'p', 'uw', 'thetastar', 'deltaprime', 'Cf'])
+    deltaprime2_derivs=msh.gr.get_derivs('deltaprime_2', ends=['closure', 'p', 'uw', 'thetastar', 'deltaprime', 'Cf'])
 
     t=tm.time()-t
 

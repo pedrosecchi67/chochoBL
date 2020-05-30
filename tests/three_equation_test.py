@@ -357,8 +357,11 @@ def test_Cf_2():
 def test_theta():
     _findiff_testprops(props=['th12', 'th21', 'th22'], ends=['closure', 'p', 'uw', 'theta', 'Cf'], min_div=1e-12)
 
-def test_theta():
+def test_thetastar():
     _findiff_testprops(props=['thetastar_1', 'thetastar_2'], ends=['closure', 'p', 'uw', 'thetastar', 'Cf'])
+
+def test_deltaprime():
+    _findiff_testprops(props=['deltaprime_1', 'deltaprime_2'], ends=['closure', 'p', 'uw', 'thetastar', 'deltaprime', 'Cf'])
 
 def test_sigma_N():
     msh=_get_test_mesh()
