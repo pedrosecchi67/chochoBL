@@ -171,6 +171,7 @@ class mesh:
         deltastar_node=deltastar_getnode(self)
         Cf_node=Cf_getnode(self)
         theta_node=theta_getnode(self)
+        thetastar_node=thetastar_getnode(self)
 
         #adding nodes
         self.gr.add_node(q_head, 'q', head=True)
@@ -192,6 +193,7 @@ class mesh:
         self.gr.add_node(deltastar_node, 'deltastar')
         self.gr.add_node(Cf_node, 'Cf')
         self.gr.add_node(theta_node, 'theta')
+        self.gr.add_node(thetastar_node, 'thetastar')
 
         #adding edges
         e_q_uw=edge(q_head, uw_node, {'qx', 'qy', 'qz'})
@@ -222,6 +224,11 @@ class mesh:
         e_th11_theta=edge(theta11_head, theta_node, {'th11'})
         e_deltastar_theta=edge(deltastar_node, theta_node, {'deltastar_2'})
         e_A_theta=edge(A_node, theta_node, {'A'})
+        e_closure_thetastar=edge(closure_node, thetastar_node, {'Hstar'})
+        e_deltastar_thetastar=edge(deltastar_node, thetastar_node, {'deltastar_1'})
+        e_theta_thetastar=edge(theta_node, thetastar_node, {'th22'})
+        e_th11_thetastar=edge(theta11_head, thetastar_node, {'th11'})
+        e_A_thetastar=edge(A_node, thetastar_node, {'A'})
 
         self.gr.add_edge(e_q_uw)
         self.gr.add_edge(e_q_qe)
@@ -251,3 +258,8 @@ class mesh:
         self.gr.add_edge(e_th11_theta)
         self.gr.add_edge(e_deltastar_theta)
         self.gr.add_edge(e_A_theta)
+        self.gr.add_edge(e_closure_thetastar)
+        self.gr.add_edge(e_A_thetastar)
+        self.gr.add_edge(e_th11_thetastar)
+        self.gr.add_edge(e_theta_thetastar)
+        self.gr.add_edge(e_deltastar_thetastar)

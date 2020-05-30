@@ -713,3 +713,40 @@ def theta_getnode(msh):
     thnode=node(f=theta_innode, args_to_inds=['th11', 'A', 'deltastar_2'], outs_to_inds=['th12', 'th21', 'th22'])
 
     return thnode
+
+def thetastar_innode(Hstar, A, deltastar_1, th11, th22):
+    thetastar_1=Hstar*th11
+
+    parc=(deltastar_1+th11+th22-thetastar_1)
+    thetastar_2=A*parc
+
+    value={'thetastar_1':thetastar_1, 'thetastar_2':thetastar_2}
+
+    Jac={
+        'thetastar_1':{
+            'Hstar':_diag_lil(th11),
+            'A':None,
+            'deltastar_1':None,
+            'th11':_diag_lil(Hstar),
+            'th22':None
+        },
+        'thetastar_2':{
+            'Hstar':_diag_lil(-A*th11),
+            'A':_diag_lil(parc),
+            'deltastar_1':_diag_lil(A),
+            'th11':_diag_lil(A-A*Hstar),
+            'th22':_diag_lil(A)
+        }
+    }
+
+    return value, Jac
+
+def thetastar_getnode(msh):
+    '''
+    Returns a node to calculate thetastar within a mesh
+    '''
+
+    thstnode=node(f=thetastar_innode, args_to_inds=['Hstar', 'A', 'deltastar_1', 'th11', 'th22'], outs_to_inds=['thetastar_1', 'thetastar_2'], \
+        passive=msh.passive)
+
+    return thstnode
