@@ -251,10 +251,18 @@ def test_graph_derivate():
 
     gr.calculate()
 
-    derivs_f=gr.get_derivs('f')
-    derivs_g=gr.get_derivs('g')
+    derivs_f=gr.get_derivs_reverse('f')
+    derivs_g=gr.get_derivs_reverse('g')
 
     assert _arr_compare(derivs_f['x'], np.exp(3)+2) and \
         _arr_compare(derivs_f['y'], np.exp(3)+1) and \
             _arr_compare(derivs_g['x'], 3) and \
                 _arr_compare(derivs_g['y'], 2)
+    
+    derivs_x=gr.get_derivs_direct('x')
+    derivs_y=gr.get_derivs_direct('y')
+
+    assert _arr_compare(derivs_x['f'], np.exp(3)+2) and \
+        _arr_compare(derivs_y['f'], np.exp(3)+1) and \
+            _arr_compare(derivs_x['g'], 3) and \
+                _arr_compare(derivs_y['g'], 2)

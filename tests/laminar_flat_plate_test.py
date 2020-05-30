@@ -73,8 +73,9 @@ def test_laminar_flat_plate():
 
     tdiff=tm.time()
 
-    th22_derivs=msh.gr.get_derivs('thetastar_2', ends=['closure', 'p', 'uw', 'thetastar', 'deltaprime', 'Cf'])
-    deltaprime2_derivs=msh.gr.get_derivs('deltaprime_2', ends=['closure', 'p', 'uw', 'thetastar', 'deltaprime', 'Cf'])
+    qx_derivs=msh.gr.get_derivs_direct('qx', ends=['closure', 'p', 'uw', 'thetastar', 'deltaprime', 'Cf'])
+    #th22_derivs=msh.gr.get_derivs_reverse('thetastar_2', ends=['closure', 'p', 'uw', 'thetastar', 'deltaprime', 'Cf'])
+    #deltaprime2_derivs=msh.gr.get_derivs_reverse('deltaprime_2', ends=['closure', 'p', 'uw', 'thetastar', 'deltaprime', 'Cf'])
 
     t=tm.time()-t
 
