@@ -345,8 +345,11 @@ def test_p():
 def test_A():
     _findiff_testprops(props=['A'], ends=['closure', 'p', 'uw', 'A'])
 
-def test_A():
+def test_tanb():
     _findiff_testprops(props=['tanb'], ends=['closure', 'p', 'uw', 'A'])
+
+def test_deltastar():
+    _findiff_testprops(props=['deltastar_1', 'deltastar_2'], ends=['closure', 'p', 'uw', 'deltastar'])
 
 def test_sigma_N():
     msh=_get_test_mesh()

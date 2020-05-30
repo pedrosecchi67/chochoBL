@@ -605,18 +605,40 @@ def A_getnode(msh):
 
     return A_node
 
-def streamwise_innode(th11, H, Hstar, Hprime, Cf_1, Cd_1, A, tanb):
-    deltastar_1=H*th11
+def deltastar_innode(th11, H, A):
+    deltastar_1=th11*H
+
+    ddeltastar_1_dth11=H
+    ddeltastar_1_dH=th11
+
     deltastar_2=-A*deltastar_1
 
-    th21=-A*th11
-    th12=th21-deltastar_2
-    th22=-A*th12
+    ddeltastar_2_dth11=-A*ddeltastar_1_dth11
+    ddeltastar_2_dH=-A*ddeltastar_1_dH
+    ddeltastar_2_dA=-deltastar_1
 
-    thetastar_1=Hstar*th11
-    thetastar_2=A*(deltastar_1+th11+th22-thetastar_1)
+    value={'deltastar_1':deltastar_1, 'deltastar_2':deltastar_2}
+    Jac={
+        'deltastar_1':{
+            'th11':_diag_lil(ddeltastar_1_dth11),
+            'H':_diag_lil(ddeltastar_1_dH),
+            'A':None
+        },
+        'deltastar_2':{
+            'th11':_diag_lil(ddeltastar_2_dth11),
+            'H':_diag_lil(ddeltastar_2_dH),
+            'A':_diag_lil(ddeltastar_2_dA)
+        }
+    }
 
-    deltaprime_1=Hprime*th11
-    deltaprime_2=-A*deltaprime_1
+    return value, Jac
 
-    Cf_2=Cf_1*tanb
+def deltastar_getnode(msh):
+    '''
+    Obtain a node for deltastar displacement thickness calculation
+    '''
+
+    dnode=node(f=deltastar_innode, args_to_inds=['th11', 'H', 'A'], outs_to_inds=['deltastar_1', 'deltastar_2'], \
+        passive=msh.passive)
+
+    return dnode

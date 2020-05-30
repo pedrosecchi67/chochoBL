@@ -168,6 +168,7 @@ class mesh:
         sigma_N_node=sigma_N_getnode(self)
         closure_node=closure_getnode(self)
         A_node=A_getnode(self)
+        deltastar_node=deltastar_getnode(self)
 
         #adding nodes
         self.gr.add_node(q_head, 'q', head=True)
@@ -186,6 +187,7 @@ class mesh:
         self.gr.add_node(sigma_N_node, 'sigma_N')
         self.gr.add_node(closure_node, 'closure')
         self.gr.add_node(A_node, 'A')
+        self.gr.add_node(deltastar_node, 'deltastar')
 
         #adding edges
         e_q_uw=edge(q_head, uw_node, {'qx', 'qy', 'qz'})
@@ -208,6 +210,9 @@ class mesh:
         e_closure_A=edge(closure_node, A_node, {'Cf'})
         e_Me_A=edge(Me_node, A_node, {'Me'})
         e_beta_A=edge(beta_head, A_node, {'beta'})
+        e_H_deltastar=edge(H_head, deltastar_node, {'H'})
+        e_th11_deltastar=edge(theta11_head, deltastar_node, {'th11'})
+        e_A_deltastar=edge(A_node, deltastar_node, {'A'})
 
         self.gr.add_edge(e_q_uw)
         self.gr.add_edge(e_q_qe)
@@ -229,3 +234,6 @@ class mesh:
         self.gr.add_edge(e_closure_A)
         self.gr.add_edge(e_Me_A)
         self.gr.add_edge(e_beta_A)
+        self.gr.add_edge(e_H_deltastar)
+        self.gr.add_edge(e_th11_deltastar)
+        self.gr.add_edge(e_A_deltastar)
