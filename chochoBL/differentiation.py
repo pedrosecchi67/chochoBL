@@ -499,8 +499,8 @@ def reorder_Jacobian(argord, length, format='csr'):
 def dcell_dnode_Jacobian(vset, correspondence):
     '''
     Given a set of vectors corresponding to a set of nodes and an array of correspondences (shape (nnodes, 4))
-    between cell and node indexes, returns 4 vectors (corresponding to the set of indexes 1, 2, 3, and 4 in the
-    cells) and the Jacobian of their combination.
+    between cell and node indexes, returns and the Jacobian of their combination 4 vectors (corresponding to 
+    the set of indexes 1, 2, 3, and 4 in the cells).
 
     Argument correspondence corresponds to a shape (ncells, 4) array with cell.indset indexes
 

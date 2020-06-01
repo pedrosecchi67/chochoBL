@@ -66,7 +66,7 @@ def _std_mesh_fulldata(perturbations={}):
         ]
     )
 
-    H=np.linspace(2.2, 3.5, 9)
+    H=np.linspace(3.5, 2.2, 9)
     th11=10.0**np.linspace(-4.0, -1.0, 9)
     N=np.linspace(0.0, 10.0, 9)
     beta=np.linspace(-math.radians(45.0), math.radians(45.0), 9)
@@ -365,6 +365,9 @@ def test_thetastar():
 
 def test_deltaprime():
     _findiff_testprops(props=['deltaprime_1', 'deltaprime_2'], ends=['closure', 'p', 'uw', 'thetastar', 'deltaprime', 'Cf'])
+
+def test_Cd_2():
+    _findiff_testprops(props=['Cd_2'], ends=['closure', 'p', 'uw', 'thetastar', 'deltaprime', 'Cd'], tol=1e-2)
 
 def test_sigma_N():
     msh=_get_test_mesh()

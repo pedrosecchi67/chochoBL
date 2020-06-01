@@ -777,3 +777,57 @@ def deltaprime_getnode(msh):
     deltaprime_node=node(f=deltaprime_innode, args_to_inds=['Hprime', 'A', 'th11'], outs_to_inds=['deltaprime_1', 'deltaprime_2'], passive=msh.passive)
 
     return deltaprime_node
+
+def _base_den_Cd(Cd):
+    return 14667.0*Cd+3.0
+
+def _exp_den_Cd(Cd):
+    return 1020.0*Cd+4.0
+
+def _exp_num_Cd(A):
+    return A+10.0
+
+def Cd_innode(Cd, A):
+    A_aux=np.abs(A)
+
+    base_den=_base_den_Cd(Cd)
+    base=A_aux/base_den
+
+    A_aux_valid=(A_aux>=1e-15)
+
+    lbase=np.zeros_like(A_aux)
+    lbase[A_aux_valid]=np.log(base[A_aux_valid])
+
+    exp_den=_exp_den_Cd(Cd)
+    exp_num=_exp_num_Cd(A_aux)
+    expon=exp_num/exp_den
+
+    Cd_2=np.zeros_like(A_aux)
+    Cd_2[A_aux_valid]=base[A_aux_valid]**expon[A_aux_valid]
+
+    dCd_2_dA=np.zeros_like(A_aux)
+    dCd_2_dA[A_aux_valid]=Cd_2[A_aux_valid]*(A_aux[A_aux_valid]*lbase[A_aux_valid]+exp_num[A_aux_valid])/\
+        (A_aux[A_aux_valid]*exp_den[A_aux_valid])
+
+    dCd_2_dCd=-Cd_2*exp_num*(14667.0*exp_den+1020.0*base_den*lbase)/\
+        (base_den*exp_den**2)
+
+    value={'Cd_2':Cd_2}
+
+    Jac={
+        'Cd_2':{
+            'Cd':dCd_2_dCd,
+            'A':np.array([dCd if a>0.0 else -dCd for a, dCd in zip(A, dCd_2_dA)])
+        }
+    }
+
+    return value, Jac
+
+def Cd_getnode(msh):
+    '''
+    Return a node for calculation of crossflow dissipation coefficient
+    '''
+
+    Cdnode=node(f=Cd_innode, args_to_inds=['Cd', 'A'], outs_to_inds=['Cd_2'], passive=msh.passive)
+
+    return Cdnode

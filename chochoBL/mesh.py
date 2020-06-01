@@ -104,6 +104,8 @@ class mesh:
 
         self.passive={'mesh':self, 'atm':atm_props, 'Uinf':Uinf, 'Ncrit':Ncrit, 'A_transition':A_transition, \
             'A_Rethcrit':A_Rethcrit, 'gamma':gamma}
+
+        self.dcell_dnode={}
     
     def add_node(self, coords):
         '''
@@ -143,6 +145,22 @@ class mesh:
         self.cells=newcells
         self.cellmatrix=np.array([list(c.indset) for c in newcells], dtype='int')
 
+    def dcell_dnode_compose(self, vset):
+        '''
+        Compose the dcell_dnode Jacobian for the matrix with a given number of mixed vectors,
+        represented in tuple vset. It os only created if not yet present for the given number of
+        vectors.
+        
+        Returns the necessary Jacobian
+        '''
+
+        nv=len(vset)
+
+        if nv in self.dcell_dnode:
+            return self.dcell_dnode[nv]
+        
+        self.dcell_dnode[nv]=dcell_dnode_Jacobian(vset, self.cellmatrix)
+
     def graph_init(self):
         '''
         Initialize the generation of a graph for algorithmic differentiation
@@ -173,6 +191,7 @@ class mesh:
         theta_node=theta_getnode(self)
         thetastar_node=thetastar_getnode(self)
         deltaprime_node=deltaprime_getnode(self)
+        Cd_node=Cd_getnode(self)
 
         #adding nodes
         self.gr.add_node(q_head, 'q', head=True)
@@ -196,6 +215,7 @@ class mesh:
         self.gr.add_node(theta_node, 'theta')
         self.gr.add_node(thetastar_node, 'thetastar')
         self.gr.add_node(deltaprime_node, 'deltaprime')
+        self.gr.add_node(Cd_node, 'Cd')
 
         #adding edges
         e_q_uw=edge(q_head, uw_node, {'qx', 'qy', 'qz'})
@@ -234,6 +254,8 @@ class mesh:
         e_closure_deltaprime=edge(closure_node, deltaprime_node, {'Hprime'})
         e_A_deltaprime=edge(A_node, deltaprime_node, {'A'})
         e_th11_deltaprime=edge(theta11_head, deltaprime_node, {'th11'})
+        e_closure_Cd=edge(closure_node, Cd_node, {'Cd'})
+        e_A_Cd=edge(A_node, Cd_node, {'A'})
 
         self.gr.add_edge(e_q_uw)
         self.gr.add_edge(e_q_qe)
@@ -271,3 +293,5 @@ class mesh:
         self.gr.add_edge(e_closure_deltaprime)
         self.gr.add_edge(e_A_deltaprime)
         self.gr.add_edge(e_th11_deltaprime)
+        self.gr.add_edge(e_closure_Cd)
+        self.gr.add_edge(e_A_Cd)
