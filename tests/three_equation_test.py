@@ -370,7 +370,7 @@ def test_Cd_2():
     _findiff_testprops(props=['Cd_2'], ends=['closure', 'p', 'uw', 'thetastar', 'deltaprime', 'Cd'], tol=1e-2)
 
 def test_J():
-    _findiff_testprops(props=['Jxx'], ends=['closure', 'p', 'uw', 'thetastar', 'deltaprime', 'Cd', 'J'], tol=1e-3)
+    _findiff_testprops(props=['Jxx', 'Jxz', 'Jzx', 'Jzz'], ends=['closure', 'p', 'uw', 'thetastar', 'deltaprime', 'Cd', 'J'], tol=1e-3)
 
 def test_sigma_N():
     msh=_get_test_mesh()

@@ -281,6 +281,7 @@ def J_innode(th11, th12, th21, th22, u, w, rho, passive):
 
     #start without multiplying by rho
     Jxx, Jxz, Jzx, Jzz=_innode_matmul(vels, th_c)
+
     Jac['Jxx']['u'], Jac['Jxz']['u'], Jac['Jzx']['u'], Jac['Jzz']['u']=_innode_matmul(dvels_du, th_c, q=rho_c)
     Jac['Jxx']['w'], Jac['Jxz']['w'], Jac['Jzx']['w'], Jac['Jzz']['w']=_innode_matmul(dvels_dw, th_c, q=rho_c)
 
@@ -289,10 +290,7 @@ def J_innode(th11, th12, th21, th22, u, w, rho, passive):
     Jac['Jzx']['rho']=sps.diags(Jzx, format='lil')@distJ
     Jac['Jzz']['rho']=sps.diags(Jzz, format='lil')@distJ
 
-    Jxx=Jxx*rho_c
-    Jxz=Jxz*rho_c
-    Jzx=Jzx*rho_c
-    Jxx=Jzz*rho_c
+    Jxx, Jxz, Jzx, Jzz=_innode_matmul(vels, th_c, q=rho_c)
 
     value={'Jxx':Jxx, 'Jxz':Jxz, 'Jzx':Jzx, 'Jzz':Jzz}
 
@@ -307,7 +305,7 @@ def J_getnode(msh):
     Return node for calculation of J momentum transport tensor
     '''
 
-    Jnode=node(f=J_innode, args_to_inds=['th11', 'th12', 'th21', 'th22', 'u', 'w', 'rho'], outs_to_inds=['Jxx', 'Jxy', 'Jzx', 'Jzz'], \
+    Jnode=node(f=J_innode, args_to_inds=['th11', 'th12', 'th21', 'th22', 'u', 'w', 'rho'], outs_to_inds=['Jxx', 'Jxz', 'Jzx', 'Jzz'], \
         passive=msh.passive, haspassive=True)
 
     return Jnode
