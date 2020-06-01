@@ -220,3 +220,94 @@ def Reth_getnode(msh):
     Rethnode=node(f=Rethfunc, args_to_inds=['qe', 'rho', 'th11'], outs_to_inds=['Reth'], passive=msh.passive, haspassive=True)
 
     return Rethnode
+
+def _innode_linemult(strip, V):
+    return sum([m*v for v, m in zip(V, strip)])
+
+def _innode_matmul(M, V, q=None):
+    return tuple(_innode_linemult(strip, V) if q is None else _innode_linemult(strip, V)*q for strip in M)
+
+def J_innode(th11, th12, th21, th22, u, w, rho, passive):
+    Jac={
+        'Jxx':{
+            'u':None,
+            'w':None
+        },
+        'Jxz':{
+            'u':None,
+            'w':None
+        },
+        'Jzx':{
+            'u':None,
+            'w':None
+        },
+        'Jzz':{
+            'u':None,
+            'w':None
+        }
+    }
+
+    distJ=passive['mesh'].dcell_dnode_compose((th11,))
+
+    th11_c=distJ@th11
+    th12_c=distJ@th12
+    th21_c=distJ@th21
+    th22_c=distJ@th22
+
+    rho_c=distJ@rho
+
+    th_c=[th11_c, th12_c, th21_c, th22_c]
+
+    vels=[
+        [u**2, -u*w, -u*w, w**2],
+        [u*w, u**2, -w**2, -u*w],
+        [u*w, -w**2, u**2, -u*w],
+        [w**2, u*w, u*w, u**2]
+    ]
+
+    dvels_du=[
+        [2*u, -w, -w, 0.0],
+        [w, 2*u, 0.0, -w],
+        [w, 0.0, 2*u, -w],
+        [0.0, w, w, 2*u]
+    ]
+
+    dvels_dw=[
+        [0.0, -u, -u, 2*w],
+        [u, 0.0, -2*w, -u],
+        [u, -2*w, 0.0, -u],
+        [2*w, u, u, 0.0]
+    ]
+
+    #start without multiplying by rho
+    Jxx, Jxz, Jzx, Jzz=_innode_matmul(vels, th_c)
+    Jac['Jxx']['u'], Jac['Jxz']['u'], Jac['Jzx']['u'], Jac['Jzz']['u']=_innode_matmul(dvels_du, th_c, q=rho_c)
+    Jac['Jxx']['w'], Jac['Jxz']['w'], Jac['Jzx']['w'], Jac['Jzz']['w']=_innode_matmul(dvels_dw, th_c, q=rho_c)
+
+    Jac['Jxx']['rho']=sps.diags(Jxx, format='lil')@distJ
+    Jac['Jxz']['rho']=sps.diags(Jxz, format='lil')@distJ
+    Jac['Jzx']['rho']=sps.diags(Jzx, format='lil')@distJ
+    Jac['Jzz']['rho']=sps.diags(Jzz, format='lil')@distJ
+
+    Jxx=Jxx*rho_c
+    Jxz=Jxz*rho_c
+    Jzx=Jzx*rho_c
+    Jxx=Jzz*rho_c
+
+    value={'Jxx':Jxx, 'Jxz':Jxz, 'Jzx':Jzx, 'Jzz':Jzz}
+
+    for i, Jname in enumerate(['Jxx', 'Jxz', 'Jzx', 'Jzz']):
+        for j, thname in enumerate(['th11', 'th12', 'th21', 'th22']):
+            Jac[Jname][thname]=sps.diags(vels[i][j]*rho_c, format='lil')@distJ
+    
+    return value, Jac
+
+def J_getnode(msh):
+    '''
+    Return node for calculation of J momentum transport tensor
+    '''
+
+    Jnode=node(f=J_innode, args_to_inds=['th11', 'th12', 'th21', 'th22', 'u', 'w', 'rho'], outs_to_inds=['Jxx', 'Jxy', 'Jzx', 'Jzz'], \
+        passive=msh.passive, haspassive=True)
+
+    return Jnode

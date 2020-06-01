@@ -161,6 +161,8 @@ class mesh:
         
         self.dcell_dnode[nv]=dcell_dnode_Jacobian(vset, self.cellmatrix)
 
+        return self.dcell_dnode[nv]
+
     def graph_init(self):
         '''
         Initialize the generation of a graph for algorithmic differentiation
@@ -192,6 +194,7 @@ class mesh:
         thetastar_node=thetastar_getnode(self)
         deltaprime_node=deltaprime_getnode(self)
         Cd_node=Cd_getnode(self)
+        J_node=J_getnode(self)
 
         #adding nodes
         self.gr.add_node(q_head, 'q', head=True)
@@ -216,6 +219,7 @@ class mesh:
         self.gr.add_node(thetastar_node, 'thetastar')
         self.gr.add_node(deltaprime_node, 'deltaprime')
         self.gr.add_node(Cd_node, 'Cd')
+        self.gr.add_node(J_node, 'J')
 
         #adding edges
         e_q_uw=edge(q_head, uw_node, {'qx', 'qy', 'qz'})
@@ -256,6 +260,10 @@ class mesh:
         e_th11_deltaprime=edge(theta11_head, deltaprime_node, {'th11'})
         e_closure_Cd=edge(closure_node, Cd_node, {'Cd'})
         e_A_Cd=edge(A_node, Cd_node, {'A'})
+        e_th11_J=edge(theta11_head, J_node, {'th11'})
+        e_theta_J=edge(theta_node, J_node, {'th12', 'th21', 'th22'})
+        e_uw_J=edge(uw_node, J_node, {'u', 'w'})
+        e_rho_J=edge(rho_node, J_node, {'rho'})
 
         self.gr.add_edge(e_q_uw)
         self.gr.add_edge(e_q_qe)
@@ -295,3 +303,7 @@ class mesh:
         self.gr.add_edge(e_th11_deltaprime)
         self.gr.add_edge(e_closure_Cd)
         self.gr.add_edge(e_A_Cd)
+        self.gr.add_edge(e_th11_J)
+        self.gr.add_edge(e_theta_J)
+        self.gr.add_edge(e_uw_J)
+        self.gr.add_edge(e_rho_J)
