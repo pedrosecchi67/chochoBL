@@ -496,6 +496,25 @@ def reorder_Jacobian(argord, length, format='csr'):
 
     return J[argord, :]
 
+def diag_cell_indexing(correspondence, nnodes, ncells):
+    '''
+    Returns indexing for Jacobian transformation from diagonal nodal notation to universal notation, 
+    given correspondence
+    '''
+
+    return (np.arange(4*ncells, dtype='int'), np.hstack(correspondence.tolist()), ncells, nnodes,)
+
+def diag_cell_Jacobian(J, indexing):
+    '''
+    Given a diagonal Jacobian in respect to nodal notation (given as a diagonal representing 
+    vector), convert it to universal, station-wise notation according to correspondence
+    '''
+
+    ncells=indexing[2]
+    nnodes=indexing[3]
+
+    return sps.coo_matrix((J, (indexing[0], indexing[1])), shape=(4*ncells, nnodes))
+
 def dcell_dnode_Jacobian(vset, correspondence):
     '''
     Given a set of vectors corresponding to a set of nodes and an array of correspondences (shape (nnodes, 4))

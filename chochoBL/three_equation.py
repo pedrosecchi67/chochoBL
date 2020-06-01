@@ -227,6 +227,8 @@ def _innode_linemult(strip, V):
 def _innode_matmul(M, V, q=None):
     return tuple(_innode_linemult(strip, V) if q is None else _innode_linemult(strip, V)*q for strip in M)
 
+import time as tm
+
 def J_innode(th11, th12, th21, th22, u, w, rho, passive):
     Jac={
         'Jxx':{
@@ -247,7 +249,11 @@ def J_innode(th11, th12, th21, th22, u, w, rho, passive):
         }
     }
 
-    distJ=passive['mesh'].dcell_dnode_compose((th11,))
+    msh=passive['mesh']
+
+    distJ=msh.dcell_dnode_compose((th11,))
+
+    indexing=diag_cell_indexing(msh.cellmatrix, msh.nnodes, msh.ncells)
 
     th11_c=distJ@th11
     th12_c=distJ@th12
@@ -285,18 +291,50 @@ def J_innode(th11, th12, th21, th22, u, w, rho, passive):
     Jac['Jxx']['u'], Jac['Jxz']['u'], Jac['Jzx']['u'], Jac['Jzz']['u']=_innode_matmul(dvels_du, th_c, q=rho_c)
     Jac['Jxx']['w'], Jac['Jxz']['w'], Jac['Jzx']['w'], Jac['Jzz']['w']=_innode_matmul(dvels_dw, th_c, q=rho_c)
 
-    Jac['Jxx']['rho']=sps.diags(Jxx, format='lil')@distJ
-    Jac['Jxz']['rho']=sps.diags(Jxz, format='lil')@distJ
-    Jac['Jzx']['rho']=sps.diags(Jzx, format='lil')@distJ
-    Jac['Jzz']['rho']=sps.diags(Jzz, format='lil')@distJ
+    Jac['Jxx']['rho']=diag_cell_Jacobian(Jxx, indexing)
+    Jac['Jxz']['rho']=diag_cell_Jacobian(Jxz, indexing)
+    Jac['Jzx']['rho']=diag_cell_Jacobian(Jzx, indexing)
+    Jac['Jzz']['rho']=diag_cell_Jacobian(Jzz, indexing)
 
     Jxx, Jxz, Jzx, Jzz=_innode_matmul(vels, th_c, q=rho_c)
 
     value={'Jxx':Jxx, 'Jxz':Jxz, 'Jzx':Jzx, 'Jzz':Jzz}
 
-    for i, Jname in enumerate(['Jxx', 'Jxz', 'Jzx', 'Jzz']):
-        for j, thname in enumerate(['th11', 'th12', 'th21', 'th22']):
-            Jac[Jname][thname]=sps.diags(vels[i][j]*rho_c, format='lil')@distJ
+    Jac['Jxx'].update(
+        {
+            'th11':diag_cell_Jacobian(vels[0][0]*rho_c, indexing),
+            'th12':diag_cell_Jacobian(vels[0][1]*rho_c, indexing),
+            'th21':diag_cell_Jacobian(vels[0][2]*rho_c, indexing),
+            'th22':diag_cell_Jacobian(vels[0][3]*rho_c, indexing)
+        }
+    )
+
+    Jac['Jxz'].update(
+        {
+            'th11':diag_cell_Jacobian(vels[1][0]*rho_c, indexing),
+            'th12':diag_cell_Jacobian(vels[1][1]*rho_c, indexing),
+            'th21':diag_cell_Jacobian(vels[1][2]*rho_c, indexing),
+            'th22':diag_cell_Jacobian(vels[1][3]*rho_c, indexing)
+        }
+    )
+
+    Jac['Jzx'].update(
+        {
+            'th11':diag_cell_Jacobian(vels[2][0]*rho_c, indexing),
+            'th12':diag_cell_Jacobian(vels[2][1]*rho_c, indexing),
+            'th21':diag_cell_Jacobian(vels[2][2]*rho_c, indexing),
+            'th22':diag_cell_Jacobian(vels[2][3]*rho_c, indexing)
+        }
+    )
+
+    Jac['Jzz'].update(
+        {
+            'th11':diag_cell_Jacobian(vels[3][0]*rho_c, indexing),
+            'th12':diag_cell_Jacobian(vels[3][1]*rho_c, indexing),
+            'th21':diag_cell_Jacobian(vels[3][2]*rho_c, indexing),
+            'th22':diag_cell_Jacobian(vels[3][3]*rho_c, indexing)
+        }
+    )
     
     return value, Jac
 

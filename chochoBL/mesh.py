@@ -145,6 +145,9 @@ class mesh:
         self.cells=newcells
         self.cellmatrix=np.array([list(c.indset) for c in newcells], dtype='int')
 
+        self.nnodes=len(self.nodes)
+        self.ncells=len(self.cells)
+
     def dcell_dnode_compose(self, vset):
         '''
         Compose the dcell_dnode Jacobian for the matrix with a given number of mixed vectors,
