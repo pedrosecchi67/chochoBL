@@ -347,3 +347,54 @@ def J_getnode(msh):
         passive=msh.passive, haspassive=True)
 
     return Jnode
+
+def M_innode(deltastar_1, deltastar_2, u, w, rho, passive):
+    msh=passive['mesh']
+
+    distJ=msh.dcell_dnode_compose((deltastar_1,))
+
+    rho_c=distJ@rho
+
+    deltastar_1_c=distJ@deltastar_1
+    deltastar_2_c=distJ@deltastar_2
+
+    indexing=diag_cell_indexing(msh.cellmatrix, msh.nnodes, msh.ncells)
+
+    rhou_c=rho_c*u
+    rhow_c=rho_c*w
+
+    Mx=deltastar_1_c*rhou_c+deltastar_2_c*rhow_c
+    Mz=deltastar_2_c*rhou_c-deltastar_1_c*rhow_c
+
+    value={
+        'Mx':Mx,
+        'Mz':Mz
+    }
+
+    Jac={
+        'Mx':{
+            'deltastar_1':diag_cell_Jacobian(rhou_c, indexing),
+            'deltastar_2':diag_cell_Jacobian(rhow_c, indexing),
+            'u':deltastar_1_c*rho_c,
+            'w':deltastar_2_c*rho_c,
+            'rho':diag_cell_Jacobian(Mx/rho_c, indexing)
+        },
+        'Mz':{
+            'deltastar_1':diag_cell_Jacobian(-rhow_c, indexing),
+            'deltastar_2':diag_cell_Jacobian(rhou_c, indexing),
+            'u':deltastar_2_c*rho_c,
+            'w':-deltastar_1_c*rho_c,
+            'rho':diag_cell_Jacobian(Mz/rho_c, indexing)
+        }
+    }
+
+    return value, Jac
+
+def M_getnode(msh):
+    '''
+    Return a node for calculating mass flux vector
+    '''
+
+    Mnode=node(f=M_innode, args_to_inds=['deltastar_1', 'deltastar_2', 'u', 'w', 'rho'], outs_to_inds=['Mx', 'Mz'], passive=msh.passive, haspassive=True)
+
+    return Mnode
