@@ -378,6 +378,9 @@ def test_M():
 def test_E():
     _findiff_testprops(props=['Ex', 'Ez'], ends=['closure', 'p', 'uw', 'thetastar', 'deltaprime', 'Cd', 'J', 'M', 'E'], tol=1e-3, min_div=1e-10)
 
+def test_M():
+    _findiff_testprops(props=['rhoQx', 'rhoQz'], ends=['closure', 'p', 'uw', 'thetastar', 'deltaprime', 'Cd', 'J', 'M', 'rhoQ'], tol=1e-3, min_div=1e-10)
+
 def test_sigma_N():
     msh=_get_test_mesh()
 

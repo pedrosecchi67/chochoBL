@@ -454,3 +454,54 @@ def E_getnode(msh):
     Enode=node(f=E_innode, args_to_inds=['thetastar_1', 'thetastar_2', 'u', 'w', 'qe', 'rho'], outs_to_inds=['Ex', 'Ez'], passive=msh.passive, haspassive=True)
 
     return Enode
+
+def rhoQ_innode(deltaprime_1, deltaprime_2, u, w, rho, passive):
+    msh=passive['mesh']
+
+    distJ=msh.dcell_dnode_compose((deltaprime_1,))
+
+    rho_c=distJ@rho
+
+    deltaprime_1_c=distJ@deltaprime_1
+    deltaprime_2_c=distJ@deltaprime_2
+
+    indexing=diag_cell_indexing(msh.cellmatrix, msh.nnodes, msh.ncells)
+
+    rhou_c=rho_c*u
+    rhow_c=rho_c*w
+
+    rhoQx=deltaprime_1_c*rhou_c+deltaprime_2_c*rhow_c
+    rhoQz=deltaprime_2_c*rhou_c-deltaprime_1_c*rhow_c
+
+    value={
+        'rhoQx':rhoQx,
+        'rhoQz':rhoQz
+    }
+
+    Jac={
+        'rhoQx':{
+            'deltaprime_1':diag_cell_Jacobian(rhou_c, indexing),
+            'deltaprime_2':diag_cell_Jacobian(rhow_c, indexing),
+            'u':deltaprime_1_c*rho_c,
+            'w':deltaprime_2_c*rho_c,
+            'rho':diag_cell_Jacobian(rhoQx/rho_c, indexing)
+        },
+        'rhoQz':{
+            'deltaprime_1':diag_cell_Jacobian(-rhow_c, indexing),
+            'deltaprime_2':diag_cell_Jacobian(rhou_c, indexing),
+            'u':deltaprime_2_c*rho_c,
+            'w':-deltaprime_1_c*rho_c,
+            'rho':diag_cell_Jacobian(rhoQz/rho_c, indexing)
+        }
+    }
+
+    return value, Jac
+
+def rhoQ_getnode(msh):
+    '''
+    Return a node for calculating mass flux vector
+    '''
+
+    rhoQnode=node(f=rhoQ_innode, args_to_inds=['deltaprime_1', 'deltaprime_2', 'u', 'w', 'rho'], outs_to_inds=['rhoQx', 'rhoQz'], passive=msh.passive, haspassive=True)
+
+    return rhoQnode

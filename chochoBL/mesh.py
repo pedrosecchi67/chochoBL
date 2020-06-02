@@ -200,6 +200,7 @@ class mesh:
         J_node=J_getnode(self)
         M_node=M_getnode(self)
         E_node=E_getnode(self)
+        rhoQ_node=rhoQ_getnode(self)
 
         #adding nodes
         self.gr.add_node(q_head, 'q', head=True)
@@ -227,6 +228,7 @@ class mesh:
         self.gr.add_node(J_node, 'J')
         self.gr.add_node(M_node, 'M')
         self.gr.add_node(E_node, 'E')
+        self.gr.add_node(rhoQ_node, 'rhoQ')
 
         #adding edges
         e_q_uw=edge(q_head, uw_node, {'qx', 'qy', 'qz'})
@@ -278,6 +280,9 @@ class mesh:
         e_uw_E=edge(uw_node, E_node, {'u', 'w'})
         e_qe_E=edge(qe_node, E_node, {'qe'})
         e_rho_E=edge(rho_node, E_node, {'rho'})
+        e_deltaprime_rhoQ=edge(deltaprime_node, rhoQ_node, {'deltaprime_1', 'deltaprime_2'})
+        e_uw_rhoQ=edge(uw_node, rhoQ_node, {'u', 'w'})
+        e_rho_rhoQ=edge(rho_node, rhoQ_node, {'rho'})
 
         self.gr.add_edge(e_q_uw)
         self.gr.add_edge(e_q_qe)
@@ -328,3 +333,6 @@ class mesh:
         self.gr.add_edge(e_uw_E)
         self.gr.add_edge(e_qe_E)
         self.gr.add_edge(e_rho_E)
+        self.gr.add_edge(e_deltaprime_rhoQ)
+        self.gr.add_edge(e_uw_rhoQ)
+        self.gr.add_edge(e_rho_rhoQ)
