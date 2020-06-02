@@ -534,14 +534,21 @@ def dcell_dnode_Jacobian(vset, correspondence):
     nv=len(vset[0])
     ncells=np.size(correspondence, axis=0)
 
-    J=sps.lil_matrix((ncells*4*nprop, nv*nprop))
+    rows=[]
+    cols=[]
 
     for i in range(4):
         for j in range(nprop):
             for k in range(ncells):
-                J[k*4*nprop+4*j+i, correspondence[k, i]+j*nv]=1.0
+                rows.append(k*4*nprop+4*j+i)
+                cols.append(correspondence[k, i]+j*nv)
     
-    return J
+    rows=np.array(rows)
+    cols=np.array(cols)
+
+    data=np.ones_like(rows)
+    
+    return sps.coo_matrix((data, (rows, cols)), shape=(4*ncells*nprop, nv*nprop))
 
 def LT_node_mix(T):
     '''
