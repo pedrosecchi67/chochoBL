@@ -148,6 +148,10 @@ class mesh:
         self.nnodes=len(self.nodes)
         self.ncells=len(self.cells)
 
+        self.v_res_Jac=v_residual_Jacobian(self)
+        self.dvdx_res_Jac=dvdx_residual_Jacobian(self)
+        self.dvdz_res_Jac=dvdz_residual_Jacobian(self)
+
     def dcell_dnode_compose(self, vset):
         '''
         Compose the dcell_dnode Jacobian for the matrix with a given number of mixed vectors,

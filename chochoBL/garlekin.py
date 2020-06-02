@@ -263,3 +263,63 @@ def v_residual_matrix(xs, ys):
     A=(_Mbp.T@_Bp_product_matrix@_Mbp)
     
     return Smat@np.swapaxes(A, 0, 1)
+
+def v_residual_Jacobian(msh):
+    '''
+    Deduce the Jacobian of the residual of v - scalar function - (given in nodal notation)
+    '''
+
+    ncells=msh.ncells
+    nnodes=msh.nnodes
+
+    rbase=np.arange(4, dtype='int').repeat(4)
+    cbase=np.tile(np.arange(4), 4)
+
+    rows=np.hstack([rbase+4*i for i in range(ncells)])
+    cols=np.hstack([cbase+4*i for i in range(ncells)])
+
+    data=np.hstack([c.Rv.reshape(16) for c in msh.cells])
+
+    J=sps.coo_matrix((data, (rows, cols)), shape=(4*ncells, 4*ncells,))
+
+    return J
+
+def dvdx_residual_Jacobian(msh):
+    '''
+    Deduce the Jacobian of the residual of dvdx - v a scalar function - (given in nodal notation)
+    '''
+
+    ncells=msh.ncells
+    nnodes=msh.nnodes
+
+    rbase=np.arange(4, dtype='int').repeat(4)
+    cbase=np.tile(np.arange(4), 4)
+
+    rows=np.hstack([rbase+4*i for i in range(ncells)])
+    cols=np.hstack([cbase+4*i for i in range(ncells)])
+
+    data=np.hstack([c.Rdvdx.reshape(16) for c in msh.cells])
+
+    J=sps.coo_matrix((data, (rows, cols)), shape=(4*ncells, 4*ncells,))
+
+    return J
+
+def dvdz_residual_Jacobian(msh):
+    '''
+    Deduce the Jacobian of the residual of dvdz - v a scalar function - (given in nodal notation)
+    '''
+
+    ncells=msh.ncells
+    nnodes=msh.nnodes
+
+    rbase=np.arange(4, dtype='int').repeat(4)
+    cbase=np.tile(np.arange(4), 4)
+
+    rows=np.hstack([rbase+4*i for i in range(ncells)])
+    cols=np.hstack([cbase+4*i for i in range(ncells)])
+
+    data=np.hstack([c.Rdvdz.reshape(16) for c in msh.cells])
+
+    J=sps.coo_matrix((data, (rows, cols)), shape=(4*ncells, 4*ncells,))
+
+    return J
