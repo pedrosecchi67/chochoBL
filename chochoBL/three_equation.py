@@ -407,10 +407,13 @@ def E_innode(thetastar_1, thetastar_2, u, w, qe, rho, passive):
     rho_c=distJ@rho
     qe_c=distJ@qe
 
-    rhoq2_c=rho_c*qe_c**2
+    rhoq_c=rho_c*qe_c
+    rhoq2_c=rhoq_c*qe_c
 
     rhouq2_c=rhoq2_c*u
     rhowq2_c=rhoq2_c*w
+    rhoqu_c=rhoq_c*u
+    rhoqw_c=rhoq_c*w
 
     thetastar_1_c=distJ@thetastar_1
     thetastar_2_c=distJ@thetastar_2
@@ -431,7 +434,7 @@ def E_innode(thetastar_1, thetastar_2, u, w, qe, rho, passive):
             'thetastar_2':diag_cell_Jacobian(rhowq2_c, indexing),
             'u':rhoq2_c*thetastar_1_c,
             'w':rhoq2_c*thetastar_2_c,
-            'qe':diag_cell_Jacobian(2*Ex/qe_c, indexing),
+            'qe':diag_cell_Jacobian(2*(rhoqu_c*thetastar_1_c+rhoqw_c*thetastar_2_c), indexing),
             'rho':diag_cell_Jacobian(Ex/rho_c, indexing)
         },
         'Ez':{
@@ -439,7 +442,7 @@ def E_innode(thetastar_1, thetastar_2, u, w, qe, rho, passive):
             'thetastar_2':diag_cell_Jacobian(rhouq2_c, indexing),
             'u':rhoq2_c*thetastar_2_c,
             'w':-rhoq2_c*thetastar_1_c,
-            'qe':diag_cell_Jacobian(2*Ez/qe_c, indexing),
+            'qe':diag_cell_Jacobian(2*(rhoqu_c*thetastar_2_c-rhoqw_c*thetastar_1_c), indexing),
             'rho':diag_cell_Jacobian(Ez/rho_c, indexing)
         }
     }
@@ -547,3 +550,56 @@ def D_getnode(msh):
     D_node=node(f=D_innode, args_to_inds=['Cd', 'Cd_2', 'rho', 'qe'], outs_to_inds=['D'], passive=msh.passive, haspassive=True)
 
     return D_node
+
+def tau_innode(Cf_1, Cf_2, u, w, qe, rho, passive):
+    msh=passive['mesh']
+
+    distJ=msh.dcell_dnode_compose((Cf_1,))
+
+    indexing=diag_cell_indexing(msh.cellmatrix, msh.nnodes, msh.ncells)
+
+    rho_c=distJ@rho
+    qe_c=distJ@qe
+    Cf_1_c=distJ@Cf_1
+    Cf_2_c=distJ@Cf_2
+
+    rhoq_c=rho_c*qe_c/2
+
+    rhoqu_c=rhoq_c*u
+    rhoqw_c=rhoq_c*w
+
+    tau_x=rhoqu_c*Cf_1_c+rhoqw_c*Cf_2_c
+    tau_z=rhoqu_c*Cf_2_c-rhoqw_c*Cf_1_c
+
+    value={'tau_x':tau_x, 'tau_z':tau_z}
+
+    Jac={
+        'tau_x':{
+            'Cf':diag_cell_Jacobian(rhoqu_c, indexing),
+            'Cf_2':diag_cell_Jacobian(rhoqw_c, indexing),
+            'u':rhoq_c*Cf_1_c,
+            'w':rhoq_c*Cf_2_c,
+            'qe':diag_cell_Jacobian(rho_c*(u*Cf_1_c+w*Cf_2_c)/2, indexing),
+            'rho':diag_cell_Jacobian(tau_x/rho_c, indexing)
+        },
+        'tau_z':{
+            'Cf':diag_cell_Jacobian(-rhoqw_c, indexing),
+            'Cf_2':diag_cell_Jacobian(rhoqu_c, indexing),
+            'u':rhoq_c*Cf_2_c,
+            'w':-rhoq_c*Cf_1_c,
+            'qe':diag_cell_Jacobian(rho_c*(u*Cf_2_c-w*Cf_1_c)/2, indexing),
+            'rho':diag_cell_Jacobian(tau_z/rho_c, indexing)
+        }
+    }
+
+    return value, Jac
+
+def tau_getnode(msh):
+    '''
+    Produce a node that calculates shear stress at the wall
+    '''
+
+    tau_node=node(f=tau_innode, args_to_inds=['Cf', 'Cf_2', 'u', 'w', 'qe', 'rho'], \
+        outs_to_inds=['tau_x', 'tau_z'], passive=msh.passive, haspassive=True)
+
+    return tau_node

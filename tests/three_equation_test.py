@@ -384,6 +384,9 @@ def test_rhoQ():
 def test_D():
     _findiff_testprops(props=['D'], ends=['closure', 'p', 'uw', 'thetastar', 'deltaprime', 'Cd', 'J', 'M', 'rhoQ', 'D'], tol=1e-3, min_div=1e-10)
 
+def test_tau():
+    _findiff_testprops(props=['tau_x', 'tau_z'], ends=['closure', 'p', 'uw', 'thetastar', 'deltaprime', 'Cd', 'J', 'M', 'rhoQ', 'D', 'tau'], tol=1e-3, min_div=1e-10)
+
 def test_sigma_N():
     msh=_get_test_mesh()
 

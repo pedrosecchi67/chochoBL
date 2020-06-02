@@ -202,6 +202,7 @@ class mesh:
         E_node=E_getnode(self)
         rhoQ_node=rhoQ_getnode(self)
         D_node=D_getnode(self)
+        tau_node=tau_getnode(self)
 
         #adding nodes
         self.gr.add_node(q_head, 'q', head=True)
@@ -231,6 +232,7 @@ class mesh:
         self.gr.add_node(E_node, 'E')
         self.gr.add_node(rhoQ_node, 'rhoQ')
         self.gr.add_node(D_node, 'D')
+        self.gr.add_node(tau_node, 'tau')
 
         #adding edges
         e_q_uw=edge(q_head, uw_node, {'qx', 'qy', 'qz'})
@@ -289,6 +291,11 @@ class mesh:
         e_Cd_D=edge(Cd_node, D_node, {'Cd_2'})
         e_rho_D=edge(rho_node, D_node, {'rho'})
         e_qe_D=edge(qe_node, D_node, {'qe'})
+        e_closure_tau=edge(closure_node, tau_node, {'Cf'})
+        e_Cf_tau=edge(Cf_node, tau_node, {'Cf_2'})
+        e_uw_tau=edge(uw_node, tau_node, {'u', 'w'})
+        e_qe_tau=edge(qe_node, tau_node, {'qe'})
+        e_rho_tau=edge(rho_node, tau_node, {'rho'})
 
         self.gr.add_edge(e_q_uw)
         self.gr.add_edge(e_q_qe)
@@ -346,3 +353,8 @@ class mesh:
         self.gr.add_edge(e_Cd_D)
         self.gr.add_edge(e_rho_D)
         self.gr.add_edge(e_qe_D)
+        self.gr.add_edge(e_closure_tau)
+        self.gr.add_edge(e_Cf_tau)
+        self.gr.add_edge(e_uw_tau)
+        self.gr.add_edge(e_qe_tau)
+        self.gr.add_edge(e_rho_tau)
