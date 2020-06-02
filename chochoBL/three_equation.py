@@ -398,3 +398,59 @@ def M_getnode(msh):
     Mnode=node(f=M_innode, args_to_inds=['deltastar_1', 'deltastar_2', 'u', 'w', 'rho'], outs_to_inds=['Mx', 'Mz'], passive=msh.passive, haspassive=True)
 
     return Mnode
+
+def E_innode(thetastar_1, thetastar_2, u, w, qe, rho, passive):
+    msh=passive['mesh']
+
+    distJ=msh.dcell_dnode_compose((thetastar_1,))
+
+    rho_c=distJ@rho
+    qe_c=distJ@qe
+
+    rhoq2_c=rho_c*qe_c**2
+
+    rhouq2_c=rhoq2_c*u
+    rhowq2_c=rhoq2_c*w
+
+    thetastar_1_c=distJ@thetastar_1
+    thetastar_2_c=distJ@thetastar_2
+
+    indexing=diag_cell_indexing(msh.cellmatrix, msh.nnodes, msh.ncells)
+
+    Ex=rhouq2_c*thetastar_1_c+rhowq2_c*thetastar_2_c
+    Ez=rhouq2_c*thetastar_2_c-rhowq2_c*thetastar_1_c
+
+    value={
+        'Ex':Ex,
+        'Ez':Ez
+    }
+
+    Jac={
+        'Ex':{
+            'thetastar_1':diag_cell_Jacobian(rhouq2_c, indexing),
+            'thetastar_2':diag_cell_Jacobian(rhowq2_c, indexing),
+            'u':rhoq2_c*thetastar_1_c,
+            'w':rhoq2_c*thetastar_2_c,
+            'qe':diag_cell_Jacobian(2*Ex/qe_c, indexing),
+            'rho':diag_cell_Jacobian(Ex/rho_c, indexing)
+        },
+        'Ez':{
+            'thetastar_1':diag_cell_Jacobian(-rhowq2_c, indexing),
+            'thetastar_2':diag_cell_Jacobian(rhouq2_c, indexing),
+            'u':rhoq2_c*thetastar_2_c,
+            'w':-rhoq2_c*thetastar_1_c,
+            'qe':diag_cell_Jacobian(2*Ez/qe_c, indexing),
+            'rho':diag_cell_Jacobian(Ez/rho_c, indexing)
+        }
+    }
+
+    return value, Jac
+
+def E_getnode(msh):
+    '''
+    Returns a node for calculation of energy dissipation vector
+    '''
+
+    Enode=node(f=E_innode, args_to_inds=['thetastar_1', 'thetastar_2', 'u', 'w', 'qe', 'rho'], outs_to_inds=['Ex', 'Ez'], passive=msh.passive, haspassive=True)
+
+    return Enode
