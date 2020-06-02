@@ -505,3 +505,45 @@ def rhoQ_getnode(msh):
     rhoQnode=node(f=rhoQ_innode, args_to_inds=['deltaprime_1', 'deltaprime_2', 'u', 'w', 'rho'], outs_to_inds=['rhoQx', 'rhoQz'], passive=msh.passive, haspassive=True)
 
     return rhoQnode
+
+def D_innode(Cd_1, Cd_2, rho, qe, passive):
+    msh=passive['mesh']
+
+    distJ=msh.dcell_dnode_compose((Cd_1,))
+
+    indexing=diag_cell_indexing(msh.cellmatrix, msh.nnodes, msh.ncells)
+
+    CD=distJ@(Cd_1+Cd_2)
+    qe_c=distJ@qe
+    rho_c=distJ@rho
+
+    dD_dCD=qe_c**3*rho_c
+    dD_dq=3*qe_c**2*rho_c*CD
+    dD_drho=qe_c**3*CD
+
+    D=dD_dCD*CD
+
+    dD_dCd_1=dD_dCD
+    dD_dCd_2=dD_dCD
+
+    value={'D':D}
+
+    Jac={
+        'D':{
+            'Cd':diag_cell_Jacobian(dD_dCd_1, indexing),
+            'Cd_2':diag_cell_Jacobian(dD_dCd_2, indexing),
+            'rho':diag_cell_Jacobian(dD_drho, indexing),
+            'qe':diag_cell_Jacobian(dD_dq, indexing)
+        }
+    }
+
+    return value, Jac
+
+def D_getnode(msh):
+    '''
+    Return a node to calculate dissipation
+    '''
+
+    D_node=node(f=D_innode, args_to_inds=['Cd', 'Cd_2', 'rho', 'qe'], outs_to_inds=['D'], passive=msh.passive, haspassive=True)
+
+    return D_node
