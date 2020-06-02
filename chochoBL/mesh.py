@@ -209,6 +209,9 @@ class mesh:
         D_node=D_getnode(self)
         tau_node=tau_getnode(self)
 
+        #setting ends
+        Rmass_end=Rmass_getnode(self)
+
         #adding nodes
         self.gr.add_node(q_head, 'q', head=True)
         self.gr.add_node(theta11_head, 'th11', head=True)
@@ -239,6 +242,8 @@ class mesh:
         self.gr.add_node(rhoQ_node, 'rhoQ')
         self.gr.add_node(D_node, 'D')
         self.gr.add_node(tau_node, 'tau')
+
+        self.gr.add_node(Rmass_end, 'Rmass', end=True)
 
         #adding edges
         e_q_uw=edge(q_head, uw_node, {'qx', 'qy', 'qz'})
@@ -302,6 +307,9 @@ class mesh:
         e_uw_tau=edge(uw_node, tau_node, {'u', 'w'})
         e_qe_tau=edge(qe_node, tau_node, {'qe'})
         e_rho_tau=edge(rho_node, tau_node, {'rho'})
+        e_M_Rmass=edge(M_node, Rmass_end, {'Mx', 'Mz'})
+        e_rho_Rmass=edge(rho_node, Rmass_end, {'rho'})
+        e_n_Rmass=edge(n_head, Rmass_end, {'n'})
 
         self.gr.add_edge(e_q_uw)
         self.gr.add_edge(e_q_qe)
@@ -364,3 +372,6 @@ class mesh:
         self.gr.add_edge(e_uw_tau)
         self.gr.add_edge(e_qe_tau)
         self.gr.add_edge(e_rho_tau)
+        self.gr.add_edge(e_M_Rmass)
+        self.gr.add_edge(e_rho_Rmass)
+        self.gr.add_edge(e_n_Rmass)

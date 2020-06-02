@@ -603,3 +603,40 @@ def tau_getnode(msh):
         outs_to_inds=['tau_x', 'tau_z'], passive=msh.passive, haspassive=True)
 
     return tau_node
+
+def Rmass_innode(Mx, Mz, rho, n, passive):
+    msh=passive['mesh']
+
+    distJ=msh.dcell_dnode_compose((Mx,))
+
+    indexing=diag_cell_indexing(msh.cellmatrix, msh.nnodes, msh.ncells)
+
+    rhon=rho*n
+
+    dRmass_dMx=msh.dvdx_res_Jac
+    dRmass_dMz=msh.dvdz_res_Jac
+    dRmass_drhon=-msh.v_res_Jac@distJ
+
+    Rmass=dRmass_dMx@Mx+dRmass_dMz@Mz+dRmass_drhon@rhon
+
+    value={'Rmass':Rmass}
+
+    Jac={
+        'Rmass':{
+            'Mx':dRmass_dMx,
+            'Mz':dRmass_dMz,
+            'rho':dRmass_drhon.multiply(n),
+            'n':dRmass_drhon.multiply(rho)
+        }
+    }
+
+    return value, Jac
+
+def Rmass_getnode(msh):
+    '''
+    Returns a node for calculating the mass conservation equation residual
+    '''
+
+    Rmass_node=node(f=Rmass_innode, args_to_inds=['Mx', 'Mz', 'rho', 'n'], outs_to_inds=['Rmass'], passive=msh.passive, haspassive=True)
+
+    return Rmass_node
