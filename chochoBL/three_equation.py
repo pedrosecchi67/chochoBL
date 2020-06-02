@@ -640,3 +640,12 @@ def Rmass_getnode(msh):
     Rmass_node=node(f=Rmass_innode, args_to_inds=['Mx', 'Mz', 'rho', 'n'], outs_to_inds=['Rmass'], passive=msh.passive, haspassive=True)
 
     return Rmass_node
+
+def RTS_innode(N, u, w, qe, p, passive):
+    msh=passive['mesh']
+
+    distJ=msh.dcell_dnode_compose((Mx,))
+
+    indexing=diag_cell_indexing(msh.cellmatrix, msh.nnodes, msh.ncells)
+
+    pass
