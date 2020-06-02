@@ -183,6 +183,7 @@ class mesh:
         H_head=head(outs_to_inds=['H'], passive=self.passive)
         N_head=head(outs_to_inds=['N'], passive=self.passive)
         beta_head=head(outs_to_inds=['beta'], passive=self.passive)
+        n_head=head(outs_to_inds=['n'], passive=self.passive)
 
         #adding nodes
         uw_node=uw_conversion_getnode(self)
@@ -214,6 +215,7 @@ class mesh:
         self.gr.add_node(H_head, 'H', head=True)
         self.gr.add_node(N_head, 'N', head=True)
         self.gr.add_node(beta_head, 'beta', head=True)
+        self.gr.add_node(n_head, 'n', head=True)
 
         self.gr.add_node(uw_node, 'uw')
         self.gr.add_node(qe_node, 'qe')

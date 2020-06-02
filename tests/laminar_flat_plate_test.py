@@ -34,6 +34,7 @@ def test_laminar_flat_plate():
     th11=0.665*np.sqrt((mu*(posaux[:, 0]+1e-2))/(rho0*Uinf))
     H=2.5864*np.ones_like(th11)
     N=np.zeros_like(th11)
+    nflow=np.zeros_like(th11)
     
     vels=np.zeros((nm*nn, 3))
     vels[:, 0]=Uinf
@@ -68,6 +69,7 @@ def test_laminar_flat_plate():
     msh.gr.heads['H'].set_value({'H':H})
     msh.gr.heads['N'].set_value({'N':N})
     msh.gr.heads['beta'].set_value({'beta':np.zeros(nm*nn)})
+    msh.gr.heads['n'].set_value({'n':nflow})
 
     msh.gr.calculate(ends=['closure', 'p', 'uw', 'thetastar', 'deltaprime', 'Cf', 'Cd', 'J', 'M', 'E', 'rhoQ', 'D', 'tau'])
 

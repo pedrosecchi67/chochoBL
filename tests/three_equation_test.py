@@ -70,10 +70,11 @@ def _std_mesh_fulldata(perturbations={}):
     th11=10.0**np.linspace(-4.0, -1.0, 9)
     N=np.linspace(0.0, 10.0, 9)
     beta=np.linspace(-math.radians(45.0), math.radians(45.0), 9)
+    n=np.zeros_like(N)
 
     msh.graph_init()
 
-    data={'q':{'qx':vels[:, 0], 'qy':vels[:, 1], 'qz':vels[:, 2]}, 'th11':{'th11':th11}, 'H':{'H':H}, 'N':{'N':N}, 'beta':{'beta':beta}}
+    data={'q':{'qx':vels[:, 0], 'qy':vels[:, 1], 'qz':vels[:, 2]}, 'th11':{'th11':th11}, 'H':{'H':H}, 'N':{'N':N}, 'beta':{'beta':beta}, 'n':{'n':n}}
 
     for n in data:
         for d in data[n]:
@@ -93,7 +94,8 @@ def _perturbations_from_mesh(msh, factor=1e-7):
         'th11':np.amax(msh.gr.nodes['th11'].value['th11'])*factor,
         'H':np.amax(msh.gr.nodes['H'].value['H'])*factor,
         'N':np.amax(msh.gr.nodes['N'].value['N'])*factor,
-        'beta':np.amax(msh.gr.nodes['beta'].value['beta'])*factor
+        'beta':np.amax(msh.gr.nodes['beta'].value['beta'])*factor,
+        'n':np.amax(msh.gr.nodes['n'].value['n'])*factor
     }
 
 def _findiff_testprops(props=[], ends=[], tol=1e-3, min_div=1e-14):
