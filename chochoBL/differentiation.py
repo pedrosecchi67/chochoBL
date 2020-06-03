@@ -558,11 +558,8 @@ def Rudvdx_residual(u, v, msh):
 
     ncells=msh.ncells
 
-    rbase=np.arange(4, dtype='int').repeat(4)
-    cbase=np.tile(np.arange(4, dtype='int'), 4)
-
-    r=np.hstack([rbase+4*i for i in range(ncells)])
-    c=np.hstack([cbase+4*i for i in range(ncells)])
+    r=msh.Rudvdx_indexing_r
+    c=msh.Rudvdx_indexing_c
 
     dat1=np.hstack([(c.Rudvdx@v[4*i:4*(i+1)]).reshape(16) for i, c in enumerate(msh.cells)])
     dat2=np.hstack([(u[4*i:4*(i+1)]@c.Rudvdx).reshape(16) for i, c in enumerate(msh.cells)])
@@ -580,11 +577,8 @@ def Rudvdz_residual(u, v, msh):
 
     ncells=msh.ncells
 
-    rbase=np.arange(4, dtype='int').repeat(4)
-    cbase=np.tile(np.arange(4, dtype='int'), 4)
-
-    r=np.hstack([rbase+4*i for i in range(ncells)])
-    c=np.hstack([cbase+4*i for i in range(ncells)])
+    r=msh.Rudvdx_indexing_r
+    c=msh.Rudvdx_indexing_c
 
     dat1=np.hstack([(c.Rudvdz@v[4*i:4*(i+1)]).reshape(16) for i, c in enumerate(msh.cells)])
     dat2=np.hstack([(u[4*i:4*(i+1)]@c.Rudvdz).reshape(16) for i, c in enumerate(msh.cells)])

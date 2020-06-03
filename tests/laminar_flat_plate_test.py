@@ -85,4 +85,11 @@ def test_laminar_flat_plate():
 
     print(t, tdiff)
 
+    u=msh.gr.get_value('Jxx')[0]
+    v=msh.gr.get_value('Jzz')[0]
+    t=tm.time()
+    A, B, C=Rudvdz_residual(u, v, msh)
+    t=tm.time()-t
+    print(t)
+
 test_laminar_flat_plate()

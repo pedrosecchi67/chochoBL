@@ -152,6 +152,12 @@ class mesh:
         self.dvdx_res_Jac=dvdx_residual_Jacobian(self)
         self.dvdz_res_Jac=dvdz_residual_Jacobian(self)
 
+        rbase=np.arange(4, dtype='int').repeat(4)
+        cbase=np.tile(np.arange(4, dtype='int'), 4)
+
+        self.Rudvdx_indexing_r=np.hstack([rbase+4*i for i in range(self.ncells)])
+        self.Rudvdx_indexing_c=np.hstack([cbase+4*i for i in range(self.ncells)])
+
     def dcell_dnode_compose(self, vset):
         '''
         Compose the dcell_dnode Jacobian for the matrix with a given number of mixed vectors,
