@@ -217,6 +217,7 @@ class mesh:
 
         #setting ends
         Rmass_end=Rmass_getnode(self)
+        RTS_end=RTS_getnode(self)
 
         #adding nodes
         self.gr.add_node(q_head, 'q', head=True)
@@ -250,6 +251,7 @@ class mesh:
         self.gr.add_node(tau_node, 'tau')
 
         self.gr.add_node(Rmass_end, 'Rmass', end=True)
+        self.gr.add_node(RTS_end, 'RTS', end=True)
 
         #adding edges
         e_q_uw=edge(q_head, uw_node, {'qx', 'qy', 'qz'})
@@ -316,6 +318,10 @@ class mesh:
         e_M_Rmass=edge(M_node, Rmass_end, {'Mx', 'Mz'})
         e_rho_Rmass=edge(rho_node, Rmass_end, {'rho'})
         e_n_Rmass=edge(n_head, Rmass_end, {'n'})
+        e_N_RTS=edge(N_head, RTS_end, {'N'})
+        e_uw_RTS=edge(uw_node, RTS_end, {'u', 'w'})
+        e_qe_RTS=edge(qe_node, RTS_end, {'qe'})
+        e_p_RTS=edge(p_node, RTS_end, {'p'})
 
         self.gr.add_edge(e_q_uw)
         self.gr.add_edge(e_q_qe)
@@ -381,3 +387,7 @@ class mesh:
         self.gr.add_edge(e_M_Rmass)
         self.gr.add_edge(e_rho_Rmass)
         self.gr.add_edge(e_n_Rmass)
+        self.gr.add_edge(e_N_RTS)
+        self.gr.add_edge(e_uw_RTS)
+        self.gr.add_edge(e_qe_RTS)
+        self.gr.add_edge(e_p_RTS)

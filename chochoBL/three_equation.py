@@ -11,6 +11,7 @@ Include in passive dictionary:
 '''
 
 from differentiation import *
+from garlekin import *
 
 def qx_nodal_matrix(nnodes, cells):
     '''
@@ -607,7 +608,7 @@ def tau_getnode(msh):
 def Rmass_innode(Mx, Mz, rho, n, passive):
     msh=passive['mesh']
 
-    distJ=msh.dcell_dnode_compose((Mx,))
+    distJ=msh.dcell_dnode_compose((rho,))
 
     indexing=diag_cell_indexing(msh.cellmatrix, msh.nnodes, msh.ncells)
 
@@ -644,8 +645,35 @@ def Rmass_getnode(msh):
 def RTS_innode(N, u, w, qe, p, passive):
     msh=passive['mesh']
 
-    distJ=msh.dcell_dnode_compose((Mx,))
+    distJ=msh.dcell_dnode_compose((qe,))
 
-    indexing=diag_cell_indexing(msh.cellmatrix, msh.nnodes, msh.ncells)
+    N_c=distJ@N
 
-    pass
+    dR_dqp=-msh.v_res_Jac@distJ
+
+    RNx, dRNx_du, dRNx_dN=Rudvdx_residual(u, N_c, msh)
+    RNz, dRNz_dw, dRNz_dN=Rudvdz_residual(w, N_c, msh)
+
+    value={'RTS':RNx+RNz+dR_dqp@(qe*p)}
+
+    Jac={
+        'RTS':{
+            'N':(dRNx_dN+dRNz_dN)@distJ,
+            'u':dRNx_du,
+            'w':dRNz_dw,
+            'qe':dR_dqp.multiply(p),
+            'p':dR_dqp.multiply(qe)
+        }
+    }
+
+    return value, Jac
+
+def RTS_getnode(msh):
+    '''
+    Return a node to calculate Tolmmien-Schlichting wave growth equation
+    '''
+
+    RTS_node=node(f=RTS_innode, args_to_inds=['N', 'u', 'w', 'qe', 'p'], outs_to_inds=['RTS'], \
+        passive=msh.passive, haspassive=True)
+    
+    return RTS_node

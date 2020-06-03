@@ -392,6 +392,9 @@ def test_tau():
 def test_Rmass():
     _findiff_testprops(props=['Rmass'], ends=['Rmass'], tol=1e-3)
 
+def test_RTS():
+    _findiff_testprops(props=['RTS'], ends=['RTS'], tol=1e-3)
+
 def test_sigma_N():
     msh=_get_test_mesh()
 
