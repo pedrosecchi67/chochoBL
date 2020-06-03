@@ -71,11 +71,11 @@ def test_laminar_flat_plate():
     msh.gr.heads['beta'].set_value({'beta':np.zeros(nm*nn)})
     msh.gr.heads['n'].set_value({'n':nflow})
 
-    msh.gr.calculate(ends=['closure', 'p', 'uw', 'thetastar', 'deltaprime', 'Cf', 'Cd', 'J', 'M', 'E', 'rhoQ', 'D', 'tau', 'Rmass', 'RTS', 'Rmomx'])
+    msh.gr.calculate(ends=['thetastar', 'deltaprime', 'Cd', 'E', 'rhoQ', 'D', 'tau', 'Rmass', 'RTS', 'Rmomx', 'Rmomz'])
 
     tdiff=tm.time()
 
-    qx_derivs=msh.gr.get_derivs_direct('qx', ends=['closure', 'p', 'uw', 'thetastar', 'deltaprime', 'Cf', 'Cd', 'J', 'M', 'E', 'rhoQ', 'D', 'tau', 'Rmass', 'RTS', 'Rmomx'])
+    qx_derivs=msh.gr.get_derivs_direct('qx', ends=['thetastar', 'deltaprime', 'Cd', 'E', 'rhoQ', 'D', 'tau', 'Rmass', 'RTS', 'Rmomx', 'Rmomz'])
     #th22_derivs=msh.gr.get_derivs_reverse('thetastar_2', ends=['closure', 'p', 'uw', 'thetastar', 'deltaprime', 'Cf'])
     #deltaprime2_derivs=msh.gr.get_derivs_reverse('deltaprime_2', ends=['closure', 'p', 'uw', 'thetastar', 'deltaprime', 'Cf'])
 

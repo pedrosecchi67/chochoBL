@@ -710,3 +710,36 @@ def Rmomx_getnode(msh):
         haspassive=True)
 
     return Rmomx_node
+
+def Rmomz_innode(Jzx, Jzz, Mx, Mz, w, tau_z, passive):
+    msh=passive['mesh']
+
+    RMx, dRMx_dMx, dRMx_dw=Rudvdx_residual(Mx, w, msh)
+    RMz, dRMz_dMz, dRMz_dw=Rudvdz_residual(Mz, w, msh)
+
+    value={
+        'Rmomz':msh.dvdx_res_Jac@Jzx+msh.dvdz_res_Jac@Jzz+RMx+RMz-msh.v_res_Jac@tau_z
+    }
+
+    Jac={
+        'Rmomz':{
+            'Jzx':msh.dvdx_res_Jac,
+            'Jzz':msh.dvdz_res_Jac,
+            'Mx':dRMx_dMx,
+            'Mz':dRMz_dMz,
+            'w':dRMx_dw+dRMz_dw,
+            'tau_z':-msh.v_res_Jac
+        }
+    }
+
+    return value, Jac
+
+def Rmomz_getnode(msh):
+    '''
+    Return node for calculation of z momentum equation
+    '''
+
+    Rmomz_node=node(f=Rmomz_innode, args_to_inds=['Jzx', 'Jzz', 'Mx', 'Mz', 'w', 'tau_z'], outs_to_inds=['Rmomz'], passive=msh.passive, \
+        haspassive=True)
+
+    return Rmomz_node

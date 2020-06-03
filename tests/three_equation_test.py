@@ -398,6 +398,9 @@ def test_RTS():
 def test_Rmomx():
     _findiff_testprops(props=['Rmomx'], ends=['Rmomx'], tol=1e-3)
 
+def test_Rmomz():
+    _findiff_testprops(props=['Rmomz'], ends=['Rmomz'], tol=1e-3)
+
 def test_sigma_N():
     msh=_get_test_mesh()
 
