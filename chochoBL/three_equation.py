@@ -675,5 +675,38 @@ def RTS_getnode(msh):
 
     RTS_node=node(f=RTS_innode, args_to_inds=['N', 'u', 'w', 'qe', 'p'], outs_to_inds=['RTS'], \
         passive=msh.passive, haspassive=True)
-    
+
     return RTS_node
+
+def Rmomx_innode(Jxx, Jxz, Mx, Mz, u, tau_x, passive):
+    msh=passive['mesh']
+
+    RMx, dRMx_dMx, dRMx_du=Rudvdx_residual(Mx, u, msh)
+    RMz, dRMz_dMz, dRMz_du=Rudvdz_residual(Mz, u, msh)
+
+    value={
+        'Rmomx':msh.dvdx_res_Jac@Jxx+msh.dvdz_res_Jac@Jxz+RMx+RMz-msh.v_res_Jac@tau_x
+    }
+
+    Jac={
+        'Rmomx':{
+            'Jxx':msh.dvdx_res_Jac,
+            'Jxz':msh.dvdz_res_Jac,
+            'Mx':dRMx_dMx,
+            'Mz':dRMz_dMz,
+            'u':dRMx_du+dRMz_du,
+            'tau_x':-msh.v_res_Jac
+        }
+    }
+
+    return value, Jac
+
+def Rmomx_getnode(msh):
+    '''
+    Return node for calculation of x momentum equation
+    '''
+
+    Rmomx_node=node(f=Rmomx_innode, args_to_inds=['Jxx', 'Jxz', 'Mx', 'Mz', 'u', 'tau_x'], outs_to_inds=['Rmomx'], passive=msh.passive, \
+        haspassive=True)
+
+    return Rmomx_node
