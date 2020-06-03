@@ -421,3 +421,42 @@ class mesh:
         self.gr.add_edge(e_rhoQ_Ren)
         self.gr.add_edge(e_qe_Ren)
         self.gr.add_edge(e_D_Ren)
+    
+    def set_values(self, vals):
+        '''
+        Set values (as a dictionary of dictionaries) to head nodes. First key is node name, second is greatness
+        '''
+
+        for hname, d in zip(vals, vals.values()):
+            self.gr.heads[hname].set_value(d)
+    
+    def calculate_graph(self):
+        '''
+        Calculate end nodes for the graph and produce the gradients of the total residual
+        '''
+
+        self.gr.calculate()
+
+        evals={}
+
+        for e in self.gr.ends.values():
+            evals.update(e.value)
+
+        invals=[]
+
+        for h in self.gr.heads.values():
+            invals+=h.outs_to_inds
+
+        grad={}
+
+        t=tm.time()
+
+        for inp in invals:
+            derivs=self.gr.get_derivs_direct(inp)
+
+            grad[inp]=sum(0.0 if derivs[e] is None else derivs[e].T@ev \
+                for e, ev in zip(evals, evals.values()))
+
+        print(tm.time()-t)
+        
+        return evals, grad

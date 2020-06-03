@@ -354,7 +354,7 @@ class graph:
         for n in self.nodes.values():
             n.clean_summoning()
         
-    def set_seed_reverse(self, prop, ends=None, sparse=False):
+    def set_seed_reverse(self, prop, ends=None):
         '''
         Set seed to identity matrix in node containing the named property and to None in all other end nodes
         '''
@@ -385,7 +385,7 @@ class graph:
         Get a dictionary with the derivatives of a property based on its key
         '''
 
-        self.set_seed_reverse(prop, ends=ends, sparse=sparse)
+        self.set_seed_reverse(prop, ends=ends)
 
         for n in self.heads.values():
             n.calculate_buffer()
@@ -400,7 +400,7 @@ class graph:
         
         return derivs
     
-    def set_seed_direct(self, prop, ends=None, sparse=False):
+    def set_seed_direct(self, prop, ends=None):
         '''
         Set seed to identity matrix in node containing the named property and to None in all other end nodes
         '''
@@ -426,12 +426,12 @@ class graph:
 
             h.summoned=True
     
-    def get_derivs_direct(self, prop, ends=None, sparse=False):
+    def get_derivs_direct(self, prop, ends=None):
         '''
         Get a dictionary with the derivatives of an end node
         '''
 
-        self.set_seed_direct(prop, ends=ends, sparse=sparse)
+        self.set_seed_direct(prop, ends=ends)
 
         if ends is None:
             ends=self.ends

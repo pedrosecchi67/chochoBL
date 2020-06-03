@@ -6,8 +6,8 @@ import time as tm
 import pytest
 
 def test_laminar_flat_plate():
-    nm=100
-    nn=50
+    nm=10
+    nn=10
     L=1.0
 
     Uinf=1.0
@@ -60,24 +60,24 @@ def test_laminar_flat_plate():
     
     msh.compose(normals)
 
-    t=tm.time()
-
     msh.graph_init()
 
-    msh.gr.heads['q'].set_value({'qx':vels[:, 0], 'qy':vels[:, 1], 'qz':vels[:, 2]})
-    msh.gr.heads['th11'].set_value({'th11':th11})
-    msh.gr.heads['H'].set_value({'H':H})
-    msh.gr.heads['N'].set_value({'N':N})
-    msh.gr.heads['beta'].set_value({'beta':np.zeros(nm*nn)})
-    msh.gr.heads['n'].set_value({'n':nflow})
+    t=tm.time()
 
-    msh.gr.calculate()
+    vals={
+        'q':{'qx':vels[:, 0], 'qy':vels[:, 1], 'qz':vels[:, 2]}, 
+        'th11':{'th11':th11},
+        'H':{'H':H},
+        'N':{'N':N},
+        'beta':{'beta':np.zeros(nm*nn)},
+        'n':{'n':nflow}
+    }
+
+    msh.set_values(vals)
 
     tdiff=tm.time()
 
-    qx_derivs=msh.gr.get_derivs_direct('qx')
-    #th22_derivs=msh.gr.get_derivs_reverse('thetastar_2', ends=['closure', 'p', 'uw', 'thetastar', 'deltaprime', 'Cf'])
-    #deltaprime2_derivs=msh.gr.get_derivs_reverse('deltaprime_2', ends=['closure', 'p', 'uw', 'thetastar', 'deltaprime', 'Cf'])
+    value, grad=msh.calculate_graph()
 
     t=tm.time()-t
 
