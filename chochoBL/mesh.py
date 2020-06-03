@@ -220,6 +220,7 @@ class mesh:
         RTS_end=RTS_getnode(self)
         Rmomx_end=Rmomx_getnode(self)
         Rmomz_end=Rmomz_getnode(self)
+        Ren_end=Ren_getnode(self)
 
         #adding nodes
         self.gr.add_node(q_head, 'q', head=True)
@@ -256,6 +257,7 @@ class mesh:
         self.gr.add_node(RTS_end, 'RTS', end=True)
         self.gr.add_node(Rmomx_end, 'Rmomx', end=True)
         self.gr.add_node(Rmomz_end, 'Rmomz', end=True)
+        self.gr.add_node(Ren_end, 'Ren', end=True)
 
         #adding edges
         e_q_uw=edge(q_head, uw_node, {'qx', 'qy', 'qz'})
@@ -334,6 +336,10 @@ class mesh:
         e_M_Rmomz=edge(M_node, Rmomz_end, {'Mx', 'Mz'})
         e_uw_Rmomz=edge(uw_node, Rmomz_end, {'w'})
         e_tau_Rmomz=edge(tau_node, Rmomz_end, {'tau_z'})
+        e_E_Ren=edge(E_node, Ren_end, {'Ex', 'Ez'})
+        e_rhoQ_Ren=edge(rhoQ_node, Ren_end, {'rhoQx', 'rhoQz'})
+        e_qe_Ren=edge(qe_node, Ren_end, {'qe'})
+        e_D_Ren=edge(D_node, Ren_end, {'D'})
 
         self.gr.add_edge(e_q_uw)
         self.gr.add_edge(e_q_qe)
@@ -411,3 +417,7 @@ class mesh:
         self.gr.add_edge(e_M_Rmomz)
         self.gr.add_edge(e_uw_Rmomz)
         self.gr.add_edge(e_tau_Rmomz)
+        self.gr.add_edge(e_E_Ren)
+        self.gr.add_edge(e_rhoQ_Ren)
+        self.gr.add_edge(e_qe_Ren)
+        self.gr.add_edge(e_D_Ren)

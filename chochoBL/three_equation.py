@@ -743,3 +743,43 @@ def Rmomz_getnode(msh):
         haspassive=True)
 
     return Rmomz_node
+
+def Ren_innode(Ex, Ez, rhoQx, rhoQz, qe, D, passive):
+    msh=passive['mesh']
+
+    distJ=msh.dcell_dnode_compose((qe,))
+
+    qe_c=distJ@qe
+
+    qe2_c=qe_c**2
+
+    RQx, dRQx_dQ, dRQx_dqe2=Rudvdx_residual(rhoQx, qe2_c, msh)
+    RQz, dRQz_dQ, dRQz_dqe2=Rudvdz_residual(rhoQz, qe2_c, msh)
+
+    dR_dD=-2*msh.v_res_Jac
+
+    value={
+        'Ren':msh.dvdx_res_Jac@Ex+msh.dvdz_res_Jac@Ez+RQx+RQz+dR_dD@D
+    }
+
+    Jac={
+        'Ren':{
+            'Ex':msh.dvdx_res_Jac,
+            'Ez':msh.dvdz_res_Jac,
+            'rhoQx':dRQx_dQ,
+            'rhoQz':dRQz_dQ,
+            'qe':2*(dRQx_dqe2+dRQz_dqe2).multiply(qe_c)@distJ,
+            'D':dR_dD
+        }
+    }
+
+    return value, Jac
+
+def Ren_getnode(msh):
+    '''
+    Return a node for calculation of kinetic energy equation residual
+    '''
+
+    Ren_node=node(f=Ren_innode, args_to_inds=['Ex', 'Ez', 'rhoQx', 'rhoQz', 'qe', 'D'], outs_to_inds=['Ren'], passive=msh.passive, haspassive=True)
+
+    return Ren_node
