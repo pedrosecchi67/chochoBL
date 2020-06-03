@@ -102,6 +102,7 @@ def test_Rv_mesh():
     r_c, Ju, Jv=Rudvdx_residual(u_c, v_c, msh)
 
     assert _arr_compare(r_c, r_theoretical, relative=r_c, tol=1e-3)
+    assert _arr_compare(Ju@u_c, Jv@v_c, relative=r_c, tol=1e-3)
 
     r_theoretical=np.zeros_like(u_c)
 
@@ -111,3 +112,4 @@ def test_Rv_mesh():
     r_c, Ju, Jv=Rudvdz_residual(u_c, v_c, msh)
 
     assert _arr_compare(r_c, r_theoretical, relative=r_c, tol=1e-3)
+    assert _arr_compare(Ju@u_c, Jv@v_c, relative=r_c, tol=1e-3)
