@@ -6,7 +6,7 @@ import time as tm
 import pytest
 
 def test_laminar_flat_plate():
-    nm=10
+    nm=100
     nn=10
     L=1.0
 

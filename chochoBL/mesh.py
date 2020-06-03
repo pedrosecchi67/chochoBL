@@ -442,14 +442,13 @@ class mesh:
         for e in self.gr.ends.values():
             evals.update(e.value)
 
-        invals=[]
+        invals=set()
 
         for h in self.gr.heads.values():
-            invals+=h.outs_to_inds
+            for o in h.outs_to_inds:
+                invals.add(o)
 
         grad={}
-
-        t=tm.time()
 
         for inp in invals:
             derivs=self.gr.get_derivs_direct(inp)
@@ -457,6 +456,4 @@ class mesh:
             grad[inp]=sum(0.0 if derivs[e] is None else derivs[e].T@ev \
                 for e, ev in zip(evals, evals.values()))
 
-        print(tm.time()-t)
-        
         return evals, grad
