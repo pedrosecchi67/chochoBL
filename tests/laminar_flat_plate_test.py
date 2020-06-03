@@ -7,7 +7,7 @@ import pytest
 
 def test_laminar_flat_plate():
     nm=100
-    nn=10
+    nn=50
     L=1.0
 
     Uinf=1.0
@@ -75,14 +75,10 @@ def test_laminar_flat_plate():
 
     msh.set_values(vals)
 
-    tdiff=tm.time()
-
     value, grad=msh.calculate_graph()
 
     t=tm.time()-t
 
-    tdiff=tm.time()-tdiff
-
-    print(t, tdiff)
+    print(t)
 
 test_laminar_flat_plate()

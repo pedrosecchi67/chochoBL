@@ -6,7 +6,7 @@ Module with functions and classes to assist in Jacobian handling
 and automatic differentiation
 '''
 
-def _addnone(a, b):
+def addnone(a, b):
     if a is None:
         if b is None:
             return None
@@ -205,7 +205,7 @@ class node:
             #assuming it's a scalar:
             self.value={self.outs_to_inds.keys()[0]:v}
     
-    def calculate_buffer(self, reverse=True):
+    def calculate_buffer(self, reverse=True, use_diag=True):
         '''
         Calculate a buffer from downstream node seeds (reverse) or upstream node seeds (direct).
         Mode selected through kwarg flag
@@ -222,7 +222,7 @@ class node:
 
                     for outk in de.k:
                         for prop, seed in zip(seeds, seeds.values()):
-                            self.buffer[outk]=_addnone(self.buffer[outk], _matmulnone(de.Jac_from_downstream(outk, prop), seed))
+                            self.buffer[outk]=addnone(self.buffer[outk], _matmulnone(de.Jac_from_downstream(outk, prop), seed))
 
             else:
                 for ue in self.up_edges:
@@ -230,7 +230,7 @@ class node:
 
                     for outk in self.outs_to_inds:
                         for prop, seed in zip(seeds, seeds.values()):
-                            self.buffer[outk]=_addnone(self.buffer[outk], _matmulnone(self.Jac[outk][prop], seed, transpose=False))
+                            self.buffer[outk]=addnone(self.buffer[outk], _matmulnone(self.Jac[outk][prop], seed, transpose=False))
 
 class head(node):
     '''
@@ -354,7 +354,7 @@ class graph:
         for n in self.nodes.values():
             n.clean_summoning()
         
-    def set_seed_reverse(self, prop, ends=None):
+    def set_seed_reverse(self, prop=None, value=None, ends=None):
         '''
         Set seed to identity matrix in node containing the named property and to None in all other end nodes
         '''
@@ -372,20 +372,26 @@ class graph:
             if ends[k].value is None or ends[k].Jac is None:
                 raise Exception('End node %s hasn\'t had it\'s value calculated, though reverse AD has been required' % (k,))
         
-        for e in ends.values():
-            e.buffer={outk:None for outk in e.outs_to_inds}
-            
-            if prop in e.buffer:
-                e.buffer[prop]=np.ones_like(e.value[prop]) #sps.eye(len(e.value[prop]), format='lil') if sparse else np.eye(len(e.value[prop]))
+        if value is None:
+            for e in ends.values():
+                e.buffer={outk:None for outk in e.outs_to_inds}
+                
+                if prop in e.buffer:
+                    e.buffer[prop]=np.ones_like(e.value[prop])
 
-            e.summoned=True
+                e.summoned=True
+        else:
+            for e in ends.values():
+                e.buffer={outk:value[outk] if outk in value else None for outk in e.outs_to_inds}
+
+                e.summoned=True
     
-    def get_derivs_reverse(self, prop, ends=None, sparse=False):
+    def get_derivs_reverse(self, prop=None, value=None, ends=None, sparse=False):
         '''
         Get a dictionary with the derivatives of a property based on its key
         '''
 
-        self.set_seed_reverse(prop, ends=ends)
+        self.set_seed_reverse(prop, ends=ends, value=value)
 
         for n in self.heads.values():
             n.calculate_buffer()
@@ -400,7 +406,7 @@ class graph:
         
         return derivs
     
-    def set_seed_direct(self, prop, ends=None):
+    def set_seed_direct(self, prop, ends=None, value=None):
         '''
         Set seed to identity matrix in node containing the named property and to None in all other end nodes
         '''
@@ -418,20 +424,26 @@ class graph:
             if ends[k].value is None or ends[k].Jac is None:
                 raise Exception('End node %s hasn\'t had it\'s value calculated, though direct AD has been required' % (k,))
         
-        for h in self.heads.values():
-            h.buffer={outk:None for outk in h.outs_to_inds}
-            
-            if prop in h.buffer:
-                h.buffer[prop]=np.ones_like(h.value[prop]) #sps.eye(len(e.value[prop]), format='lil') if sparse else np.eye(len(e.value[prop]))
+        if value is None:
+            for h in self.heads.values():
+                h.buffer={outk:None for outk in h.outs_to_inds}
+                
+                if prop in h.buffer:
+                    h.buffer[prop]=np.ones_like(h.value[prop])
 
-            h.summoned=True
+                h.summoned=True
+        else:
+            for h in self.heads.values():
+                h.buffer={outk:value[outk] if outk in value else None for outk in h.outs_to_inds}
+
+                h.summoned=True
     
-    def get_derivs_direct(self, prop, ends=None):
+    def get_derivs_direct(self, prop, ends=None, value=None):
         '''
         Get a dictionary with the derivatives of an end node
         '''
 
-        self.set_seed_direct(prop, ends=ends)
+        self.set_seed_direct(prop, ends=ends, value=value)
 
         if ends is None:
             ends=self.ends

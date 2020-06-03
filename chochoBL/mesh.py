@@ -442,18 +442,15 @@ class mesh:
         for e in self.gr.ends.values():
             evals.update(e.value)
 
+        for e, ev in zip(evals, evals.values()):
+            evals[e]=ev.reshape((len(ev), 1))
+
         invals=set()
 
         for h in self.gr.heads.values():
             for o in h.outs_to_inds:
                 invals.add(o)
 
-        grad={}
-
-        for inp in invals:
-            derivs=self.gr.get_derivs_direct(inp)
-
-            grad[inp]=sum(0.0 if derivs[e] is None else derivs[e].T@ev \
-                for e, ev in zip(evals, evals.values()))
+        grad=self.gr.get_derivs_reverse(value=evals)
 
         return evals, grad
