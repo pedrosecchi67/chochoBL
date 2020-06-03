@@ -564,8 +564,30 @@ def Rudvdx_residual(u, v, msh):
     r=np.hstack([rbase+4*i for i in range(ncells)])
     c=np.hstack([cbase+4*i for i in range(ncells)])
 
-    dat1=np.hstack([(c.Rudvdx@v[4*i:4*(i+1)]).T.reshape(16) for i, c in enumerate(msh.cells)])
+    dat1=np.hstack([(c.Rudvdx@v[4*i:4*(i+1)]).reshape(16) for i, c in enumerate(msh.cells)])
     dat2=np.hstack([(u[4*i:4*(i+1)]@c.Rudvdx).reshape(16) for i, c in enumerate(msh.cells)])
+
+    J1=sps.coo_matrix((dat1, (r, c)), shape=(4*ncells, 4*ncells))
+    J2=sps.coo_matrix((dat2, (r, c)), shape=(4*ncells, 4*ncells))
+
+    return J2@v, J1, J2
+
+def Rudvdz_residual(u, v, msh):
+    '''
+    Returns the value of udvdz residual and Jacobians in respect to u and v.
+    u and v outgh to be given in nodal notation
+    '''
+
+    ncells=msh.ncells
+
+    rbase=np.arange(4, dtype='int').repeat(4)
+    cbase=np.tile(np.arange(4, dtype='int'), 4)
+
+    r=np.hstack([rbase+4*i for i in range(ncells)])
+    c=np.hstack([cbase+4*i for i in range(ncells)])
+
+    dat1=np.hstack([(c.Rudvdz@v[4*i:4*(i+1)]).reshape(16) for i, c in enumerate(msh.cells)])
+    dat2=np.hstack([(u[4*i:4*(i+1)]@c.Rudvdz).reshape(16) for i, c in enumerate(msh.cells)])
 
     J1=sps.coo_matrix((dat1, (r, c)), shape=(4*ncells, 4*ncells))
     J2=sps.coo_matrix((dat2, (r, c)), shape=(4*ncells, 4*ncells))

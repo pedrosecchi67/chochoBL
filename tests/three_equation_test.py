@@ -49,7 +49,7 @@ def _get_test_mesh():
 
     return msh
 
-def _std_mesh_fulldata(perturbations={}):
+def std_mesh_fulldata(perturbations={}):
     msh=_get_test_mesh()
 
     vels=np.array(
@@ -99,11 +99,11 @@ def _perturbations_from_mesh(msh, factor=1e-7):
     }
 
 def _findiff_testprops(props=[], ends=[], tol=1e-3, min_div=1e-14):
-    msh1=_std_mesh_fulldata()
+    msh1=std_mesh_fulldata()
 
     pert=_perturbations_from_mesh(msh1)
 
-    msh2=_std_mesh_fulldata(pert)
+    msh2=std_mesh_fulldata(pert)
 
     msh1.gr.calculate(ends)
     msh2.gr.calculate(ends)
