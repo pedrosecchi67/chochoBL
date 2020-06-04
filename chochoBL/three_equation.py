@@ -564,30 +564,30 @@ def tau_innode(Cf_1, Cf_2, u, w, qe, rho, passive):
     Cf_1_c=distJ@Cf_1
     Cf_2_c=distJ@Cf_2
 
-    rhoq_c=rho_c*qe_c/2
+    rhoq_c=rho_c*qe_c
 
     rhoqu_c=rhoq_c*u
     rhoqw_c=rhoq_c*w
 
-    tau_x=rhoqu_c*Cf_1_c+rhoqw_c*Cf_2_c
-    tau_z=rhoqu_c*Cf_2_c-rhoqw_c*Cf_1_c
+    tau_x=(rhoqu_c*Cf_1_c+rhoqw_c*Cf_2_c)/2
+    tau_z=(rhoqu_c*Cf_2_c-rhoqw_c*Cf_1_c)/2
 
     value={'tau_x':tau_x, 'tau_z':tau_z}
 
     Jac={
         'tau_x':{
-            'Cf':diag_cell_Jacobian(rhoqu_c, indexing),
-            'Cf_2':diag_cell_Jacobian(rhoqw_c, indexing),
-            'u':rhoq_c*Cf_1_c,
-            'w':rhoq_c*Cf_2_c,
+            'Cf':diag_cell_Jacobian(rhoqu_c/2, indexing),
+            'Cf_2':diag_cell_Jacobian(rhoqw_c/2, indexing),
+            'u':rhoq_c*Cf_1_c/2,
+            'w':rhoq_c*Cf_2_c/2,
             'qe':diag_cell_Jacobian(rho_c*(u*Cf_1_c+w*Cf_2_c)/2, indexing),
             'rho':diag_cell_Jacobian(tau_x/rho_c, indexing)
         },
         'tau_z':{
-            'Cf':diag_cell_Jacobian(-rhoqw_c, indexing),
-            'Cf_2':diag_cell_Jacobian(rhoqu_c, indexing),
-            'u':rhoq_c*Cf_2_c,
-            'w':-rhoq_c*Cf_1_c,
+            'Cf':diag_cell_Jacobian(-rhoqw_c/2, indexing),
+            'Cf_2':diag_cell_Jacobian(rhoqu_c/2, indexing),
+            'u':rhoq_c*Cf_2_c/2,
+            'w':-rhoq_c*Cf_1_c/2,
             'qe':diag_cell_Jacobian(rho_c*(u*Cf_2_c-w*Cf_1_c)/2, indexing),
             'rho':diag_cell_Jacobian(tau_z/rho_c, indexing)
         }

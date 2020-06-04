@@ -424,3 +424,73 @@ def test_sigma_N():
 
     assert _arr_compare(SN_read, SN_expected), "sigma_N calculation failed"
     assert _arr_compare(dS_dN_read, dS_dN_expected), "sigma_N Jacobian calculation failed"
+
+def test_quad_mesh():
+    posits=np.array(
+        [
+            [0.0, 0.0, 0.0],
+            [1.0, 0.0, 0.0],
+            [1.0, 1.0, 0.0],
+            [0.0, 1.0, 0.0]
+        ]
+    )
+
+    normals=np.zeros_like(posits)
+    normals[:, 2]=1.0
+
+    qes=np.array(
+        [1.0, 3.0, 1.0, 2.0]
+    )
+
+    rho=defatm.rho
+    mu=defatm.mu
+    a=defatm.v_sonic
+
+    Hs=np.array(
+        [2.5, 3.0, 3.0, 2.7]
+    )
+
+    thetas=np.array(
+        [1e-3, 2e-3, 1e-3, 3e-3]
+    )
+
+    betas=np.zeros_like(thetas)
+
+    deltastars=Hs*thetas
+
+    msh=mesh()
+
+    for i in range(4):
+        msh.add_node(posits[i, :])
+
+    msh.add_cell([0, 1, 2, 3])
+
+    msh.compose(normals)
+    msh.graph_init()
+
+    msh.set_values({'q':{'qx':qes, 'qy':np.zeros_like(qes), 'qz':np.zeros_like(qes)}, \
+        'n':{'n':np.zeros_like(thetas)}, 'th11':{'th11':thetas}, 'N':{'N':np.zeros_like(thetas)}, \
+            'H':{'H':Hs}, 'beta':{'beta':betas}})
+
+    value, grad=msh.calculate_graph()
+
+    J=rho*qes**2*thetas
+
+    M=rho*qes*deltastars
+
+    Reth=thetas*qes*rho/mu
+
+    Mes=qes/a
+
+    Hk=(Hs-0.290*Mes**2)/(1.0+0.113*Mes**2)
+
+    Cf=2*(-0.067+0.01977*(7.4-Hk)**2/(Hk-1.0))/Reth
+    tau=Cf*qes**2*rho/2
+
+    c=msh.cells[0]
+
+    org=c.indset
+
+    R=c.Rdvdx@J[org]+M[org]@c.Rudvdx@qes[org]-c.Rv@tau[org]
+
+    assert _arr_compare(R, msh.gr.get_value('Rmomx')[0], tol=1e-2, relative=R)

@@ -95,7 +95,7 @@ def test_laminar_flat_plate():
     for i in range(10000):
         j+=1
 
-        if j%1000==0 or j==1:
+        if j%500==0 or j==1:
             plt.scatter(posaux[:, 0], vals['th11']['th11'], label='Numeric')
             plt.scatter(posaux[:, 0], th11_ideal, label='Ideal')
             plt.ylim((0.0, 0.005))
@@ -107,7 +107,7 @@ def test_laminar_flat_plate():
 
         for n in vals:
             for p in vals[n]:
-                vals[n][p]-=1e-1*grad[p]
+                vals[n][p]-=(1e-2 if j<100 else 1e-1)*grad[p]
 
         msh.set_values(vals)
 
