@@ -82,15 +82,15 @@ def test_laminar_flat_plate():
 
     print(lg.norm(value['Rmomx']), lg.norm(grad['th11']))
 
-    for i in range(100):
+    for i in range(1000):
         for n in vals:
             for p in vals[n]:
-                vals[n][p]-=0.1*grad[p]
+                vals[n][p]-=0.2*grad[p]
 
         msh.set_values(vals)
 
         value, grad=msh.calculate_graph()
 
-        print(lg.norm(value['Rmomx']), lg.norm(grad['th11']))
+        print(sum([v@v for v in value.values()]), lg.norm(grad['th11']))
 
 test_laminar_flat_plate()
