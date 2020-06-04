@@ -6,8 +6,8 @@ import time as tm
 import pytest
 
 def test_laminar_flat_plate():
-    nm=100
-    nn=50
+    nm=5
+    nn=2
     L=1.0
 
     Uinf=1.0
@@ -18,6 +18,8 @@ def test_laminar_flat_plate():
     posits=np.zeros((nm, nn, 3))
     posaux=np.zeros((nm*nn, 3))
 
+    vels=np.zeros((nm*nn, 3))
+
     n=0
     for i in range(nm):
         for j in range(nn):
@@ -26,23 +28,23 @@ def test_laminar_flat_plate():
 
             posaux[n, 0]=xs[i]
             posaux[n, 1]=ys[j]
+
+            vels[n, 0]=Uinf*(xs[i]-0.5*L)
+
             n+=1
     
     mu=defatm.mu
     rho0=defatm.rho
 
-    th11=0.665*np.sqrt((mu*(posaux[:, 0]+1e-2))/(rho0*Uinf))
-    H=2.5864*np.ones_like(th11)
+    th11=0.29235*np.sqrt(mu/(rho0*Uinf))*np.ones(nm*nn)
+    H=2.21622*np.ones_like(th11)
     N=np.zeros_like(th11)
     nflow=np.zeros_like(th11)
-    
-    vels=np.zeros((nm*nn, 3))
-    vels[:, 0]=Uinf
 
     normals=np.zeros((nm*nn, 3))
     normals[:, 2]=1.0
     
-    msh=mesh()
+    msh=mesh(Uinf=Uinf)
 
     inds=np.zeros((nm, nn), dtype='int')
 
@@ -80,5 +82,7 @@ def test_laminar_flat_plate():
     t=tm.time()-t
 
     print(t)
+
+    print(value, grad)
 
 test_laminar_flat_plate()

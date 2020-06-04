@@ -453,4 +453,4 @@ class mesh:
 
         grad=self.gr.get_derivs_reverse(value=evals)
 
-        return evals, grad
+        return {e:ev.reshape(np.size(ev)) for e, ev in zip(evals, evals.values())}, {g:gv.reshape(np.size(gv)) for g, gv in zip(grad, grad.values())}
