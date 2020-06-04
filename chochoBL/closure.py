@@ -180,10 +180,10 @@ def dHprime_laminar_dHk(Me, Hk):
     return Me**2*(-0.064/(Hk-2.5)**2)
 
 def _Delta_attached(Hk):
-    return 0.0001025*(4.0-Hk)**5.5+0.1035
+    return 0.001025*(4.0-Hk)**5.5+0.1035
 
 def _dDelta_attached_dHk(Hk):
-    return -5.6375e-4*(4.0-Hk)**4.5
+    return -5.6375e-3*(4.0-Hk)**4.5
 
 def _Delta_detached(Hk):
     return (0.207-0.003*(Hk-4.0)**2/(1.0+0.02*(Hk-4.0)**2))/2.0

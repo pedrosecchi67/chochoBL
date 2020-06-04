@@ -494,3 +494,9 @@ def test_quad_mesh():
     R=c.Rdvdx@J[org]+M[org]@c.Rudvdx@qes[org]-c.Rv@tau[org]
 
     assert _arr_compare(R, msh.gr.get_value('Rmomx')[0], tol=1e-2, relative=R)
+
+    Hstar=1.515+0.076*(4.0-Hk)**2/Hk
+
+    CD=(0.001025*(4.0-Hk)**5.5+0.1035)*Hstar/Reth
+
+    assert _arr_compare(CD, msh.gr.get_value('Cd')[0], tol=1e-2, relative=CD)
