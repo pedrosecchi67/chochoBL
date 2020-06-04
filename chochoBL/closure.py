@@ -161,7 +161,7 @@ def Hprime_laminar(Me, Hk):
     -independent shape parameter Hk
     '''
 
-    return Me**2*(0.251+0.064/(Hk-2.5))
+    return Me**2*(0.251+0.064/(Hk-0.8))
 
 def dHprime_laminar_dMe(Me, Hk):
     '''
@@ -169,7 +169,7 @@ def dHprime_laminar_dMe(Me, Hk):
     density-independent shape parameter Hk, in relationship to Me
     '''
 
-    return 2*Me*(0.251+0.064/(Hk-2.5))
+    return 2*Me*(0.251+0.064/(Hk-0.8))
 
 def dHprime_laminar_dHk(Me, Hk):
     '''
@@ -177,7 +177,7 @@ def dHprime_laminar_dHk(Me, Hk):
     density-independent shape parameter Hk, in relationship to Hk
     '''
 
-    return Me**2*(-0.064/(Hk-2.5)**2)
+    return Me**2*(-0.064/(Hk-0.8)**2)
 
 def _Delta_attached(Hk):
     return 0.001025*(4.0-Hk)**5.5+0.1035

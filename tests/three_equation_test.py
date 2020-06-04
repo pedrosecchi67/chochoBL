@@ -499,4 +499,18 @@ def test_quad_mesh():
 
     CD=(0.001025*(4.0-Hk)**5.5+0.1035)*Hstar/Reth
 
-    assert _arr_compare(CD, msh.gr.get_value('Cd')[0], tol=1e-2, relative=CD)
+    D=rho*qes**3*CD
+
+    Hprime=(0.064/(Hk-0.8)+0.251)*Mes**2
+
+    deltaprime=Hprime*thetas
+
+    rhoQ=deltaprime*rho*qes
+
+    thetastar=Hstar*thetas
+
+    E=thetastar*qes**3*rho
+
+    R=c.Rdvdx@E[org]+rhoQ[org]@c.Rudvdx@qes[org]**2-2*c.Rv@D[org]
+
+    assert _arr_compare(R, msh.gr.get_value('Ren')[0], tol=1e-2, relative=R)
