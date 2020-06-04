@@ -427,6 +427,8 @@ class mesh:
         Set values (as a dictionary of dictionaries) to head nodes. First key is node name, second is greatness
         '''
 
+        self.gr.clean_values()
+
         for hname, d in zip(vals, vals.values()):
             self.gr.heads[hname].set_value(d)
     

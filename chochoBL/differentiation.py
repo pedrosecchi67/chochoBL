@@ -353,6 +353,19 @@ class graph:
 
         for n in self.nodes.values():
             n.clean_summoning()
+    
+    def clean_values(self):
+        '''
+        Clean calculation results of all nodes
+        '''
+
+        self.clean_summoning()
+
+        for n in self.nodes.values():
+            n.value=None
+            
+            if hasattr(n, 'Jac'):
+                n.Jac=None
         
     def set_seed_reverse(self, prop=None, value=None, ends=None):
         '''

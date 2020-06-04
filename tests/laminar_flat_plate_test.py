@@ -1,18 +1,19 @@
 from chochoBL import *
 
 import numpy as np
+import numpy.linalg as lg
 import time as tm
 
 import pytest
 
 def test_laminar_flat_plate():
-    nm=5
+    nm=20
     nn=2
     L=1.0
 
     Uinf=1.0
 
-    xs=np.sin(np.pi*np.linspace(0.0, 1.0, nm)/2)**2*L
+    xs=np.linspace(-L/2, L/2, nm)
     ys=np.linspace(0.0, 1.0, nn)
 
     posits=np.zeros((nm, nn, 3))
@@ -29,7 +30,7 @@ def test_laminar_flat_plate():
             posaux[n, 0]=xs[i]
             posaux[n, 1]=ys[j]
 
-            vels[n, 0]=Uinf*(xs[i]-0.5*L)
+            vels[n, 0]=Uinf*xs[i]
 
             n+=1
     
@@ -62,9 +63,9 @@ def test_laminar_flat_plate():
     
     msh.compose(normals)
 
-    msh.graph_init()
-
     t=tm.time()
+
+    msh.graph_init()
 
     vals={
         'q':{'qx':vels[:, 0], 'qy':vels[:, 1], 'qz':vels[:, 2]}, 
@@ -79,10 +80,17 @@ def test_laminar_flat_plate():
 
     value, grad=msh.calculate_graph()
 
-    t=tm.time()-t
+    print(lg.norm(value['Rmomx']), lg.norm(grad['th11']))
 
-    print(t)
+    for i in range(100):
+        for n in vals:
+            for p in vals[n]:
+                vals[n][p]-=0.1*grad[p]
 
-    print(value, grad)
+        msh.set_values(vals)
+
+        value, grad=msh.calculate_graph()
+
+        print(lg.norm(value['Rmomx']), lg.norm(grad['th11']))
 
 test_laminar_flat_plate()
