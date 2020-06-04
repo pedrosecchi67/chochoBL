@@ -432,7 +432,7 @@ class mesh:
         for hname, d in zip(vals, vals.values()):
             self.gr.heads[hname].set_value(d)
     
-    def calculate_graph(self):
+    def calculate_graph(self, weights=None):
         '''
         Calculate end nodes for the graph and produce the gradients of the total residual
         '''
@@ -442,7 +442,7 @@ class mesh:
         evals={}
 
         for e in self.gr.ends.values():
-            evals.update(e.value)
+            evals.update({p:e.value[p]*(1.0 if (weights is None or not p in weights) else weights[p]) for p in e.value})
 
         for e, ev in zip(evals, evals.values()):
             evals[e]=ev.reshape((len(ev), 1))

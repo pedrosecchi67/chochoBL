@@ -30,14 +30,14 @@ def test_Hk():
 
     dydx_num=(Hk(H+pH, Me)-Hk(H, Me))/pH
 
-    dydx_an=np.diag(dHk_dH(H, Me).todense())
+    dydx_an=dHk_dH(H, Me)
 
     assert _arr_compare(dydx_an, dydx_num, tol=1e-3, \
         relative=dydx_an)
 
     dydx_num=(Hk(H, Me+pMe)-Hk(H, Me))/pMe
 
-    dydx_an=np.diag(dHk_dMe(H, Me).todense())
+    dydx_an=dHk_dMe(H, Me)
 
     assert _arr_compare(dydx_an, dydx_num, tol=1e-3, \
         relative=dydx_an)

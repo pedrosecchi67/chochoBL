@@ -4,14 +4,16 @@ import numpy as np
 import numpy.linalg as lg
 import time as tm
 
+import matplotlib.pyplot as plt
+
 import pytest
 
 def test_laminar_flat_plate():
-    nm=20
+    nm=10
     nn=2
     L=1.0
 
-    Uinf=1.0
+    Uinf=0.5
 
     xs=np.linspace(-L/2, L/2, nm)
     ys=np.linspace(0.0, 1.0, nn)
@@ -33,11 +35,12 @@ def test_laminar_flat_plate():
             vels[n, 0]=Uinf*xs[i]
 
             n+=1
-    
+
     mu=defatm.mu
     rho0=defatm.rho
 
-    th11=0.29235*np.sqrt(mu/(rho0*Uinf))*np.ones(nm*nn)
+    th11=0.664*np.sqrt(mu*np.abs(posaux[:, 0])/(rho0*Uinf))*np.ones(nm*nn)
+    th11_ideal=0.29235*np.sqrt(mu/(rho0*Uinf))*np.ones(nm*nn)
     H=2.21622*np.ones_like(th11)
     N=np.zeros_like(th11)
     nflow=np.zeros_like(th11)
@@ -78,19 +81,33 @@ def test_laminar_flat_plate():
 
     msh.set_values(vals)
 
-    value, grad=msh.calculate_graph()
+    weights={'Rmomx':1e3}
+
+    value, grad=msh.calculate_graph(weights)
 
     print(lg.norm(value['Rmomx']), lg.norm(grad['th11']))
 
+    immovable=['qx', 'qy', 'qz']
+
+    j=0
+
     for i in range(1000):
+        j+=1
+
+        if j%200==0 or j==1:
+            plt.scatter(posaux[:, 0], vals['th11']['th11'])
+            plt.scatter(posaux[:, 0], th11_ideal)
+            plt.ylim((0.0, 0.0025))
+            plt.show()
+
         for n in vals:
             for p in vals[n]:
-                vals[n][p]-=0.2*grad[p]
+                vals[n][p]-=1e-3*grad[p]
 
         msh.set_values(vals)
 
-        value, grad=msh.calculate_graph()
+        value, grad=msh.calculate_graph(weights)
 
-        print(sum([v@v for v in value.values()]), lg.norm(grad['th11']))
+        print(sum([v@v for v, k in zip(value.values(), value) if not k in immovable]), lg.norm(grad['th11']))
 
 test_laminar_flat_plate()
