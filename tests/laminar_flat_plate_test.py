@@ -43,6 +43,7 @@ def test_laminar_flat_plate():
     th11_ideal=0.29235*np.sqrt(mu/(rho0*Uinf))*np.ones(nm*nn)
     th11=np.copy(th11_ideal)
     H=2.21622*np.ones_like(th11)
+    Reth_ideal=th11_ideal*np.abs(vels[:, 0])*defatm.rho/defatm.mu
     N=np.zeros_like(th11)
     nflow=np.zeros_like(th11)
 
@@ -82,7 +83,7 @@ def test_laminar_flat_plate():
 
     msh.set_values(vals)
 
-    weights=None # {'Rmomx':1e2}
+    weights={'Rmomx':1e4}
 
     value, grad=msh.calculate_graph(weights)
 
@@ -96,23 +97,23 @@ def test_laminar_flat_plate():
         j+=1
 
         if j%500==0 or j==1:
-            plt.scatter(posaux[:, 0], vals['th11']['th11'], label='Numeric')
-            plt.scatter(posaux[:, 0], th11_ideal, label='Ideal')
+            plt.scatter(posaux[:, 0], defatm.rho*vals['q']['qx']**2*vals['th11']['th11'], label='Numeric')
+            plt.plot(posaux[:, 0], defatm.rho*th11_ideal*vals['q']['qx']**2, label='Ideal')
             plt.ylim((0.0, 0.005))
             plt.grid()
             plt.xlabel('x')
-            plt.ylabel('$\Theta_{11}$')
+            plt.ylabel('$J_{xx}$')
             plt.legend()
             plt.show()
+        
+        print(sum([v@v for v, k in zip(value.values(), value) if not k in immovable]), lg.norm(grad['th11']), np.mean(vals['H']['H']))
 
         for n in vals:
             for p in vals[n]:
-                vals[n][p]-=(1e-2 if j<100 else 1e-1)*grad[p]
+                vals[n][p]-=(1e-5 if j<100 else 1e-4)*grad[p]
 
         msh.set_values(vals)
 
         value, grad=msh.calculate_graph(weights)
 
-        print(sum([v@v for v, k in zip(value.values(), value) if not k in immovable]), lg.norm(grad['th11']), np.mean(vals['H']['H']))
-
-test_laminar_flat_plate()
+# test_laminar_flat_plate()
