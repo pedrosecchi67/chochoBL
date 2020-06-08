@@ -83,7 +83,7 @@ def test_laminar_flat_plate():
 
     msh.set_values(vals)
 
-    weights={'Rmomx':1e4}
+    weights={}
 
     value, grad=msh.calculate_graph(weights)
 
@@ -97,8 +97,8 @@ def test_laminar_flat_plate():
         j+=1
 
         if j%500==0 or j==1:
-            plt.scatter(posaux[:, 0], defatm.rho*vals['q']['qx']**2*vals['th11']['th11'], label='Numeric')
-            plt.plot(posaux[:, 0], defatm.rho*th11_ideal*vals['q']['qx']**2, label='Ideal')
+            plt.scatter(posaux[:, 0], vals['th11']['th11'], label='Numeric') # defatm.rho*vals['q']['qx']**2*
+            plt.plot(posaux[:, 0], th11_ideal, label='Ideal') # *vals['q']['qx']**2*defatm.rho
             plt.ylim((0.0, 0.005))
             plt.grid()
             plt.xlabel('x')
@@ -110,10 +110,10 @@ def test_laminar_flat_plate():
 
         for n in vals:
             for p in vals[n]:
-                vals[n][p]-=(1e-5 if j<100 else 1e-4)*grad[p]
+                vals[n][p]-=(2e-1 if j<1000 else 1e-1)*grad[p]
 
         msh.set_values(vals)
 
         value, grad=msh.calculate_graph(weights)
 
-# test_laminar_flat_plate()
+test_laminar_flat_plate()

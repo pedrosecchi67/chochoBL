@@ -758,17 +758,20 @@ def Ren_innode(Ex, Ez, rhoQx, rhoQz, qe, D, passive):
 
     dR_dD=-2*msh.v_res_Jac
 
+    dR_dEx=msh.dvdx_res_Jac
+    dR_dEz=msh.dvdz_res_Jac
+
     value={
-        'Ren':msh.dvdx_res_Jac@Ex+msh.dvdz_res_Jac@Ez+RQx+RQz+dR_dD@D
+        'Ren':dR_dEx@Ex+dR_dEz@Ez+RQx+RQz+dR_dD@D
     }
 
     Jac={
         'Ren':{
-            'Ex':msh.dvdx_res_Jac,
-            'Ez':msh.dvdz_res_Jac,
+            'Ex':dR_dEx,
+            'Ez':dR_dEz,
             'rhoQx':dRQx_dQ,
             'rhoQz':dRQz_dQ,
-            'qe':2*(dRQx_dqe2+dRQz_dqe2).multiply(qe_c)@distJ,
+            'qe':(2*(dRQx_dqe2+dRQz_dqe2).multiply(qe_c)@distJ),
             'D':dR_dD
         }
     }

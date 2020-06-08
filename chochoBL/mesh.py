@@ -439,10 +439,15 @@ class mesh:
 
         self.gr.calculate()
 
+        if not 1 in self.dcell_dnode:
+            J=self.dcell_dnode_compose(narg=1)
+        else:
+            J=self.dcell_dnode[1]
+
         evals={}
 
         for e in self.gr.ends.values():
-            evals.update({p:e.value[p]*(1.0 if (weights is None or not p in weights) else weights[p]) for p in e.value})
+            evals.update({p:(e.value[p]*(1.0 if (weights is None or not p in weights) else weights[p])) for p in e.value})
 
         for e, ev in zip(evals, evals.values()):
             evals[e]=ev.reshape((len(ev), 1))
@@ -453,6 +458,6 @@ class mesh:
             for o in h.outs_to_inds:
                 invals.add(o)
 
-        grad=self.gr.get_derivs_reverse(value=evals)
+        grad=self.gr.get_derivs_reverse(value={e:ev for e, ev in zip(evals.keys(), evals.values())})
 
         return {e:ev.reshape(np.size(ev)) for e, ev in zip(evals, evals.values())}, {g:gv.reshape(np.size(gv)) for g, gv in zip(grad, grad.values())}
