@@ -43,12 +43,26 @@ def test_dx_residual():
     Rmat=dvdx_residual_matrix(xs, ys)
     assert np.abs((Rmat[1, :]+Rmat[2, :])@v-1.0/2)<1e-5, "dv_dx residual failed"
 
+def test_dx_residual2():
+    xs=np.array([0.0, 1.0, 1.0, 0.0])
+    ys=np.array([0.0, 0.0, 1.0, 1.0])
+    v=np.array([0.0, 1.0, 1.0, 0.0])
+    Rmat=dvdx_residual_matrix(xs, ys)
+    assert np.abs((Rmat[0, :]+Rmat[3, :])@v-1.0/2)<1e-5, "dv_dx residual failed"
+
 def test_dy_residual():
     xs=np.array([0.0, 2.0, 2.0, 0.0])
     ys=np.array([1.0, 1.0, 2.0, 2.0])
     v=np.array([0.0, 0.0, 1.0, 1.0])
     Rmat=dvdy_residual_matrix(xs, ys)
     assert np.abs((Rmat[2, :]+Rmat[3, :])@v-1.0)<1e-5, "dv_dy residual failed"
+
+def test_dy_residual2():
+    xs=np.array([0.0, 2.0, 2.0, 0.0])
+    ys=np.array([1.0, 1.0, 2.0, 2.0])
+    v=np.array([0.0, 0.0, 1.0, 1.0])
+    Rmat=dvdy_residual_matrix(xs, ys)
+    assert np.abs((Rmat[1, :]+Rmat[2, :])@v-1.0)<1e-5, "dv_dy residual failed"
 
 def test_udvdx():
     xs=np.array([0.0, 1.0, 1.0, 0.0])
@@ -58,6 +72,22 @@ def test_udvdx():
     Rmat=udvdx_residual_matrix(xs, ys)
     assert np.abs(u@(Rmat[1, :]+Rmat[2, :])@v-1.0/3)<1e-5, "udv_dx residual failed"
 
+def test_udvdx2():
+    xs=np.array([0.0, 1.0, 1.0, 0.0])
+    ys=np.array([0.0, 0.0, 1.0, 1.0])
+    u=np.array([0.0, 0.0, 1.0, 1.0])
+    v=np.array([0.0, 1.0, 1.0, 0.0])
+    Rmat=udvdx_residual_matrix(xs, ys)
+    assert np.abs(u@(Rmat[1, :]+Rmat[2, :])@v-1.0/4)<1e-5, "udv_dx residual failed"
+
+def test_udvdx3():
+    xs=np.array([0.0, 1.0, 1.0, 0.0])
+    ys=np.array([0.0, 0.0, 1.0, 1.0])
+    u=np.array([0.0, 0.0, 1.0, 1.0])
+    v=np.array([0.0, 1.0, 1.0, 0.0])
+    Rmat=udvdx_residual_matrix(xs, ys)
+    assert np.abs(u@(Rmat[2, :]+Rmat[3, :])@v-1.0/3)<1e-5, "udv_dx residual failed"
+
 def test_udvdy():
     xs=np.array([0.0, 2.0, 2.0, 0.0])
     ys=np.array([1.0, 1.0, 2.0, 2.0])
@@ -65,6 +95,14 @@ def test_udvdy():
     v=np.array([0.0, 0.0, 1.0, 1.0])
     Rmat=udvdy_residual_matrix(xs, ys)
     assert np.abs(u@(Rmat[2, :]+Rmat[3, :])@v-1.0/2)<1e-5, "udv_dx residual failed"
+
+def test_udvdy2():
+    xs=np.array([0.0, 2.0, 2.0, 0.0])
+    ys=np.array([1.0, 1.0, 2.0, 2.0])
+    u=np.array([0.0, 1.0, 1.0, 0.0])
+    v=np.array([0.0, 1.0, 1.0, 0.0])
+    Rmat=udvdy_residual_matrix(xs, ys)
+    assert np.abs(u@(Rmat[2, :]+Rmat[3, :])@v)<1e-5, "udv_dx residual failed"
 
 def test_Rv_mesh():
     # Test residual definition across mesh cells for a large mesh

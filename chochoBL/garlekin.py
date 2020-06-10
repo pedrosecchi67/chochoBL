@@ -195,8 +195,6 @@ def udvdx_residual_matrix(xs, ys):
 
     dy_dksi=_Bp_dksi@py
     dy_deta=_Bp_deta@py
-    
-    resmat=np.zeros((4, 4, 4))
 
     A=_Mbp.T@_Bp_Smat
     B=_Bp_product_matrix@(dy_deta@_Bp_product_matrix@_Bp_dksi-dy_dksi@_Bp_product_matrix@_Bp_deta)@_Mbp
@@ -224,7 +222,7 @@ def udvdy_residual_matrix(xs, ys):
 
     return resmat
 
-def dvdx_residual_matrix(xs, ys):
+def dvdx_residual_matrix(xs, ys, echo=True):
     '''
     Returns matrix A such that, being v a property,
     {r}=[A]{v}, r_i=int(int(N_i*dv_dx))
@@ -236,7 +234,11 @@ def dvdx_residual_matrix(xs, ys):
     dy_dksi=_Bp_dksi@py
     dy_deta=_Bp_deta@py
 
-    return (_Mbp.T@_Bp_product_matrix@(dy_deta@_Bp_product_matrix@_Bp_dksi-dy_dksi@_Bp_product_matrix@_Bp_deta)@_Mbp).T@_Bp_integral_matrix
+    B=_Bp_product_matrix@((dy_deta@_Bp_product_matrix)@_Bp_dksi-(dy_dksi@_Bp_product_matrix)@_Bp_deta)
+
+    A=np.array([[_Bp_integral_matrix@(_Mbp[:, i]@B@_Mbp[:, j]) for j in range(4)] for i in range(4)])
+
+    return A
 
 def dvdy_residual_matrix(xs, ys):
     '''
@@ -250,7 +252,11 @@ def dvdy_residual_matrix(xs, ys):
     dx_dksi=_Bp_dksi@px
     dx_deta=_Bp_deta@px
 
-    return (_Mbp.T@_Bp_product_matrix@(-dx_deta@_Bp_product_matrix@_Bp_dksi+dx_dksi@_Bp_product_matrix@_Bp_deta)@_Mbp).T@_Bp_integral_matrix
+    B=_Bp_product_matrix@((-dx_deta@_Bp_product_matrix@_Bp_dksi+dx_dksi@_Bp_product_matrix@_Bp_deta))
+
+    A=np.array([[_Bp_integral_matrix@(_Mbp[:, i]@B@_Mbp[:, j]) for j in range(4)] for i in range(4)])
+
+    return A
 
 def v_residual_matrix(xs, ys):
     '''
