@@ -2,118 +2,131 @@ from chochoBL import *
 
 import numpy as np
 import numpy.linalg as lg
+import scipy.optimize as sopt
+
 import time as tm
 
 import matplotlib.pyplot as plt
 
 import pytest
 
+# dimensions and definitions
+nm=40
+nn=2
+nnodes=nm*nn
+
+Lx=1.0
+Ly=1.0
+
+rho=defatm.rho
+mu=defatm.mu
+
+Uinf=2.0
+
+Tau=0.36034
+theta_over_dfs=0.29235
+H_ideal=2.21622
+
 def test_laminar_flat_plate():
-    nm=20
-    nn=2
-    L=2.0
+    '''
+    Define a laminar flat plate subject to normal flow (FS self-similar flow with alpha=1.0)
+    and compare its total (integrated over area) residual to analytic results
+    '''
 
-    Uinf=1.0
+    soln_num=sopt.root(_numeric, x0=0.9)
+    soln_an=sopt.root(_analytic, x0=0.9)
 
-    xs=np.linspace(-L/2, L/2, nm)
-    ys=np.linspace(0.0, 1.0, nn)
+    assert np.abs(soln_num.x-soln_an.x)<1e-3*np.abs(soln_an.x)
 
-    posits=np.zeros((nm, nn, 3))
-    posaux=np.zeros((nm*nn, 3))
+def _numeric(factor):
+    xs=np.linspace(Lx, 0.0, nm, endpoint=False)
+    xs=np.flip(xs)
+    ys=np.linspace(-Ly/2, Ly/2, nn)
 
-    vels=np.zeros((nm*nn, 3))
+    yy, xx=np.meshgrid(ys, xs)
 
-    n=0
-    for i in range(nm):
-        for j in range(nn):
-            posits[i, j, 0]=xs[i]
-            posits[i, j, 1]=ys[j]
-
-            posaux[n, 0]=xs[i]
-            posaux[n, 1]=ys[j]
-
-            vels[n, 0]=Uinf*xs[i]
-
-            n+=1
-
-    mu=defatm.mu
-    rho0=defatm.rho
-
-    # th11=0.664*np.sqrt(mu*np.abs(posaux[:, 0])/(rho0*Uinf))*np.ones(nm*nn)
-    th11_ideal=0.29235*np.sqrt(mu/(rho0*Uinf))*np.ones(nm*nn)
-    th11=np.copy(th11_ideal)
-    H=2.21622*np.ones_like(th11)
-    Reth_ideal=th11_ideal*np.abs(vels[:, 0])*defatm.rho/defatm.mu
-    N=np.zeros_like(th11)
-    nflow=np.zeros_like(th11)
-
-    normals=np.zeros((nm*nn, 3))
-    normals[:, 2]=1.0
-    
     msh=mesh(Uinf=Uinf)
 
-    inds=np.zeros((nm, nn), dtype='int')
-
     n=0
-    for i in range(nm):
-        for j in range(nn):
-            msh.add_node(posits[i, j, :])
 
-            inds[i, j]=n
+    xaux=[]
+
+    indmat=np.zeros((nm, nn), dtype='int')
+
+    for i, x in enumerate(xs):
+        for j, y in enumerate(ys):
+            msh.add_node([x, y, 0.0])
+            xaux.append(x)
+
+            indmat[i, j]=n
             n+=1
 
     for i in range(nm-1):
         for j in range(nn-1):
-            msh.add_cell({inds[i, j], inds[i, j+1], inds[i+1, j+1], inds[i+1, j]})
-    
-    msh.compose(normals)
+            msh.add_cell({indmat[i, j], indmat[i+1, j], indmat[i+1, j+1], indmat[i, j+1]})
 
-    t=tm.time()
+    normals=np.zeros((nnodes, 3))
+    normals[:, 2]=1.0
+
+    xaux=np.array(xaux)
+
+    msh.compose(normals)
 
     msh.graph_init()
 
+    qx=Uinf*xaux
+
+    delta_FS=np.sqrt(mu*xaux/(rho*qx))
+
+    th=delta_FS*theta_over_dfs*factor
+    H=np.ones_like(xaux)*H_ideal
+
     vals={
-        'q':{'qx':vels[:, 0], 'qy':vels[:, 1], 'qz':vels[:, 2]}, 
-        'th11':{'th11':th11},
+        'q':{'qx':qx, 'qy':np.zeros_like(qx), 'qz':np.zeros_like(qx)},
+        'th11':{'th11':th},
         'H':{'H':H},
-        'N':{'N':N},
-        'beta':{'beta':np.zeros(nm*nn)},
-        'n':{'n':nflow}
+        'n':{'n':np.zeros_like(qx)},
+        'N':{'N':np.zeros_like(qx)},
+        'beta':{'beta':np.zeros_like(qx)}
     }
 
     msh.set_values(vals)
 
-    weights={}
+    msh.gr.calculate()
 
-    value, grad=msh.calculate_graph(weights)
+    numR=np.sum(msh.gr.get_value('Rmomx')[0])
 
-    print(lg.norm(value['Rmomx']), lg.norm(grad['th11']))
+    return numR
 
-    immovable=['qx', 'qy', 'qz']
+def _analytic(factor):
+    # analytic results
 
-    j=0
+    xs=np.linspace(Lx, 0.0, nm, endpoint=False)
+    xs=np.flip(xs)
+    ys=np.linspace(-Ly/2, Ly/2, nn)
 
-    for i in range(10000):
-        j+=1
+    yy, xx=np.meshgrid(ys, xs)
 
-        if j%500==0 or j==1:
-            plt.scatter(posaux[:, 0], vals['th11']['th11'], label='Numeric') # defatm.rho*vals['q']['qx']**2*
-            plt.plot(posaux[:, 0], th11_ideal, label='Ideal') # *vals['q']['qx']**2*defatm.rho
-            plt.ylim((0.0, 0.005))
-            plt.grid()
-            plt.xlabel('x')
-            plt.ylabel('$J_{xx}$')
-            plt.legend()
-            plt.show()
-        
-        print(sum([v@v for v, k in zip(value.values(), value) if not k in immovable]), lg.norm(grad['th11']), np.mean(vals['H']['H']))
+    qx=xx*Uinf
 
-        for n in vals:
-            for p in vals[n]:
-                vals[n][p]-=(2e-1 if j<1000 else 1e-1)*grad[p]
+    # to consider the coordinate system x axis direction inversion at the attachment line
 
-        msh.set_values(vals)
+    delta_FS=np.sqrt(mu*xx/(rho*qx))
 
-        value, grad=msh.calculate_graph(weights)
+    th=delta_FS*theta_over_dfs*factor
+    H=np.ones_like(xx)*H_ideal
 
-test_laminar_flat_plate()
+    deltastar=H*th
+
+    J=th*qx**2*rho
+    M=deltastar*rho*qx
+
+    dqx_dx=Uinf
+
+    tau=Tau*qx*mu/th
+
+    r=np.gradient(J, xs, axis=0)+M*dqx_dx-tau
+
+    Rtot=np.trapz(r[:, 0], x=xs)*Ly
+
+    return Rtot
