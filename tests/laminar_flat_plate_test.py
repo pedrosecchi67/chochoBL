@@ -33,7 +33,7 @@ def test_laminar_flat_plate():
     and compare its total (integrated over area) residual to analytic results
     '''
 
-    soln_num=sopt.root(_numeric, x0=0.9)
+    soln_num=sopt.root(_numeric, x0=1.1)
     soln_an=sopt.root(_analytic, x0=0.9)
 
     assert np.abs(soln_num.x-soln_an.x)<5e-2*np.abs(soln_an.x) # tolerating only up to 5% deviation from FS solution

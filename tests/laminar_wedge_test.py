@@ -9,131 +9,128 @@ import matplotlib.pyplot as plt
 
 import pytest
 
+# dimensions and definitions
+nm=40
+nn=2
+nnodes=nm*nn
+
+Lx=1.0
+Ly=1.0
+
+rho=defatm.rho
+mu=defatm.mu
+
+Uinf=2.0
+
+Tau=0.27639
+theta_over_dfs=0.55660
+H_ideal=2.42161
+
+alpha=0.1
+
 def test_laminar_wedge():
     '''
-    Testing Garlekin solution for an alpha=0.0 wedge Falkner-Skan solution
+    Define a laminar wedge subject to power-law flow (FS self-similar flow with alpha=0.1)
+    and compare its total (integrated over area) residual to analytic results
     '''
 
-    nm=20
-    nn=2
-    L=2.0
+    soln_num=sopt.root(_numeric, x0=1.1)
+    soln_an=sopt.root(_analytic, x0=0.9)
 
-    Uinf=1.0
+    print(soln_an, soln_num)
 
-    alpha=0.0
+    assert np.abs(soln_num.x-soln_an.x)<5e-2*np.abs(soln_an.x) # tolerating only up to 5% deviation from FS solution
 
-    xs=np.linspace(-L/2, L/2, nm)
-    ys=np.linspace(0.0, 1.0, nn)
+def _numeric(factor):
+    xs=np.linspace(Lx, 0.0, nm, endpoint=False)
+    xs=np.flip(xs)
+    ys=np.linspace(-Ly/2, Ly/2, nn)
 
-    posits=np.zeros((nm, nn, 3))
-    posaux=np.zeros((nm*nn, 3))
+    yy, xx=np.meshgrid(ys, xs)
 
-    vels=np.zeros((nm*nn, 3))
-
-    n=0
-    for i in range(nm):
-        for j in range(nn):
-            posits[i, j, 0]=xs[i]
-            posits[i, j, 1]=ys[j]
-
-            posaux[n, 0]=xs[i]
-            posaux[n, 1]=ys[j]
-
-            vels[n, 0]=Uinf*np.abs(xs[i])**alpha
-
-            n+=1
-
-    mu=defatm.mu
-    rho0=defatm.rho
-
-    # th11=0.664*np.sqrt(mu*np.abs(posaux[:, 0])/(rho0*Uinf))*np.ones(nm*nn)
-    th11_ideal=0.66421*np.sqrt(mu/(rho0*Uinf))*np.abs(posaux[:, 0])**(1.0-alpha)/2
-    th11=np.copy(th11_ideal)
-    H=2.59109*np.ones_like(th11)
-    Reth_ideal=th11_ideal*np.abs(vels[:, 0])*defatm.rho/defatm.mu
-    N=np.zeros_like(th11)
-    nflow=np.zeros_like(th11)
-
-    normals=np.zeros((nm*nn, 3))
-    normals[:, 2]=1.0
-    
     msh=mesh(Uinf=Uinf)
 
-    inds=np.zeros((nm, nn), dtype='int')
-
     n=0
-    for i in range(nm):
-        for j in range(nn):
-            msh.add_node(posits[i, j, :])
 
-            inds[i, j]=n
+    xaux=[]
+
+    indmat=np.zeros((nm, nn), dtype='int')
+
+    for i, x in enumerate(xs):
+        for j, y in enumerate(ys):
+            msh.add_node([x, y, 0.0])
+            xaux.append(x)
+
+            indmat[i, j]=n
             n+=1
 
     for i in range(nm-1):
         for j in range(nn-1):
-            msh.add_cell({inds[i, j], inds[i, j+1], inds[i+1, j+1], inds[i+1, j]})
-    
-    msh.compose(normals)
+            msh.add_cell({indmat[i, j], indmat[i+1, j], indmat[i+1, j+1], indmat[i, j+1]})
 
-    t=tm.time()
+    normals=np.zeros((nnodes, 3))
+    normals[:, 2]=1.0
+
+    xaux=np.array(xaux)
+
+    msh.compose(normals)
 
     msh.graph_init()
 
+    qx=Uinf*xaux**alpha
+
+    delta_FS=np.sqrt(mu*xaux/(rho*qx))
+
+    th=delta_FS*theta_over_dfs*factor
+    H=np.ones_like(xaux)*H_ideal
+
     vals={
-        'q':{'qx':vels[:, 0], 'qy':vels[:, 1], 'qz':vels[:, 2]}, 
-        'th11':{'th11':th11},
+        'q':{'qx':qx, 'qy':np.zeros_like(qx), 'qz':np.zeros_like(qx)},
+        'th11':{'th11':th},
         'H':{'H':H},
-        'N':{'N':N},
-        'beta':{'beta':np.zeros(nm*nn)},
-        'n':{'n':nflow}
+        'n':{'n':np.zeros_like(qx)},
+        'N':{'N':np.zeros_like(qx)},
+        'beta':{'beta':np.zeros_like(qx)}
     }
 
     msh.set_values(vals)
 
-    Wm=1
+    msh.gr.calculate()
 
-    weights={'Rmomx':Wm}
+    numR=np.sum(msh.gr.get_value('Rmomx')[0])
 
-    value, grad=msh.calculate_graph(weights)
+    return numR
 
-    print(lg.norm(value['Rmomx']), lg.norm(grad['th11']))
+def _analytic(factor):
+    # analytic results
 
-    immovable=['qx', 'qy', 'qz']
+    xs=np.linspace(Lx, 0.0, nm, endpoint=False)
+    xs=np.flip(xs)
+    ys=np.linspace(-Ly/2, Ly/2, nn)
 
-    stepsize=5e-3
+    yy, xx=np.meshgrid(ys, xs)
 
-    j=0
+    qx=Uinf*xx**alpha
 
-    for i in range(10000):
-        j+=1
+    # to consider the coordinate system x axis direction inversion at the attachment line
 
-        if j%10==0 or j==1:
-            plt.scatter(posaux[:, 0], defatm.rho*vals['q']['qx']**2*vals['th11']['th11'], label='Numeric')
-            plt.plot(posaux[:, 0], th11_ideal*vals['q']['qx']**2*defatm.rho, label='Ideal')
-            plt.ylim((0.0, 0.005))
-            plt.grid()
-            plt.xlabel('x')
-            plt.ylabel('$J_{xx}$')
-            plt.legend()
-            plt.show()
-        
-        print(sum([v@v for v, k in zip(value.values(), value) if not k in immovable]), lg.norm(grad['th11']), np.mean(vals['H']['H']))
+    delta_FS=np.sqrt(mu*xx/(rho*qx))
 
-        for n in vals:
-            for p in vals[n]:
-                vals[n][p]-=(stepsize/Wm if j<1000 else stepsize/(2*Wm))*grad[p]
+    th=delta_FS*theta_over_dfs*factor
+    H=np.ones_like(xx)*H_ideal
 
-        msh.set_values(vals)
+    deltastar=H*th
 
-        value, grad=msh.calculate_graph(weights)
+    J=th*qx**2*rho
+    M=deltastar*rho*qx
 
-    plt.scatter(posaux[:, 0], defatm.rho*vals['q']['qx']**2*vals['th11']['th11'], label='Numeric')
-    plt.plot(posaux[:, 0], th11_ideal*vals['q']['qx']**2*defatm.rho, label='Ideal')
-    plt.ylim((0.0, 0.005))
-    plt.grid()
-    plt.xlabel('x')
-    plt.ylabel('$J_{xx}$')
-    plt.legend()
-    plt.show()
+    dqx_dx=np.gradient(qx, xs, axis=0)
 
-test_laminar_wedge()
+    tau=Tau*qx*mu/th
+
+    r=np.gradient(J, xs, axis=0)+M*dqx_dx-tau
+
+    Rtot=np.trapz(r[:, 0], x=xs)*Ly
+
+    return Rtot
+
