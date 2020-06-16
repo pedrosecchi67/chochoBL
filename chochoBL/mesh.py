@@ -10,6 +10,7 @@ from differentiation import *
 from three_equation import *
 from closure import *
 from transition import *
+from CG import *
 
 def _gen_orthonormal(u, n):
     '''
@@ -157,6 +158,8 @@ class mesh:
 
         self.Rudvdx_indexing_r=np.hstack([rbase+4*i for i in range(self.ncells)])
         self.Rudvdx_indexing_c=np.hstack([cbase+4*i for i in range(self.ncells)])
+
+        self.opt=optunit(self)
 
     def dcell_dnode_compose(self, vset):
         '''

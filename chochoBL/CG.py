@@ -1,5 +1,5 @@
 import numpy as np
-import scipy.optimize
+import scipy.optimize as sopt
 
 '''
 Module containing ADTs necessary for a conjugate gradient descent using scipy
@@ -36,14 +36,14 @@ class optunit:
         self.x=x
 
         # set in mesh
-        self.msh.set_value(
+        self.msh.set_values(
             {
                 'n':{'n':self._fromx_extract('n')},
                 'th11':{'th11':self._fromx_extract('th11')},
-                'q':{'qx':np.zeros(self.msh.nnodes), 'qy':np.zeros(self.msh.nnodes), 'qz':np.zeros(self.msh.nnodes)},
                 'H':{'H':self._fromx_extract('H')},
                 'beta':{'beta':self._fromx_extract('beta')},
-                'N':{'N':self._fromx_extract('N')}
+                'N':{'N':self._fromx_extract('N')}, 
+                'q':self.q
             }
         )
 
@@ -51,6 +51,11 @@ class optunit:
         '''
         Check whether the requested value of x has already been set
         '''
+
+        if not hasattr(self, 'x'):
+            self.x=x
+
+            return False
 
         return np.all(x==self.x)
     
@@ -64,7 +69,7 @@ class optunit:
         value, grad=self.msh.calculate_graph()
 
         self.fx=sum([v@v/2 for v in value.values()])
-        self.grad=np.hstack([g for g in grad.values()])
+        self.grad=np.hstack([grad[p] for p in _inord])
 
     def fun(self, x):
         '''
@@ -73,7 +78,7 @@ class optunit:
 
         if not self.x_compare(x):
             self.calculate(x)
-        
+
         return self.fx
 
     def jac(self, x):
@@ -83,5 +88,32 @@ class optunit:
 
         if not self.x_compare(x):
             self.calculate(x)
-        
+
         return self.grad
+
+    def solve(self, x0, q={}, solobj=False, options={}, method='CG'):
+        '''
+        Solve boundary layer equations via conjugate gradients
+        '''
+
+        self.q=q
+
+        initguess_vector=np.hstack([x0[p] for p in _inord])
+
+        soln=sopt.minimize(fun=self.fun, x0=initguess_vector, jac=self.jac, method=method, options=options)
+
+        if not soln.success:
+            print(soln)
+            raise Exception('Conjugate method solution failed')
+
+        solution={}
+
+        for p in _inord:
+            inds=self.inds[p]
+
+            solution[p]=soln.x[inds[0]:inds[1]]
+
+        if solobj:
+            return solution, soln
+        else:
+            return solution

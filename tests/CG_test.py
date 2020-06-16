@@ -28,7 +28,7 @@ Tau=0.36034
 theta_over_dfs=0.29235
 H_ideal=2.21622
 
-plotgraph=False
+plotgraph=True
 
 def test_laminar_flat_plate():
     '''
@@ -37,7 +37,7 @@ def test_laminar_flat_plate():
     '''
 
     nm=20; nn=2
-    msh, vals, Jxx_ideal=_getmesh(0.8, nm=nm, nn=nn)
+    msh, x0, q, J=_getmesh(0.8, nm=nm, nn=nn)
 
     xs=np.flip(np.linspace(Lx, 0.0, nm, endpoint=False))
     ys=np.linspace(0.0, Ly, nn)
@@ -46,48 +46,22 @@ def test_laminar_flat_plate():
 
     xs=xx.reshape(np.size(xx))
 
-    # definitions for gradient descent
-    beta=2e-2
+    solution, soln=msh.opt.solve(x0, q, solobj=True, options={'maxiter':200, 'gtol':1e-5})
 
-    niter=2000
+    print(soln)
 
-    for i in range(niter):
-        values, grads=msh.calculate_graph()
+    num, an=solution['th11']*rho*msh.opt.q['qx']**2, J
 
-        for n in vals:
-            for p in vals[n]:
-                vals[n][p]-=beta*grads[p]
+    if plotgraph:
+        plt.scatter(xs, num, label='numeric')
+        plt.scatter(xs, an, label='analytic')
 
-        msh.set_values(vals)
+        plt.grid()
+        plt.legend()
 
-        ndev=lg.norm(vals['th11']['th11']*vals['q']['qx']**2*rho-Jxx_ideal)
+        plt.show()
 
-        if i==0:
-            ndev0=ndev
-
-            if plotgraph:
-                plt.scatter(xs, vals['th11']['th11']*vals['q']['qx']**2*rho, label='numeric')
-                plt.scatter(xs, Jxx_ideal, label='ideal')
-
-                plt.grid()
-                plt.legend()
-
-                plt.show()
-        elif i==niter-1:
-            ndevf=ndev
-
-            if plotgraph:
-                plt.scatter(xs, vals['th11']['th11']*vals['q']['qx']**2*rho, label='numeric')
-                plt.scatter(xs, Jxx_ideal, label='ideal')
-
-                plt.grid()
-                plt.legend()
-
-                plt.show()
-
-        print(total_residual(values), total_residual(grads), ndev/ndev0)
-
-    assert np.abs(ndevf/ndev0)<5e-2
+    assert lg.norm(num-an)<5e-2*np.amax(an) # ensuring maximum deviation of 5% in momentum deffect
 
 def _getmesh(factor0, nm=20, nn=2):
     nnodes=nm*nn
@@ -134,15 +108,8 @@ def _getmesh(factor0, nm=20, nn=2):
     th=delta_FS*theta_over_dfs*factor0
     H=np.ones_like(xaux)*H_ideal
 
-    vals={
-        'q':{'qx':qx, 'qy':np.zeros_like(qx), 'qz':np.zeros_like(qx)},
-        'th11':{'th11':th},
-        'H':{'H':H},
-        'n':{'n':np.zeros_like(qx)},
-        'N':{'N':np.zeros_like(qx)},
-        'beta':{'beta':np.zeros_like(qx)}
-    }
+    x0={'n':np.zeros_like(th), 'th11':th, 'H':H, 'beta':np.zeros_like(th), 'N':np.zeros_like(th)}
 
-    msh.set_values(vals)
+    J=th*rho*qx**2/factor0
 
-    return msh, vals, th*qx**2*rho/factor0
+    return msh, x0, {'qx':qx, 'qy':np.zeros_like(qx), 'qz':np.zeros_like(qx)}, J
