@@ -58,7 +58,7 @@ def test_laminar_flat_plate():
     and solve its boundary layer problem via gradient descent
     '''
 
-    nm=30; nn=2
+    nm=20; nn=8
     msh, x0, q, J=_getmesh(0.8, nm=nm, nn=nn)
 
     xs=np.flip(np.linspace(Lx, 0.0, nm, endpoint=False))
@@ -68,7 +68,7 @@ def test_laminar_flat_plate():
 
     xs=xx.reshape(np.size(xx))
 
-    solution, soln=msh.opt.solve(x0, q, solobj=True, options={'maxiter':200, 'gtol':1e-4}, method='CG')
+    solution, soln=msh.opt.solve(x0, q, solobj=True, maxiter=200, relgtol=1e-2, method='BFGS')
 
     print(soln.nit)
 

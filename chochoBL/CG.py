@@ -112,7 +112,7 @@ class optunit:
 
         return np.hstack([x[p] for p in _inord])
 
-    def solve(self, x0, q={}, solobj=False, options={}, method='CG', tol=1e-5):
+    def solve(self, x0, q={}, solobj=False, relgtol=1e-2, maxiter=200, method='CG'):
         '''
         Solve boundary layer equations via iterative methods, Conjugate Gradients as default
         '''
@@ -121,7 +121,10 @@ class optunit:
 
         initguess_vector=self.pack(x0)
 
-        soln=sopt.minimize(fun=self.fun, x0=initguess_vector, jac=self.jac, method=method, options=options)
+        ng0=lg.norm(self.jac(initguess_vector))
+
+        soln=sopt.minimize(fun=self.fun, x0=initguess_vector, jac=self.jac, method=method, \
+            options={'maxiter':maxiter, 'gtol':relgtol*ng0})
 
         if not soln.success:
             print(soln)
