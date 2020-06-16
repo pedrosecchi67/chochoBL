@@ -20,7 +20,7 @@ def _perturbations_from_mesh(msh, factor=1e-7):
         'n':np.amax(msh.gr.nodes['n'].value['n'])*factor*np.ones_like(msh.gr.nodes['n'].value['n'])
     }
 
-def _total_residual(value):
+def total_residual(value):
     return sum(v@v for v in value.values())/2
 
 def test_findiff():
@@ -35,6 +35,6 @@ def test_findiff():
 
     var_an=sum(p@g for p, g in zip(perts.values(), grad.values()))
 
-    var_num=(_total_residual(value2)-_total_residual(value1))
+    var_num=(total_residual(value2)-total_residual(value1))
 
     assert np.abs((var_an-var_num)/var_an)<1e-3
