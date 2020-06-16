@@ -1,4 +1,5 @@
 import numpy as np
+import numpy.linalg as lg
 import scipy.optimize as sopt
 
 '''
@@ -7,12 +8,15 @@ Module containing ADTs necessary for a conjugate gradient descent using scipy
 
 _inord=['n', 'th11', 'H', 'beta', 'N'] # EIF modelling not yet included
 
+def total_residual(value):
+    return sum(v@v for v in value.values())/2
+
 class optunit:
     '''
     Class containing x, f(x) and gradf(x), stored for optimization module
     '''
 
-    def __init__(self, msh):
+    def __init__(self, msh, scaler=1.0, echo=False):
         self.msh=msh
 
         self.inds={
@@ -22,6 +26,11 @@ class optunit:
             'beta':(3*msh.nnodes, 4*msh.nnodes),
             'N':(4*msh.nnodes, 5*msh.nnodes)
         }
+
+        self.scaler=scaler
+        self.nit=0
+
+        self.echo=echo
 
     def _fromx_extract(self, prop):
         indtup=self.inds[prop]
@@ -68,8 +77,13 @@ class optunit:
 
         value, grad=self.msh.calculate_graph()
 
-        self.fx=sum([v@v/2 for v in value.values()])
-        self.grad=np.hstack([grad[p] for p in _inord])
+        self.fx=total_residual(value)*self.scaler
+        self.grad=np.hstack([grad[p] for p in _inord])*self.scaler
+
+        self.nit+=1
+
+        if self.echo:
+            print('Iteration: ', self.nit, ' norm of gradient: ', lg.norm(self.grad), ' fun: ', self.fx)
 
     def fun(self, x):
         '''
@@ -91,20 +105,27 @@ class optunit:
 
         return self.grad
 
-    def solve(self, x0, q={}, solobj=False, options={}, method='CG'):
+    def pack(self, x):
         '''
-        Solve boundary layer equations via conjugate gradients
+        Pack a dictionary into a single input array
+        '''
+
+        return np.hstack([x[p] for p in _inord])
+
+    def solve(self, x0, q={}, solobj=False, options={}, method='CG', tol=1e-5):
+        '''
+        Solve boundary layer equations via iterative methods, Conjugate Gradients as default
         '''
 
         self.q=q
 
-        initguess_vector=np.hstack([x0[p] for p in _inord])
+        initguess_vector=self.pack(x0)
 
         soln=sopt.minimize(fun=self.fun, x0=initguess_vector, jac=self.jac, method=method, options=options)
 
         if not soln.success:
             print(soln)
-            raise Exception('Conjugate method solution failed')
+            raise Exception('Iterative solution failed')
 
         solution={}
 

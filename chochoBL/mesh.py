@@ -94,7 +94,7 @@ class mesh:
     Class containing information about a mesh
     '''
 
-    def __init__(self, atm_props=defatm, Uinf=1.0, Ncrit=6.0, A_transition=50.0, A_Rethcrit=1.0, gamma=1.4):
+    def __init__(self, atm_props=defatm, Uinf=1.0, Ncrit=6.0, A_transition=50.0, A_Rethcrit=1.0, gamma=1.4, echo=False):
         '''
         Initialize a mesh object without any nodes or cells
         '''
@@ -107,7 +107,9 @@ class mesh:
             'A_Rethcrit':A_Rethcrit, 'gamma':gamma}
 
         self.dcell_dnode={}
-    
+
+        self.echo=echo
+
     def add_node(self, coords):
         '''
         Add a new node to list based on coordinates.
@@ -159,7 +161,7 @@ class mesh:
         self.Rudvdx_indexing_r=np.hstack([rbase+4*i for i in range(self.ncells)])
         self.Rudvdx_indexing_c=np.hstack([cbase+4*i for i in range(self.ncells)])
 
-        self.opt=optunit(self)
+        self.opt=optunit(self, echo=self.echo)
 
     def dcell_dnode_compose(self, vset):
         '''

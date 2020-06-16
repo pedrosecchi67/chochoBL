@@ -30,13 +30,35 @@ H_ideal=2.21622
 
 plotgraph=True
 
+def test_jac():
+    '''
+    Test function and Jacobian by finite difference test
+    '''
+
+    msh, x0, q, _=_getmesh(1.0, nm=10, nn=10)
+
+    x0=msh.opt.pack(x0)
+
+    msh.opt.q=q
+
+    px=x0*1e-7
+
+    f0=msh.opt.fun(x0)
+    grad=msh.opt.jac(x0)
+
+    f1=msh.opt.fun(x0+px)
+
+    num, an=(f1-f0), grad@px
+
+    assert np.abs((num-an)/an)<1e-3
+
 def test_laminar_flat_plate():
     '''
     Define a laminar flat plate subject to normal flow (FS self-similar flow with alpha=1.0)
     and solve its boundary layer problem via gradient descent
     '''
 
-    nm=20; nn=2
+    nm=30; nn=2
     msh, x0, q, J=_getmesh(0.8, nm=nm, nn=nn)
 
     xs=np.flip(np.linspace(Lx, 0.0, nm, endpoint=False))
@@ -46,9 +68,9 @@ def test_laminar_flat_plate():
 
     xs=xx.reshape(np.size(xx))
 
-    solution, soln=msh.opt.solve(x0, q, solobj=True, options={'maxiter':200, 'gtol':1e-5})
+    solution, soln=msh.opt.solve(x0, q, solobj=True, options={'maxiter':200, 'gtol':1e-4}, method='CG')
 
-    print(soln)
+    print(soln.nit)
 
     num, an=solution['th11']*rho*msh.opt.q['qx']**2, J
 
@@ -61,7 +83,7 @@ def test_laminar_flat_plate():
 
         plt.show()
 
-    assert lg.norm(num-an)<5e-2*np.amax(an) # ensuring maximum deviation of 5% in momentum deffect
+    assert np.amax(np.abs(num-an))<5e-2*np.amax(an) # ensuring maximum deviation of 5% in momentum deffect
 
 def _getmesh(factor0, nm=20, nn=2):
     nnodes=nm*nn
@@ -72,7 +94,7 @@ def _getmesh(factor0, nm=20, nn=2):
 
     yy, xx=np.meshgrid(ys, xs)
 
-    msh=mesh(Uinf=Uinf)
+    msh=mesh(Uinf=Uinf, echo=True)
 
     n=0
 
