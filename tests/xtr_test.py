@@ -45,6 +45,8 @@ def _gen_flatplate(Uinf=1.0, Lx=1.0, Ly=1.0, nm=10, nn=2, Ncrit=6.0, A_transitio
 
     qx=Uinf*np.ones_like(xaux)
 
+    qx[indmat[0, :]]=0.0
+
     delta_FS=np.sqrt(mu*xaux/(rho*qx))
 
     th=delta_FS*theta_over_dfs

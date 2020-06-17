@@ -204,19 +204,23 @@ def dRethf_drho(rho, Reth, passive):
 def dRethf_dth11(th11, Reth, passive):
     return sps.diags(Reth/th11, format='lil')
 
+def Rethfunc(qe, rho, th11, passive):
+    Reth=Rethf(qe, rho, th11, passive)
+
+    invalid=Reth<1.1
+
+    Reth[invalid]=1.1
+
+    value={'Reth':Reth}
+    Jac={'Reth':{'qe':dRethf_dqe(qe, Reth, passive), 'rho':dRethf_drho(rho, Reth, passive), 'th11':dRethf_dth11(th11, Reth, passive)}}
+
+    return value, Jac
+
 def Reth_getnode(msh):
     '''
     Add Reth (Reynolds number in respect to momentum thickness) computation functions and return correspondent node,
     for a given mesh
     '''
-
-    def Rethfunc(qe, rho, th11, passive):
-        Reth=Rethf(qe, rho, th11, passive)
-
-        value={'Reth':Reth}
-        Jac={'Reth':{'qe':dRethf_dqe(qe, Reth, passive), 'rho':dRethf_drho(rho, Reth, passive), 'th11':dRethf_dth11(th11, Reth, passive)}}
-
-        return value, Jac
 
     Rethnode=node(f=Rethfunc, args_to_inds=['qe', 'rho', 'th11'], outs_to_inds=['Reth'], passive=msh.passive, haspassive=True)
 
