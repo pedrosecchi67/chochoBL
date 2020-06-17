@@ -3,6 +3,7 @@ import scipy.sparse as sps
 import scipy.special as special
 
 from differentiation import *
+from three_equation import _th11_tolerance
 
 '''
 Module containing functions necessary for transition prediction as exposed by
@@ -168,11 +169,14 @@ def p_getnode(msh):
 
         dNdR*=sg
 
-        pval=p(dNdR, th11, m, l)
+        th11_aux=th11.copy()
+        th11_aux[th11_aux<_th11_tolerance]=_th11_tolerance
 
-        dpdHk=dp_dHk(dNdR, d2NdHkdR, th11, m, dm, l, dl)
-        dpdR=dp_dReth(d2NdR2, m, l, th11)
-        dpdth11=dp_dth11(pval, th11, passive)
+        pval=p(dNdR, th11_aux, m, l)
+
+        dpdHk=dp_dHk(dNdR, d2NdHkdR, th11_aux, m, dm, l, dl)
+        dpdR=dp_dReth(d2NdR2, m, l, th11_aux)
+        dpdth11=dp_dth11(pval, th11_aux, passive)
 
         value={'p':pval}
         Jac={'p':{'Reth':dpdR, 'Hk':dpdHk, 'th11':dpdth11}}

@@ -111,6 +111,8 @@ def uw_conversion_getnode(msh):
 
     return uwnode
 
+_qe_min=1e-8
+
 def qef(qx, qy, qz):
     return np.sqrt(qx**2+qy**2+qz**2)
 
@@ -130,6 +132,8 @@ def qe_getnode(msh):
 
     def qefunc(qx, qy, qz):
         qe=qef(qx, qy, qz)
+
+        qe[qe<_qe_min]=_qe_min
 
         value={'qe':qe}
         Jac={'qe':{'qx':dqef_dqx(qx, qy, qz, qe), 'qy':dqef_dqy(qx, qy, qz, qe), 'qz':dqef_dqz(qx, qy, qz, qe)}}
@@ -201,8 +205,13 @@ def dRethf_dqe(qe, Reth, passive):
 def dRethf_drho(rho, Reth, passive):
     return sps.diags(Reth/rho, format='lil')
 
+_th11_tolerance=1e-8
+
 def dRethf_dth11(th11, Reth, passive):
-    return sps.diags(Reth/th11, format='lil')
+    th11_aux=th11.copy()
+    th11_aux[th11_aux<_th11_tolerance]=_th11_tolerance
+
+    return sps.diags(Reth/th11_aux, format='lil')
 
 def Rethfunc(qe, rho, th11, passive):
     Reth=Rethf(qe, rho, th11, passive)
