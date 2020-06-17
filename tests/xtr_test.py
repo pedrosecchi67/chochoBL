@@ -16,15 +16,23 @@ theta_over_dfs=0.66412
 H_ideal=2.59109
 
 plotgraph=True
+plotMoody=True
 
 def test_trans():
     '''
     Assert the position of detected transition
     '''
 
-    msh, x0, q, xs, th_ideal=_gen_flatplate(Uinf=1.0, echo=True, factor=0.8, Lx=1.0, Ly=1.0, nm=20, nn=2, Ncrit=6, A_transition=50.0)
+    Lx=1.0
+    Ly=1.0
 
-    solution, soln=msh.opt.solve(x0, q, solobj=True, method='BFGS')
+    Re_target=2e5
+
+    Uinf=Re_target*mu/(Lx*rho)
+
+    msh, x0, q, xs, th_ideal=_gen_flatplate(Uinf=Uinf, echo=True, factor=0.9, Lx=Lx, Ly=Ly, nm=20, nn=2, Ncrit=6, A_transition=10.0)
+
+    solution, soln=msh.opt.solve(x0, q, solobj=True, method='CG', maxiter=500, relgtol=1e-2)
 
     if plotgraph:
         plt.scatter(xs, solution['th11'], label='numeric')
@@ -32,6 +40,17 @@ def test_trans():
 
         plt.grid()
         plt.legend()
+
+        plt.show()
+
+    if plotMoody:
+        Rex=rho*xs*Uinf/mu
+        plt.scatter(Rex, msh.gr.get_value('Cf')[0], label='numeric')
+        plt.scatter(Rex[Rex>0.0], 64/Rex[Rex>0.0], label='analytic')
+
+        plt.grid()
+        plt.legend()
+        plt.ylim((0.0, 1e-2))
 
         plt.show()
 
