@@ -14,6 +14,15 @@ mu=defatm.mu
 theta_over_dfs=0.29235
 H_ideal=2.21622
 
+def test_trans():
+    '''
+    Assert the position of detected transition
+    '''
+
+    msh, x0, q=_gen_flatplate(Uinf=1.0, Lx=1.0, Ly=1.0, nm=10, nn=2, Ncrit=6, A_transition=50.0)
+
+    msh.opt.solve(x0, q)
+
 def _gen_flatplate(Uinf=1.0, Lx=1.0, Ly=1.0, nm=10, nn=2, Ncrit=6.0, A_transition=50.0):
     '''
     Generate a flat plate with given discretization and dimensions+freestream conditions
@@ -38,16 +47,21 @@ def _gen_flatplate(Uinf=1.0, Lx=1.0, Ly=1.0, nm=10, nn=2, Ncrit=6.0, A_transitio
         for j in range(nn-1):
             msh.add_cell({indmat[i, j], indmat[i+1, j], indmat[i+1, j+1], indmat[i, j+1]})
 
-    normals=np.zeros((nm, nn, 3))
-    normals[:, :, 2]=1.0
+    normals=np.zeros((nm*nn, 3))
+    normals[:, 2]=1.0
 
     msh.compose(normals)
+    msh.graph_init()
 
     qx=Uinf*np.ones_like(xaux)
 
     qx[indmat[0, :]]=0.0
 
-    delta_FS=np.sqrt(mu*xaux/(rho*qx))
+    delta_FS=np.zeros_like(qx)
+
+    valid=qx>0.0
+
+    delta_FS[valid]=np.sqrt(mu*xaux[valid]/(rho*qx[valid]))
 
     th=delta_FS*theta_over_dfs
     H=np.ones_like(xaux)*H_ideal
