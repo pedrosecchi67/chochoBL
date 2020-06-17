@@ -28,7 +28,7 @@ Tau=0.36034
 theta_over_dfs=0.29235
 H_ideal=2.21622
 
-plotgraph=True
+plotgraph=False
 
 def test_jac():
     '''
