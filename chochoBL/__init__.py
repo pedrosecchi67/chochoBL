@@ -13,6 +13,7 @@ py_compile.compile('differentiation.py')
 py_compile.compile('three_equation.py')
 py_compile.compile('mesh.py')
 py_compile.compile('garlekin.py')
+py_compile.compile('adjoint.py')
 from CG import *
 from closure import *
 from transition import *
@@ -20,5 +21,6 @@ from differentiation import *
 from three_equation import *
 from mesh import *
 from garlekin import *
+from adjoint import *
 os.chdir(ordir)
 del ordir

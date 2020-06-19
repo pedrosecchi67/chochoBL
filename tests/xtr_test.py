@@ -15,7 +15,7 @@ mu=defatm.mu
 theta_over_dfs=0.66412
 H_ideal=2.59109
 
-Rex_crit=1.5e5
+Rex_crit=1e6
 
 plotgraph=True
 plotMoody=True
@@ -32,7 +32,7 @@ def test_trans():
 
     Uinf=Re_target*mu/(Lx*rho)
 
-    msh, x0, q, xs, th_ideal=_gen_flatplate(Uinf=Uinf, echo=True, factor=0.9, Lx=Lx, Ly=Ly, nm=20, nn=2, Ncrit=6, A_transition=2.0)
+    msh, x0, q, xs, th_ideal=_gen_flatplate(Uinf=Uinf, echo=True, factor=1.0, Lx=Lx, Ly=Ly, nm=20, nn=2, Ncrit=6, A_transition=2.0)
 
     solution, soln=msh.opt.solve(x0, q, solobj=True, method='CG', maxiter=500, relgtol=1e-2)
 
@@ -46,13 +46,15 @@ def test_trans():
         plt.show()
 
     if plotMoody:
+        distJ=msh.dcell_dnode[1]
+
         Rex=rho*xs*Uinf/mu
-        plt.scatter(Rex, msh.gr.get_value('Cf')[0], label='numeric')
-        plt.scatter(Rex[Rex>0.0], 64/Rex[Rex>0.0], label='analytic')
+        plt.scatter(xs, msh.gr.get_value('p')[0], label='numeric')
+        # plt.scatter(Rex[Rex>0.0], 0.664/np.sqrt(Rex[Rex>0.0]), label='analytic')
 
         plt.grid()
         plt.legend()
-        plt.ylim((0.0, 1e-2))
+        # plt.ylim((0.0, 1e-2))
 
         plt.show()
 

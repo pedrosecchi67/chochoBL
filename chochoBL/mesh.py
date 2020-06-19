@@ -437,7 +437,7 @@ class mesh:
         for hname, d in zip(vals, vals.values()):
             self.gr.heads[hname].set_value(d)
     
-    def calculate_graph(self, weights=None):
+    def calculate_graph(self, weights=None, jac=True):
         '''
         Calculate end nodes for the graph and produce the gradients of the total residual
         '''
@@ -457,12 +457,16 @@ class mesh:
         for e, ev in zip(evals, evals.values()):
             evals[e]=ev.reshape((len(ev), 1))
 
-        invals=set()
+        if jac:
+            invals=set()
 
-        for h in self.gr.heads.values():
-            for o in h.outs_to_inds:
-                invals.add(o)
+            for h in self.gr.heads.values():
+                for o in h.outs_to_inds:
+                    invals.add(o)
 
-        grad=self.gr.get_derivs_reverse(value={e:ev for e, ev in zip(evals.keys(), evals.values())})
+            grad=self.gr.get_derivs_reverse(value={e:ev for e, ev in zip(evals.keys(), evals.values())})
 
-        return {e:ev.reshape(np.size(ev)) for e, ev in zip(evals, evals.values())}, {g:gv.reshape(np.size(gv)) for g, gv in zip(grad, grad.values())}
+            return {e:ev.reshape(np.size(ev)) for e, ev in zip(evals, evals.values())}, {g:gv.reshape(np.size(gv)) for g, gv in zip(grad, grad.values())}
+        
+        else:
+            return {e:ev.reshape(np.size(ev)) for e, ev in zip(evals, evals.values())}
