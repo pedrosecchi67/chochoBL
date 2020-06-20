@@ -149,6 +149,19 @@ class node:
 
         self.summoned=False
 
+    def clean_value_from(self):
+        '''
+        Clean records of values and Jacobians from the given node to its dependents (recursively)
+        '''
+
+        self.summoned=False
+
+        self.value=None
+        self.Jac=None
+
+        for de in self.down_edges:
+            de.n2.clean_value_from()
+
     def clean_buffer(self):
         '''
         Clean node buffer
@@ -204,7 +217,10 @@ class node:
         else:
             #assuming it's a scalar:
             self.value={self.outs_to_inds.keys()[0]:v}
-    
+
+        for de in self.down_edges:
+            de.n2.clean_value_from()
+
     def calculate_buffer(self, reverse=True, use_diag=True):
         '''
         Calculate a buffer from downstream node seeds (reverse) or upstream node seeds (direct).
@@ -256,6 +272,9 @@ class head(node):
     
     def clean_summoning(self):
         super().clean_summoning()
+    
+    def clean_value_from(self):
+        super().clean_value_from()
     
     def clean_buffer(self):
         super().clean_buffer()
