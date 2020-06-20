@@ -32,7 +32,7 @@ def test_trans():
 
     Uinf=Re_target*mu/(Lx*rho)
 
-    msh, x0, q, xs, th_ideal=_gen_flatplate(Uinf=Uinf, echo=True, factor=1.0, Lx=Lx, Ly=Ly, nm=20, nn=2, Ncrit=6, A_transition=2.0)
+    msh, x0, q, xs, th_ideal, indmat=_gen_flatplate(Uinf=Uinf, echo=True, factor=1.0, Lx=Lx, Ly=Ly, nm=20, nn=2, Ncrit=6, A_transition=2.0)
 
     solution, soln=msh.opt.solve(x0, q, solobj=True, method='CG', maxiter=500, relgtol=1e-2)
 
@@ -113,4 +113,4 @@ def _gen_flatplate(Uinf=1.0, echo=False, factor=1.2, Lx=1.0, Ly=1.0, nm=10, nn=2
 
     x0={'n':np.zeros_like(th), 'th11':th, 'H':H, 'beta':np.zeros_like(th), 'N':N}
 
-    return msh, x0, {'qx':qx, 'qy':np.zeros_like(qx), 'qz':np.zeros_like(qx)}, xaux, th/factor
+    return msh, x0, {'qx':qx, 'qy':np.zeros_like(qx), 'qz':np.zeros_like(qx)}, xaux, th/factor, indmat
