@@ -25,6 +25,8 @@ H_ideal=2.59109
 Rex_crit=1e6
 
 def test_syssolve():
+    ts=[]
+
     nm=50
     nn=100
 
@@ -40,41 +42,50 @@ def test_syssolve():
     u=q['qx']
     N=x0['N']
 
+    t=tm.time()
+
     msh.opt.q=q
 
     msh.opt.set_value(msh.opt.pack(x0))
 
     values, grads=msh.calculate_graph()
 
+    ts.append(tm.time()-t)
+
     p=msh.gr.get_value('p')[0]
     p=p*Uinf
 
     distJ=msh.dcell_dnode[1]
 
-    w=np.ones_like(u)*Uinf
-
-    _, dRdu, dRudv=Rudvdx_residual(distJ@u, distJ@N, msh)
-    _, dRdw, dRwdv=Rudvdx_residual(distJ@w, distJ@N, msh)
-
-    dRudv=distJ.T@dRudv@distJ
-    dRwdv=distJ.T@dRwdv@distJ
-
-    A=dRudv+dRwdv
-    b=distJ.T@msh.v_res_Jac@distJ@p
-
     inv=None
 
     t=tm.time()
 
-    N, inv=solve_0CC(A, b, indmat[0, :], inv=inv)
+    derivs_dir=msh.gr.get_derivs_direct('N')
 
-    print(tm.time()-t)
+    ts.append(tm.time()-t)
 
     t=tm.time()
 
-    N=solve_0CC(A, b, indmat[0, :], method='CG', inv=inv)
+    A=distJ.T@derivs_dir['RTS']
+    b=distJ.T@values['RTS']
 
-    print(tm.time()-t)
+    N, inv=solve_0CC(A, -b, indmat[0, :], inv=inv)
 
-    plt.scatter(xs, N)
-    plt.show()
+    ts.append(tm.time()-t)
+
+    t=tm.time()
+
+    inv=None
+
+    A=distJ.T@derivs_dir['RTS']
+    b=grads['N']
+
+    psi, inv=solve_0CC(A.T, b, indmat[0, :], inv=inv)
+    psi*=-1
+
+    ts.append(tm.time()-t)
+
+    print(ts)
+
+    assert sum(ts)<1.0 # verify the possibility of a solution in feasible time
