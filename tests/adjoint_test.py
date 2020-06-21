@@ -48,12 +48,12 @@ def test_syssolve():
 
     msh.opt.set_value(msh.opt.pack(x0))
 
-    values, grads=msh.calculate_graph()
+    values, grads=msh.calculate_graph(ends=['RTS'])
 
     ts.append(tm.time()-t)
 
-    p=msh.gr.get_value('p')[0]
-    p=p*Uinf
+    # p=msh.gr.get_value('p')[0]
+    # p=p*Uinf
 
     distJ=msh.dcell_dnode[1]
 
@@ -61,7 +61,7 @@ def test_syssolve():
 
     t=tm.time()
 
-    derivs_dir=msh.gr.get_derivs_direct('N')
+    derivs_dir=msh.gr.get_derivs_direct('N', ends=['RTS'])
 
     ts.append(tm.time()-t)
 
@@ -86,6 +86,14 @@ def test_syssolve():
 
     ts.append(tm.time()-t)
 
-    print(ts)
+    t=tm.time()
 
-    assert sum(ts)<1.0 # verify the possibility of a solution in feasible time
+    msh.set_values({'N':N}, nodes=['N'], nodal=False, reset=False)
+
+    values, grads=msh.calculate_graph()
+
+    ts.append(tm.time()-t)
+
+    print(ts, sum(ts))
+
+    assert sum(ts)<1.5 # verify the possibility of a solution in feasible time

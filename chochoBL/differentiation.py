@@ -102,7 +102,8 @@ class edge:
         '''
 
         if self.n2.Jac is None:
-            raise Exception('A Jacobian has been requested from a not yet calculated node in alg. differentiation')
+            # raise Exception('A Jacobian has been requested from a not yet calculated node in alg. differentiation')
+            return None
 
         return self.n2.Jac[y][x]
 

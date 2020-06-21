@@ -431,7 +431,7 @@ class mesh:
         self.gr.add_edge(e_qe_Ren)
         self.gr.add_edge(e_D_Ren)
     
-    def set_values(self, vals, nodes=None, nodal=True):
+    def set_values(self, vals, nodes=None, nodal=True, reset=True):
         '''
         Set values (as a dictionary of dictionaries or a simple dictionary, see kwarg nodal) to head nodes. 
         First key is node name, second is greatness.
@@ -444,37 +444,45 @@ class mesh:
         instead of a simple list;
         * nodes: should be set to a list of nodes where the values ought to be changed. Otherwise, if left as 
         default value None, the default graph heads will be assumed to be the object of the change;
+        * reset: if set, this flag will lead to all values having their original values erased.
         '''
 
-        self.gr.clean_values()
+        if reset:
+            self.gr.clean_values()
 
         if nodes is None:
             heads=self.gr.heads.values()
         else:
-            heads=nodes
+            heads=[self.gr.nodes[n] for n in nodes]
 
         if nodal:
             for hname, d in zip(vals, vals.values()):
-                self.gr.heads[hname].set_value(d)
+                self.gr.nodes[hname].set_value(d)
         else:
             for hnode in heads:
                 hnode.set_value({p:vals[p] for p in hnode.outs_to_inds if p in vals})
 
-    def calculate_graph(self, weights=None, jac=True):
+    def calculate_graph(self, weights=None, jac=True, ends=None):
         '''
-        Calculate end nodes for the graph and produce the gradients of the total residual
+        Calculate end nodes for the graph and produce the gradients of the total residuals/properties at nodes
+        identified at kwarg ends (list or other related iterable)
         '''
 
-        self.gr.calculate()
+        self.gr.calculate(ends=ends)
 
         if not 1 in self.dcell_dnode:
             J=self.dcell_dnode_compose(narg=1)
         else:
             J=self.dcell_dnode[1]
 
+        if ends is None:
+            tail=self.gr.ends
+        else:
+            tail={e:self.gr.nodes[e] for e in ends}
+
         evals={}
 
-        for e in self.gr.ends.values():
+        for e in tail.values():
             evals.update({p:(e.value[p]*(1.0 if (weights is None or not p in weights) else weights[p])) for p in e.value})
 
         for e, ev in zip(evals, evals.values()):
@@ -487,9 +495,10 @@ class mesh:
                 for o in h.outs_to_inds:
                     invals.add(o)
 
-            grad=self.gr.get_derivs_reverse(value={e:ev for e, ev in zip(evals.keys(), evals.values())})
+            grad=self.gr.get_derivs_reverse(value={e:ev for e, ev in zip(evals.keys(), evals.values())}, ends=tail.keys())
 
-            return {e:ev.reshape(np.size(ev)) for e, ev in zip(evals, evals.values())}, {g:gv.reshape(np.size(gv)) for g, gv in zip(grad, grad.values())}
-        
+            return {e:ev.reshape(np.size(ev)) for e, ev in zip(evals, evals.values())}, {g:(gv.reshape(np.size(gv)) if not gv is None else gv) \
+                for g, gv in zip(grad, grad.values())}
+
         else:
             return {e:ev.reshape(np.size(ev)) for e, ev in zip(evals, evals.values())}
