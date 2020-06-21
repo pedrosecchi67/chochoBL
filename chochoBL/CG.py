@@ -6,7 +6,7 @@ import scipy.optimize as sopt
 Module containing ADTs necessary for a conjugate gradient descent using scipy
 '''
 
-_inord=['n', 'th11', 'H', 'beta', 'N'] # EIF modelling not yet included
+_base_inord=['n', 'th11', 'H', 'beta', 'N'] # EIF modelling not yet included
 
 def total_residual(value):
     return sum(v@v for v in value.values())/2
@@ -19,12 +19,13 @@ class optunit:
     def __init__(self, msh, scaler=1.0, echo=False):
         self.msh=msh
 
+        self._inord=_base_inord.copy()
+
+        if not self.msh.CC is None:
+            self._inord.remove('N')
+
         self.inds={
-            'n':(0, msh.nnodes),
-            'th11':(msh.nnodes, 2*msh.nnodes),
-            'H':(2*msh.nnodes, 3*msh.nnodes),
-            'beta':(3*msh.nnodes, 4*msh.nnodes),
-            'N':(4*msh.nnodes, 5*msh.nnodes)
+            k:(i*self.msh.nnodes, (i+1)*self.msh.nnodes) for i, k in enumerate(self._inord)
         }
 
         self.scaler=scaler
@@ -44,16 +45,13 @@ class optunit:
 
         self.x=x
 
+        indict={inp:self._fromx_extract(inp) for inp in self._inord}
+
+        indict.update(self.q)
+
         # set in mesh
         self.msh.set_values(
-            {
-                'n':{'n':self._fromx_extract('n')},
-                'th11':{'th11':self._fromx_extract('th11')},
-                'H':{'H':self._fromx_extract('H')},
-                'beta':{'beta':self._fromx_extract('beta')},
-                'N':{'N':self._fromx_extract('N')}, 
-                'q':self.q
-            }
+            indict, nodal=False
         )
 
     def x_compare(self, x):
@@ -78,7 +76,7 @@ class optunit:
         value, grad=self.msh.calculate_graph()
 
         self.fx=total_residual(value)*self.scaler
-        self.grad=np.hstack([grad[p] for p in _inord])*self.scaler
+        self.grad=np.hstack([grad[p] for p in self._inord])*self.scaler
 
         self.nit+=1
 
@@ -110,7 +108,7 @@ class optunit:
         Pack a dictionary into a single input array
         '''
 
-        return np.hstack([x[p] for p in _inord])
+        return np.hstack([x[p] for p in self._inord])
 
     def solve(self, x0, q={}, solobj=False, relgtol=1e-2, maxiter=200, method='CG'):
         '''
@@ -132,7 +130,7 @@ class optunit:
 
         solution={}
 
-        for p in _inord:
+        for p in self._inord:
             inds=self.inds[p]
 
             solution[p]=soln.x[inds[0]:inds[1]]

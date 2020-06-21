@@ -128,7 +128,7 @@ class mesh:
 
         add_set(self.cells, indset)
     
-    def compose(self, normals):
+    def compose(self, normals, transition_CC=None):
         '''
         Compose local coordinate systems and store local coordinates
         '''
@@ -160,6 +160,10 @@ class mesh:
 
         self.Rudvdx_indexing_r=np.hstack([rbase+4*i for i in range(self.ncells)])
         self.Rudvdx_indexing_c=np.hstack([cbase+4*i for i in range(self.ncells)])
+
+        self.CC=transition_CC
+
+        self.trans_prec_SuperLU=None
 
         self.opt=optunit(self, echo=self.echo)
 
@@ -427,16 +431,35 @@ class mesh:
         self.gr.add_edge(e_qe_Ren)
         self.gr.add_edge(e_D_Ren)
     
-    def set_values(self, vals):
+    def set_values(self, vals, nodes=None, nodal=True):
         '''
-        Set values (as a dictionary of dictionaries) to head nodes. First key is node name, second is greatness
+        Set values (as a dictionary of dictionaries or a simple dictionary, see kwarg nodal) to head nodes. 
+        First key is node name, second is greatness.
+
+        ==========
+        parameters
+        ==========
+        * vals: see description above and in item \'nodal\';
+        * nodal: a kwarg flag, sets expectation to a dictionary of dictionaries mapping data to respective nodes
+        instead of a simple list;
+        * nodes: should be set to a list of nodes where the values ought to be changed. Otherwise, if left as 
+        default value None, the default graph heads will be assumed to be the object of the change;
         '''
 
         self.gr.clean_values()
 
-        for hname, d in zip(vals, vals.values()):
-            self.gr.heads[hname].set_value(d)
-    
+        if nodes is None:
+            heads=self.gr.heads.values()
+        else:
+            heads=nodes
+
+        if nodal:
+            for hname, d in zip(vals, vals.values()):
+                self.gr.heads[hname].set_value(d)
+        else:
+            for hnode in heads:
+                hnode.set_value({p:vals[p] for p in hnode.outs_to_inds if p in vals})
+
     def calculate_graph(self, weights=None, jac=True):
         '''
         Calculate end nodes for the graph and produce the gradients of the total residual
