@@ -98,7 +98,7 @@ def solve_0CC(A, b, CCs, method='analytic', x0=None, inv=None):
     if not isinstance(Ap, sps.csr_matrix):
         Ap=Ap.tocsr()
 
-    nCCs=np.setdiff1d(np.arange(np.size(b), dtype='int'), CCs)
+    nCCs=np.setdiff1d(np.arange(np.size(b, axis=0), dtype='int'), CCs)
 
     Ap=Ap[nCCs, :]
     Ap=Ap.tocsc()[:, nCCs]

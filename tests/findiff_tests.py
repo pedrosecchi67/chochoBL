@@ -12,7 +12,7 @@ import pytest
 rho=defatm.rho
 mu=defatm.mu
 
-def _perturbations_from_mesh(msh, factor=1e-7):
+def _perturbations_from_mesh(msh, factor=1e-8):
     return {
         'qx':np.amax(msh.gr.nodes['q'].value['qx'])*factor*np.ones_like(msh.gr.nodes['q'].value['qx']),
         'qy':np.amax(msh.gr.nodes['q'].value['qy'])*factor*np.ones_like(msh.gr.nodes['q'].value['qy']), 
@@ -46,16 +46,16 @@ def test_findiff_small():
 def test_turbulent_findiff():
     assert_diff()
 
-def assert_diff(prop='th11', factor=1e-7):
+def assert_diff(prop='th11', factor=1e-11):
     Lx=1.0
     Ly=1.0
 
-    Re_target=6e5
+    Re_target=7e5
 
     Uinf=Re_target*mu/(Lx*rho)
 
-    msh1, x0_1, q1, xaux, _, indmat=_gen_flatplate(Uinf=Uinf, echo=False, factor=1.0, Lx=Lx, Ly=Ly, nm=10, nn=2, Ncrit=1.0, A_transition=2.0, adj=True)
-    msh2, x0_2, q2, xaux, _, _=_gen_flatplate(Uinf=Uinf, echo=False, factor=1.0, Lx=Lx, Ly=Ly, nm=10, nn=2, Ncrit=1.0, A_transition=2.0, adj=True)
+    msh1, x0_1, q1, xaux, _, indmat=_gen_flatplate(Uinf=Uinf, echo=False, factor=1.0, Lx=Lx, Ly=Ly, nm=10, nn=2, Ncrit=1.0, A_transition=1.0, adj=True)
+    msh2, x0_2, q2, xaux, _, _=_gen_flatplate(Uinf=Uinf, echo=False, factor=1.0, Lx=Lx, Ly=Ly, nm=10, nn=2, Ncrit=1.0, A_transition=1.0, adj=True)
 
     msh1.opt.q=q1
     msh2.opt.q=q2

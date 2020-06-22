@@ -15,7 +15,7 @@ mu=defatm.mu
 theta_over_dfs=0.66412
 H_ideal=2.59109
 
-Rex_crit=5e5
+Rex_crit=1e6
 
 plotgraph=True
 plotMoody=True
@@ -32,9 +32,9 @@ def test_trans():
 
     Uinf=Re_target*mu/(Lx*rho)
 
-    msh, x0, q, xs, th_ideal, indmat=_gen_flatplate(Uinf=Uinf, echo=True, factor=1.0, Lx=Lx, Ly=Ly, nm=10, nn=2, Ncrit=4.0, A_transition=2.0, adj=True)
+    msh, x0, q, xs, th_ideal, indmat=_gen_flatplate(Uinf=Uinf, echo=True, factor=1.0, Lx=Lx, Ly=Ly, nm=50, nn=2, Ncrit=6.0, A_transition=1.0, adj=True)
 
-    solution, soln=msh.opt.solve(x0, q, solobj=True, method='CG', maxiter=500, relgtol=1e-2)
+    solution, soln=msh.opt.solve(x0, q, solobj=True, method='CG', maxiter=500, relgtol=5e-3)
 
     if plotgraph:
         plt.scatter(xs, solution['th11'], label='numeric')
