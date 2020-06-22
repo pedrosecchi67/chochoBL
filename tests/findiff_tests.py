@@ -44,18 +44,22 @@ def test_findiff_small():
     assert np.abs((var_an-var_num)/var_an)<1e-3
 
 def test_turbulent_findiff():
-    assert_diff()
+    assert_diff('H', Re_target=5e5)
+    assert_diff('H', Re_target=1e6)
+    assert_diff('H', Re_target=1.5e6)
 
-def assert_diff(prop='th11', factor=1e-11):
+    assert_diff('th11', Re_target=5e5)
+    assert_diff('th11', Re_target=1e6)
+    assert_diff('th11', Re_target=1.5e6)
+
+def assert_diff(prop='th11', factor=1e-11, Re_target=1e6):
     Lx=1.0
     Ly=1.0
 
-    Re_target=7e5
-
     Uinf=Re_target*mu/(Lx*rho)
 
-    msh1, x0_1, q1, xaux, _, indmat=_gen_flatplate(Uinf=Uinf, echo=False, factor=1.0, Lx=Lx, Ly=Ly, nm=10, nn=2, Ncrit=1.0, A_transition=1.0, adj=True)
-    msh2, x0_2, q2, xaux, _, _=_gen_flatplate(Uinf=Uinf, echo=False, factor=1.0, Lx=Lx, Ly=Ly, nm=10, nn=2, Ncrit=1.0, A_transition=1.0, adj=True)
+    msh1, x0_1, q1, xaux, _, indmat=_gen_flatplate(Uinf=Uinf, echo=False, factor=1.0, Lx=Lx, Ly=Ly, nm=10, nn=2, Ncrit=6.0, A_transition=1.0, adj=True)
+    msh2, x0_2, q2, xaux, _, _=_gen_flatplate(Uinf=Uinf, echo=False, factor=1.0, Lx=Lx, Ly=Ly, nm=10, nn=2, Ncrit=6.0, A_transition=1.0, adj=True)
 
     msh1.opt.q=q1
     msh2.opt.q=q2

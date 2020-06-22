@@ -28,13 +28,13 @@ def test_trans():
     Lx=1.0
     Ly=1.0
 
-    Re_target=5e5
+    Re_target=1.3e6
 
     Uinf=Re_target*mu/(Lx*rho)
 
-    msh, x0, q, xs, th_ideal, indmat=_gen_flatplate(Uinf=Uinf, echo=True, factor=1.0, Lx=Lx, Ly=Ly, nm=50, nn=2, Ncrit=6.0, A_transition=1.0, adj=True)
+    msh, x0, q, xs, th_ideal, indmat=_gen_flatplate(Uinf=Uinf, echo=True, factor=1.0, Lx=Lx, Ly=Ly, nm=200, nn=2, Ncrit=6.0, A_transition=1.0, adj=True)
 
-    solution, nit, success=msh.opt.solve(x0, q, solobj=True, method='CG', maxiter=500, relgtol=5e-3)
+    solution, nit, success=msh.opt.solve(x0, q, solinfo=True, method='CG', maxiter=500, relgtol=1e-2)
 
     if plotgraph:
         plt.scatter(xs, solution['th11'], label='numeric')
@@ -42,6 +42,8 @@ def test_trans():
 
         plt.grid()
         plt.legend()
+
+        plt.ylim((0.0, 5e-3))
 
         plt.show()
 
@@ -56,12 +58,17 @@ def test_trans():
         distJ=msh.dcell_dnode[1]
 
         Rex=rho*xs*Uinf/mu
-        plt.scatter(xs, msh.gr.get_value('p')[0], label='numeric')
-        # plt.scatter(Rex[Rex>0.0], 0.664/np.sqrt(Rex[Rex>0.0]), label='analytic')
+        Rex[indmat[0, :]]=1e-5
+
+        Cf=0.664/np.sqrt(Rex)
+        Cf[Rex>Rex_crit]=0.027/Rex[Rex>Rex_crit]**(1.0/7)
+
+        plt.scatter(Rex, msh.gr.get_value('Cf')[0], label='numeric')
+        plt.scatter(Rex, Cf, label='analytic')
 
         plt.grid()
         plt.legend()
-        # plt.ylim((0.0, 1e-2))
+        plt.ylim((0.0, 5e-3))
 
         plt.show()
 
@@ -101,22 +108,23 @@ def _gen_flatplate(Uinf=1.0, echo=False, factor=1.2, Lx=1.0, Ly=1.0, nm=10, nn=2
 
     qx[indmat[0, :]]=0.0
 
-    delta_FS=np.zeros_like(qx)
-
-    valid=qx>0.0
-
-    delta_FS[valid]=np.sqrt(mu*xaux[valid]/(rho*qx[valid]))
-
     Rex=qx*xaux*rho/mu
 
     N=np.zeros_like(qx)
 
-    N[Rex>Rex_crit]=7.0
+    Rex[indmat[0, :]]=1e-5
+
+    isturb=Rex>Rex_crit
+
+    N[isturb]=7.0
+
+    th=0.664*xaux/np.sqrt(Rex)
+    th[isturb]=0.037*xaux[isturb]/(Rex[isturb])**(1.0/5)
+
+    H=H_ideal*np.ones_like(qx)
+    H[isturb]=1.25
 
     print(N)
-
-    th=delta_FS*theta_over_dfs*factor
-    H=np.ones_like(xaux)*H_ideal
 
     x0={'n':np.zeros_like(th), 'th11':th, 'H':H, 'beta':np.zeros_like(th), 'N':N}
 
