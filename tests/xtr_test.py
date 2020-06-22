@@ -15,7 +15,7 @@ mu=defatm.mu
 theta_over_dfs=0.66412
 H_ideal=2.59109
 
-Rex_crit=1e6
+Rex_crit=5e5
 
 plotgraph=True
 plotMoody=True
@@ -28,11 +28,11 @@ def test_trans():
     Lx=1.0
     Ly=1.0
 
-    Re_target=2e5
+    Re_target=5e5
 
     Uinf=Re_target*mu/(Lx*rho)
 
-    msh, x0, q, xs, th_ideal, indmat=_gen_flatplate(Uinf=Uinf, echo=True, factor=1.0, Lx=Lx, Ly=Ly, nm=20, nn=2, Ncrit=6, A_transition=2.0)
+    msh, x0, q, xs, th_ideal, indmat=_gen_flatplate(Uinf=Uinf, echo=True, factor=1.0, Lx=Lx, Ly=Ly, nm=10, nn=2, Ncrit=4.0, A_transition=2.0, adj=True)
 
     solution, soln=msh.opt.solve(x0, q, solobj=True, method='CG', maxiter=500, relgtol=1e-2)
 
@@ -42,6 +42,13 @@ def test_trans():
 
         plt.grid()
         plt.legend()
+
+        plt.show()
+
+        plt.scatter(xs, msh.gr.get_value('sigma_N')[0])
+
+        plt.grid()
+        plt.title('sigma_N')
 
         plt.show()
 
@@ -60,7 +67,7 @@ def test_trans():
 
     print(solution, soln)
 
-def _gen_flatplate(Uinf=1.0, echo=False, factor=1.2, Lx=1.0, Ly=1.0, nm=10, nn=2, Ncrit=6.0, A_transition=50.0):
+def _gen_flatplate(Uinf=1.0, echo=False, factor=1.2, Lx=1.0, Ly=1.0, nm=10, nn=2, Ncrit=6.0, A_transition=50.0, adj=False):
     '''
     Generate a flat plate with given discretization and dimensions+freestream conditions
     '''
@@ -87,7 +94,7 @@ def _gen_flatplate(Uinf=1.0, echo=False, factor=1.2, Lx=1.0, Ly=1.0, nm=10, nn=2
     normals=np.zeros((nm*nn, 3))
     normals[:, 2]=1.0
 
-    msh.compose(normals)
+    msh.compose(normals, transition_CC=indmat[0, :] if adj else None)
     msh.graph_init()
 
     qx=Uinf*np.ones_like(xaux)

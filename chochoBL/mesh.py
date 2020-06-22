@@ -495,7 +495,7 @@ class mesh:
                 for o in h.outs_to_inds:
                     invals.add(o)
 
-            grad=self.gr.get_derivs_reverse(value={e:ev for e, ev in zip(evals.keys(), evals.values())}, ends=tail.keys())
+            grad=self.gr.get_derivs_reverse(value=evals.copy(), ends=tail.keys())
 
             return {e:ev.reshape(np.size(ev)) for e, ev in zip(evals, evals.values())}, {g:(gv.reshape(np.size(gv)) if not gv is None else gv) \
                 for g, gv in zip(grad, grad.values())}
