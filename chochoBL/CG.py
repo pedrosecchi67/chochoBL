@@ -49,7 +49,7 @@ class optunit:
         Set the value of x as a given vector
         '''
 
-        self.x=x
+        self.x=x.copy()
 
         indict={inp:self._fromx_extract(inp) for inp in self._inord}
 
@@ -145,7 +145,8 @@ class optunit:
 
         return np.hstack([x[p] for p in self._inord])
 
-    def solve(self, x0, q={}, solobj=False, relgtol=1e-2, maxiter=200, method='CG'):
+    def solve(self, x0, q={}, solinfo=False, relgtol=1e-2, maxiter=200, method='CG', p_forward=0.5, p_backward=0.2, fmax=0.5, fmin=0.2, \
+        init_alpha=1e-3, factor_echo=False):
         '''
         Solve boundary layer equations via iterative methods, Conjugate Gradients as default
         '''
@@ -154,26 +155,91 @@ class optunit:
 
         initguess_vector=self.pack(x0)
 
-        ng0=lg.norm(self.jac(initguess_vector))
+        if method=='custom_adaptative':
+            xans, fans, _, nit, success=custom_adaptative(itermax=maxiter, relgtol=relgtol, fun=self.fun, jac=self.jac, \
+                x0=initguess_vector, p_forward=p_forward, p_backward=p_backward, fmin=fmin, fmax=fmax, init_alpha=init_alpha, \
+                    factor_echo=factor_echo)
+        else:
+            ng0=lg.norm(self.jac(initguess_vector))
 
-        soln=sopt.minimize(fun=self.fun, x0=initguess_vector, jac=self.jac, method=method, \
-            options={'maxiter':maxiter, 'gtol':relgtol*ng0})
+            soln=sopt.minimize(fun=self.fun, x0=initguess_vector, jac=self.jac, method=method, \
+                options={'maxiter':maxiter, 'gtol':relgtol*ng0})
 
-        if not soln.success:
-            print(soln)
-            raise Exception('Iterative solution failed')
+            if not soln.success:
+                print(soln)
+                raise Exception('Iterative solution failed')
+
+            xans=soln.x
 
         solution={}
 
         for p in self._inord:
             inds=self.inds[p]
 
-            solution[p]=soln.x[inds[0]:inds[1]]
+            solution[p]=xans[inds[0]:inds[1]]
 
         if self.has_transadjoint:
             solution['N']=self.msh.gr.get_value('N')[0]
 
-        if solobj:
-            return solution, soln
-        else:
-            return solution
+        if solinfo:
+            if method=='custom_adaptative':
+                return solution, nit, success
+            else:
+                return solution, soln.nit, soln.success
+        return solution
+
+def custom_adaptative(fun, jac, x0, init_alpha=1.0, p_forward=0.5, p_backward=0.2, fmin=0.2, fmax=0.5, itermax=100, relgtol=1e-3, factor_echo=False):
+    '''
+    Customized gradient descent algorithm
+    '''
+
+    x=x0.copy()
+
+    f0=fun(x)
+    g0=jac(x)
+
+    glast=g0.copy()
+    g=g0.copy()
+    f=f0
+
+    ng02=g0@g0
+
+    nit=0
+
+    alpha=init_alpha
+
+    unconverged=True
+
+    while nit<=itermax and unconverged:
+        x-=alpha*g
+
+        f=fun(x)
+        g=jac(x)
+
+        nglast2=(glast@glast)
+
+        factor=(g@glast)/(1e-20 if nglast2<1e-20 else nglast2)
+
+        if factor<0.0:
+            alpha*=np.exp(p_backward*factor)
+        elif factor<fmin:
+            alpha*=np.exp(p_forward*(factor-fmin))
+        elif factor>fmax:
+            alpha*=np.exp(p_forward*(factor-fmax))
+
+        if factor_echo:
+            print('%5s %5s %5s %5s'% ('fac', 'alph', 'f', 'ng'))
+            print('%5g %5g %5g %5g'% (factor, alpha, f, np.sqrt(nglast2)))
+
+        nit+=1
+
+        glast=g.copy()
+
+        unconverged=unconverged and nglast2>ng02*relgtol**2
+
+    if nit<=itermax:
+        success=not unconverged
+    else:
+        success=False
+
+    return x, f, g, nit, success

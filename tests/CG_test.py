@@ -1,5 +1,6 @@
 import numpy as np
 import numpy.linalg as lg
+import numpy.random as rnd
 import scipy.optimize as sopt
 
 import matplotlib.pyplot as plt
@@ -30,12 +31,43 @@ H_ideal=2.21622
 
 plotgraph=False
 
+funecho=True
+
+def fun(x):
+    f=x@x/2
+
+    if funecho:
+        print('FUN ', x, f)
+
+    return f
+
+def jac(x):
+    J=x
+
+    if funecho:
+        print('JAC ', x, J)
+
+    return J
+
+def test_custom_adaptative():
+    '''
+    Test customized adaptative gradient descent algorithm
+    '''
+
+    x0=rnd.random(3)
+
+    x, f, g, nit, success=custom_adaptative(fun, jac, x0, init_alpha=3.0, factor_echo=funecho)
+
+    print(x, f, g, nit, success)
+
+    assert success and np.all(np.abs(x)<1e-3)
+
 def test_jac():
     '''
     Test function and Jacobian by finite difference test
     '''
 
-    msh, x0, q, _=_getmesh(1.0, nm=10, nn=10)
+    msh, x0, q, _=_getmesh(1.0, nm=10, nn=10, echo=False)
 
     x0=msh.opt.pack(x0)
 
@@ -58,8 +90,8 @@ def test_laminar_flat_plate():
     and solve its boundary layer problem via gradient descent
     '''
 
-    nm=20; nn=8
-    msh, x0, q, J=_getmesh(0.8, nm=nm, nn=nn)
+    nm=10; nn=2
+    msh, x0, q, J=_getmesh(0.8, nm=nm, nn=nn, echo=True)
 
     xs=np.flip(np.linspace(Lx, 0.0, nm, endpoint=False))
     ys=np.linspace(0.0, Ly, nn)
@@ -68,9 +100,9 @@ def test_laminar_flat_plate():
 
     xs=xx.reshape(np.size(xx))
 
-    solution, soln=msh.opt.solve(x0, q, solobj=True, maxiter=200, relgtol=1e-2, method='BFGS')
+    solution, nit, success=msh.opt.solve(x0, q, maxiter=10000, relgtol=1e-2, method='CG', solinfo=True)
 
-    print(soln.nit)
+    print(nit, success)
 
     num, an=solution['th11']*rho*msh.opt.q['qx']**2, J
 
@@ -83,9 +115,9 @@ def test_laminar_flat_plate():
 
         plt.show()
 
-    assert np.amax(np.abs(num-an))<5e-2*np.amax(an) # ensuring maximum deviation of 5% in momentum deffect
+    assert np.amax(np.abs(num-an))<5e-2*np.amax(an) # ensuring maximum deviation of 5% in momentum deffect'''
 
-def _getmesh(factor0, nm=20, nn=2):
+def _getmesh(factor0, nm=20, nn=2, echo=True):
     nnodes=nm*nn
 
     # numeric results
@@ -94,7 +126,7 @@ def _getmesh(factor0, nm=20, nn=2):
 
     yy, xx=np.meshgrid(ys, xs)
 
-    msh=mesh(Uinf=Uinf, echo=True)
+    msh=mesh(Uinf=Uinf, echo=echo)
 
     n=0
 

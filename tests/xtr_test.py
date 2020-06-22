@@ -34,7 +34,7 @@ def test_trans():
 
     msh, x0, q, xs, th_ideal, indmat=_gen_flatplate(Uinf=Uinf, echo=True, factor=1.0, Lx=Lx, Ly=Ly, nm=50, nn=2, Ncrit=6.0, A_transition=1.0, adj=True)
 
-    solution, soln=msh.opt.solve(x0, q, solobj=True, method='CG', maxiter=500, relgtol=5e-3)
+    solution, nit, success=msh.opt.solve(x0, q, solobj=True, method='CG', maxiter=500, relgtol=5e-3)
 
     if plotgraph:
         plt.scatter(xs, solution['th11'], label='numeric')
@@ -65,7 +65,7 @@ def test_trans():
 
         plt.show()
 
-    print(solution, soln)
+    print(solution, nit, success)
 
 def _gen_flatplate(Uinf=1.0, echo=False, factor=1.2, Lx=1.0, Ly=1.0, nm=10, nn=2, Ncrit=6.0, A_transition=50.0, adj=False):
     '''
