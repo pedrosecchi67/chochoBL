@@ -52,6 +52,10 @@ def test_turbulent_findiff():
     assert_diff('th11', Re_target=1e6)
     assert_diff('th11', Re_target=1.5e6)
 
+    assert_diff('beta', Re_target=5e5)
+    assert_diff('beta', Re_target=1e6)
+    assert_diff('beta', Re_target=1.5e6)
+
 def assert_diff(prop='th11', factor=1e-11, Re_target=1e6):
     Lx=1.0
     Ly=1.0
@@ -74,4 +78,4 @@ def assert_diff(prop='th11', factor=1e-11, Re_target=1e6):
 
     print(var_an, var_num)
 
-    assert np.abs((var_an-var_num)/var_an)<1e-3
+    assert (np.abs((var_an-var_num))<=np.abs(var_an)*1e-3 if not any((np.abs(var_an)<1e-15, np.abs(var_num)<1e-15)) else True)

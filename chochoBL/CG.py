@@ -145,7 +145,7 @@ class optunit:
 
         return np.hstack([x[p] for p in self._inord])
 
-    def solve(self, x0, q={}, solinfo=False, relgtol=1e-2, maxiter=200, method='CG', p_forward=0.5, p_backward=0.2, fmax=0.5, fmin=0.2, \
+    def solve(self, x0, q={}, solinfo=False, relgtol=1e-2, maxiter=200, method='CG', w=1.0, b=0.5, \
         init_alpha=1e-3, factor_echo=False):
         '''
         Solve boundary layer equations via iterative methods, Conjugate Gradients as default
@@ -157,7 +157,7 @@ class optunit:
 
         if method=='custom_adaptative':
             xans, fans, _, nit, success=custom_adaptative(itermax=maxiter, relgtol=relgtol, fun=self.fun, jac=self.jac, \
-                x0=initguess_vector, p_forward=p_forward, p_backward=p_backward, fmin=fmin, fmax=fmax, init_alpha=init_alpha, \
+                x0=initguess_vector, w=w, b=b, init_alpha=init_alpha, \
                     factor_echo=factor_echo)
         else:
             ng0=lg.norm(self.jac(initguess_vector))
@@ -188,7 +188,7 @@ class optunit:
                 return solution, soln.nit, soln.success
         return solution
 
-def custom_adaptative(fun, jac, x0, init_alpha=1.0, p_forward=0.5, p_backward=0.2, fmin=0.2, fmax=0.5, itermax=100, relgtol=1e-3, factor_echo=False):
+def custom_adaptative(fun, jac, x0, init_alpha=1.0, w=1.0, b=0.5, itermax=100, relgtol=1e-3, factor_echo=False):
     '''
     Customized gradient descent algorithm
     '''
@@ -206,7 +206,7 @@ def custom_adaptative(fun, jac, x0, init_alpha=1.0, p_forward=0.5, p_backward=0.
 
     nit=0
 
-    alpha=init_alpha
+    alpha=init_alpha/np.sqrt(ng02)
 
     unconverged=True
 
@@ -220,12 +220,7 @@ def custom_adaptative(fun, jac, x0, init_alpha=1.0, p_forward=0.5, p_backward=0.
 
         factor=(g@glast)/(1e-20 if nglast2<1e-20 else nglast2)
 
-        if factor<0.0:
-            alpha*=np.exp(p_backward*factor)
-        elif factor<fmin:
-            alpha*=np.exp(p_forward*(factor-fmin))
-        elif factor>fmax:
-            alpha*=np.exp(p_forward*(factor-fmax))
+        alpha*=np.exp(w*(factor-b))
 
         if factor_echo:
             print('%5s %5s %5s %5s'% ('fac', 'alph', 'f', 'ng'))

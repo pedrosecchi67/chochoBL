@@ -793,6 +793,8 @@ def Cd_innode(Cd, A):
     base_den=_base_den_Cd(Cd)
     base=A_aux/base_den
 
+    base=np.abs(base)
+
     A_aux_valid=(A_aux>=1e-15)
 
     lbase=np.zeros_like(A_aux)

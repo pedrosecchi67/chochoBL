@@ -15,7 +15,7 @@ mu=defatm.mu
 theta_over_dfs=0.66412
 H_ideal=2.59109
 
-Rex_crit=1e6
+Rex_crit=1e7
 
 plotgraph=True
 plotMoody=True
@@ -28,13 +28,15 @@ def test_trans():
     Lx=1.0
     Ly=1.0
 
-    Re_target=1.3e6
+    Re_target=4e6
 
     Uinf=Re_target*mu/(Lx*rho)
 
-    msh, x0, q, xs, th_ideal, indmat=_gen_flatplate(Uinf=Uinf, echo=True, factor=1.0, Lx=Lx, Ly=Ly, nm=200, nn=2, Ncrit=6.0, A_transition=1.0, adj=True)
+    msh, x0, q, xs, th_ideal, indmat=_gen_flatplate(Uinf=Uinf, echo=True, factor=1.0, Lx=Lx, Ly=Ly, nm=50, nn=2, Ncrit=5.0, A_transition=3.0, adj=True)
 
-    solution, nit, success=msh.opt.solve(x0, q, solinfo=True, method='CG', maxiter=500, relgtol=1e-2)
+    solution, nit, success=msh.opt.solve(x0, q, solinfo=True, method='CG', maxiter=100000, relgtol=1e-2)#, init_alpha=1e-8, w=1.0, b=0.5)
+
+    distJ=msh.dcell_dnode[1]
 
     if plotgraph:
         plt.scatter(xs, solution['th11'], label='numeric')
@@ -47,6 +49,13 @@ def test_trans():
 
         plt.show()
 
+        plt.scatter(xs, msh.gr.get_value('p')[0])
+
+        plt.grid()
+        plt.title('p')
+
+        plt.show()
+
         plt.scatter(xs, msh.gr.get_value('sigma_N')[0])
 
         plt.grid()
@@ -54,9 +63,21 @@ def test_trans():
 
         plt.show()
 
-    if plotMoody:
-        distJ=msh.dcell_dnode[1]
+        plt.scatter(xs, msh.gr.get_value('N')[0])
 
+        plt.grid()
+        plt.title('N')
+
+        plt.show()
+
+        plt.scatter(xs, distJ.T@msh.gr.get_value('Ren')[0])
+
+        plt.grid()
+        plt.title('Ren')
+
+        plt.show()
+
+    if plotMoody:
         Rex=rho*xs*Uinf/mu
         Rex[indmat[0, :]]=1e-5
 
@@ -119,7 +140,7 @@ def _gen_flatplate(Uinf=1.0, echo=False, factor=1.2, Lx=1.0, Ly=1.0, nm=10, nn=2
     N[isturb]=7.0
 
     th=0.664*xaux/np.sqrt(Rex)
-    th[isturb]=0.037*xaux[isturb]/(Rex[isturb])**(1.0/5)
+    th[isturb]=0.016*xaux[isturb]/(Rex[isturb])**(1.0/7)
 
     H=H_ideal*np.ones_like(qx)
     H[isturb]=1.25
