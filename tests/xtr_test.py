@@ -77,6 +77,13 @@ def test_trans():
 
         plt.show()
 
+        plt.scatter(xs, distJ.T@msh.gr.get_value('Rmomx')[0])
+
+        plt.grid()
+        plt.title('Rmomx')
+
+        plt.show()
+
     if plotMoody:
         Rex=rho*xs*Uinf/mu
         Rex[indmat[0, :]]=1e-5
