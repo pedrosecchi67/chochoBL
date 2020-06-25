@@ -117,13 +117,13 @@ def qef(qx, qy, qz):
     return np.sqrt(qx**2+qy**2+qz**2)
 
 def dqef_dqx(qx, qy, qz, qe):
-    return sps.diags(qx/qe, format='lil')
+    return qx/qe
 
 def dqef_dqy(qx, qy, qz, qe):
-    return sps.diags(qy/qe, format='lil')
+    return qy/qe
 
 def dqef_dqz(qx, qy, qz, qe):
-    return sps.diags(qz/qe, format='lil')
+    return qz/qe
 
 def qe_getnode(msh):
     '''
@@ -148,7 +148,7 @@ def Mef(qe, passive):
     return qe/passive['atm'].v_sonic
 
 def dMef_dqe(qe, passive):
-    return sps.eye(len(qe), format='lil')/passive['atm'].v_sonic
+    return np.ones_like(qe)/passive['atm'].v_sonic
 
 def Me_getnode(msh):
     '''
@@ -178,7 +178,7 @@ def drhof_dMe(Me, passive):
     rho0=passive['atm'].rho
     Uinf=passive['Uinf']
 
-    return sps.diags((-Me**2*(a-Uinf)/Uinf-2*Me*(Me*a-Uinf)/Uinf)*rho0, format='lil')
+    return (-Me**2*(a-Uinf)/Uinf-2*Me*(Me*a-Uinf)/Uinf)*rho0
 
 def rho_getnode(msh):
     '''
@@ -200,10 +200,10 @@ def Rethf(qe, rho, th11, passive):
     return qe*rho*th11/passive['atm'].mu
 
 def dRethf_dqe(qe, Reth, passive):
-    return sps.diags(Reth/qe, format='lil')
+    return Reth/qe
 
 def dRethf_drho(rho, Reth, passive):
-    return sps.diags(Reth/rho, format='lil')
+    return Reth/rho
 
 _th11_tolerance=1e-8
 
@@ -211,7 +211,7 @@ def dRethf_dth11(th11, Reth, passive):
     th11_aux=th11.copy()
     th11_aux[th11_aux<_th11_tolerance]=_th11_tolerance
 
-    return sps.diags(Reth/th11_aux, format='lil')
+    return Reth/th11_aux
 
 def Rethfunc(qe, rho, th11, passive):
     Reth=Rethf(qe, rho, th11, passive)

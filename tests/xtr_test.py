@@ -34,7 +34,7 @@ def test_trans():
 
     msh, x0, q, xs, th_ideal, indmat=_gen_flatplate(Uinf=Uinf, echo=True, factor=1.0, Lx=Lx, Ly=Ly, nm=50, nn=2, Ncrit=5.0, A_transition=3.0, adj=True)
 
-    solution, nit, success=msh.opt.solve(x0, q, solinfo=True, method='CG', maxiter=1000, relgtol=1e-2)#, init_alpha=1e-5, w=1.0, b=0.5)
+    solution, nit, success=msh.opt.solve(x0, q, solinfo=True, method='custom_adaptative', maxiter=1000, relgtol=1e-2, init_alpha=1e-5, w=1.0, b=0.5)
 
     distJ=msh.dcell_dnode[1]
 

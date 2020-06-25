@@ -572,7 +572,7 @@ def diag_cell_Jacobian(J, indexing):
     ncells=indexing[2]
     nnodes=indexing[3]
 
-    return sps.coo_matrix((J, (indexing[0], indexing[1])), shape=(4*ncells, nnodes))
+    return sps.csr_matrix((J, (indexing[0], indexing[1])), shape=(4*ncells, nnodes))
 
 def dcell_dnode_Jacobian(vset, correspondence):
     '''

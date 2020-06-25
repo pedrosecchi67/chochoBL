@@ -62,7 +62,7 @@ def calc_adj(pert={}, prop='th11'):
 
     Uinf=Re_target*mu/(Lx*rho)
 
-    msh, x0, q, xs, _, indmat=_gen_flatplate(Uinf=Uinf, echo=True, factor=1.0, Lx=Lx, Ly=Ly, nm=nm, nn=nn, Ncrit=1.0, A_transition=1.0)
+    msh, x0, q, xs, _, indmat=_gen_flatplate(Uinf=Uinf, echo=True, factor=1.2, Lx=Lx, Ly=Ly, nm=nm, nn=nn, Ncrit=1.0, A_transition=1.0)
 
     for p in pert:
         x0[p]+=pert[p]
