@@ -135,4 +135,6 @@ def calc_adj(pert={}, prop='th11'):
     inv=None
     dNdp, _=solve_0CC(A, -(distJ.T@derivs_rev[prop]).todense(), indmat[0, :], inv=inv)
 
+    print(msh.gr.get_time_report())
+
     return total_residual(values), grads, dNdp, N

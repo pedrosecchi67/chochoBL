@@ -1,5 +1,6 @@
 import numpy as np
 import scipy.sparse as sps
+import time as tm
 
 '''
 Module with functions and classes to assist in Jacobian handling
@@ -142,6 +143,8 @@ class node:
 
         self.up_edges=[]
         self.down_edges=[]
+
+        self.evaltime=0.0
     
     def clean_summoning(self):
         '''
@@ -198,12 +201,16 @@ class node:
             for k in ue.k:
                 arglist[self.args_to_inds[k]]=ue.value_from_upstream(k)
 
+        self.evaltime=tm.time()
+
         if self.haspassive:
             self.value, self.Jac=self.f(*tuple(arglist+[self.passive]))
         
         else:
             self.value, self.Jac=self.f(*tuple(arglist))
-    
+
+        self.evaltime=tm.time()-self.evaltime
+
     def set_value(self, v):
         '''
         Set value independently of calculations based on upstream nodes.
@@ -504,6 +511,13 @@ class graph:
                 return n.value[prop], n
         
         raise Exception('Value %s not found' % (prop,))
+
+    def get_time_report(self):
+        '''
+        Get a dictionary of function evaluation time reports for each node
+        '''
+
+        return {k:(v.evaltime if not isinstance(v, head) else 0.0) for k, v in zip(self.nodes.keys(), self.nodes.values())}
 
 def mix_vectors(vecs, format='csr'):
     '''
