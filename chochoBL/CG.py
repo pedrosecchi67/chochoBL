@@ -2,6 +2,8 @@ import numpy as np
 import numpy.linalg as lg
 import scipy.optimize as sopt
 
+import mapping
+
 '''
 Module containing ADTs necessary for a conjugate gradient descent using scipy
 '''
@@ -21,6 +23,13 @@ class optunit:
     def __init__(self, msh, scaler=1.0, echo=False):
         self.msh=msh
 
+        self.mappings={
+            'n':mapping.identity_mapping,
+            'th11':mapping.identity_mapping,
+            'H':mapping.sigma_mapping((1.0, 7.5)),
+            'beta':mapping.sigma_mapping((-np.pi/2, np.pi/2))
+        }
+
         self._inord=_base_inord.copy()
 
         if not self.msh.CC is None:
@@ -29,6 +38,8 @@ class optunit:
             self.has_transadjoint=True
         else:
             self.has_transadjoint=False
+
+            self.mappings['N']=mapping.KS_mapping(10.0)
 
         self.inds={
             k:(i*self.msh.nnodes, (i+1)*self.msh.nnodes) for i, k in enumerate(self._inord)
@@ -69,18 +80,52 @@ class optunit:
         '''
 
         if not hasattr(self, 'x'):
-            self.x=x
+            self.x=x.copy()
 
             return False
 
         return np.all(x==self.x)
-    
+
+    def arrmap(self, x):
+        '''
+        Transform an input array to auxiliary coordinates using mappings
+        '''
+
+        arrlist=[]
+
+        for p in self._inord:
+            inds=self.inds[p]
+
+            arrlist.append(self.mappings[p].inv(x[inds[0]:inds[1]]))
+
+        return np.hstack(arrlist)
+
+    def arrunmap(self, x):
+        '''
+        Transform an array from auxiliary coordinates to proper greatnesses using mappings
+        '''
+
+        arrlist=[]
+        gradlist=[]
+
+        for p in self._inord:
+            inds=self.inds[p]
+
+            v, g=self.mappings[p](x[inds[0]:inds[1]])
+
+            arrlist.append(v)
+            gradlist.append(g)
+
+        return np.hstack(arrlist), np.hstack(gradlist)
+
     def calculate(self, x):
         '''
         Run graph calculation
         '''
 
-        self.set_value(x, N=np.zeros(self.msh.nnodes) if self.has_transadjoint else None)
+        xprop, mapjac=self.arrunmap(x)
+
+        self.set_value(xprop, N=np.zeros(self.msh.nnodes) if self.has_transadjoint else None)
 
         if self.has_transadjoint:
             # solve adjoint system for transition
@@ -113,6 +158,8 @@ class optunit:
         self.fx=total_residual(value)*self.scaler
         self.grad=np.hstack([grad[p] for p in self._inord])*self.scaler
 
+        self.grad*=mapjac
+
         self.nit+=1
 
         if self.echo:
@@ -123,7 +170,7 @@ class optunit:
         Objective function (total residual)
         '''
 
-        if not self.x_compare(x):
+        if not self.x_compare(self.arrunmap(x)[0]):
             self.calculate(x)
 
         return self.fx
@@ -133,7 +180,7 @@ class optunit:
         Jacobian function (for total residual, returned as 1-D array)
         '''
 
-        if not self.x_compare(x):
+        if not self.x_compare(self.arrunmap(x)[0]):
             self.calculate(x)
 
         return self.grad
@@ -153,7 +200,7 @@ class optunit:
 
         self.q=q
 
-        initguess_vector=self.pack(x0)
+        initguess_vector=self.arrmap(self.pack(x0))
 
         if method=='custom_adaptative':
             xans, fans, _, nit, success=custom_adaptative(itermax=maxiter, relgtol=relgtol, fun=self.fun, jac=self.jac, \
@@ -170,6 +217,8 @@ class optunit:
                 raise Exception('Iterative solution failed')
 
             xans=soln.x
+
+        xans, _=self.arrunmap(xans)
 
         solution={}
 

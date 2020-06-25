@@ -110,6 +110,8 @@ class mesh:
 
         self.echo=echo
 
+        self.maxdim=0.0
+
     def add_node(self, coords):
         '''
         Add a new node to list based on coordinates.
@@ -118,8 +120,6 @@ class mesh:
         c=list(coords)
         if not c in self.nodes:
             self.nodes.append(c)
-        
-        return len(self.nodes)-1
     
     def add_cell(self, indset):
         '''
@@ -135,6 +135,8 @@ class mesh:
 
         #turn nodes into an array
         self.nodes=np.array(self.nodes)
+
+        self.maxdim=np.amax(self.nodes)
 
         #converting cells to class structure
         newcells=[]

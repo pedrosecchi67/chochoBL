@@ -82,14 +82,21 @@ def _exp_fun_jac(x, A):
 def log_verification(x, tol=1e-18):
     return np.maximum(x, tol)
 
-class exp_mapping(mapping):
+def _KS_funjac(x, rho, mult=1.0):
+    return np.log(np.exp(rho*x)+1.0)*mult/rho, mult*special.expit(rho*x)
+
+def _KS_inverse(x, rho):
+    return np.log(np.exp(rho*x)-1.0)/rho
+
+class KS_mapping(mapping):
     '''
-    A conform transformation based on an exponential function
+    Define a mapping based on a KS-function (approximated maximum: A*log(sum(exp(rho*f_i(x)))))/rho
+    applied to f_1(x)=x and f_2(x)=0, with rho given by argument
     '''
 
-    def __init__(self, val0):
+    def __init__(self, rho, A=1e-3, min=1e-9):
         '''
-        Initialize conform transformation f(x)=val0.exp(x)
+        Define the KS function (see help(KS_mapping)) using rho
         '''
 
-        super().__init__(lambda x: _exp_fun_jac(x, val0), lambda x: np.log(x/val0), inverse_verificaion=lambda x: log_verification(x/val0))
+        super().__init__(lambda x: _KS_funjac(x, rho, mult=A), lambda x: _KS_inverse(x/A, rho), inverse_verificaion=lambda x: np.maximum(x, min))
