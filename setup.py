@@ -1,4 +1,3 @@
-import setuptools
 from numpy.distutils.core import Extension
 from numpy.distutils.core import setup
 
@@ -6,7 +5,9 @@ with open("README.md", "r") as fh:
     long_description = fh.read()
 
 Exts=[Extension('chochoBL.three_equation_b', \
-    sources=['chochoBL/ADFirstAidKit/adStack.c', 'chochoBL/ADFirstAidKit/adBuffer.f', 'chochoBL/three_equation_b.f90'])]
+    sources=['chochoBL/ADFirstAidKit/adStack.c', 'chochoBL/ADFirstAidKit/adBuffer.f', 'chochoBL/three_equation_b.f90']), \
+        Extension('chochoBL.three_equation', sources=['chochoBL/three_equation.f90']), \
+            Extension('chochoBL.residual', sources=['chochoBL/residual.f90'])]
 
 setup(
     name="chochoBL",

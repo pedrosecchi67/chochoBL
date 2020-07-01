@@ -1,16 +1,17 @@
+TESTDIR=tests
 TESTS=$(TESTDIR)/residual_test.py $(TESTDIR)/mesh_test.py
 PYTEST=pytest
 PYTESTFLGS=-s
 
-PYTHON=python3
-BUILDSCRIPT=setup.py build
+PIP=pip3
+PIPFLGS=install -e .
 
 .PHONY: all
 all: compile test
 
 .PHONY: compile
 compile:
-	$(PYTHON) $(BUILDSCRIPT)
+	$(PIP) $(PIPFLGS)
 
 .PHONY: test
 test:

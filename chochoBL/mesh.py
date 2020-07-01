@@ -6,6 +6,8 @@ from mpl_toolkits import mplot3d
 import fluids.atmosphere as atm
 
 from residual import *
+from three_equation import three_equation as three
+from three_equation_b import three_equation_b as teb
 
 def add_set(l, s):
     '''
@@ -158,7 +160,7 @@ class mesh:
 
             self.cell_Mtosys.append(c.Mtosys.tolist())
 
-        self.cell_Mtosys=np.array(self.cell_Mtosys)
+        self.cell_Mtosys=np.array(self.cell_Mtosys, order='F')
 
         xs=np.array(xs)
         ys=np.array(ys)
@@ -179,9 +181,52 @@ class mesh:
 
         atm=self.passive['atm']
 
-        rmass, rmomx, rmomz, ren, rts=residual.mesh_getresiduals(self.cellmatrix, n, th11, h, beta, nts, qx, qy, qz, \
+        self.rmass, self.rmomx, self.rmomz, self.ren, self.rts=three.mesh_getresiduals(self.cellmatrix, n, th11, h, beta, nts, qx, qy, qz, \
             atm.rho, atm.v_sonic, self.passive['A_transition'], self.passive['A_Rethcrit'], \
                 self.cell_Mtosys, self.passive['Uinf'], atm.mu, self.passive['Ncrit'], self.passive['gamma'], \
                     self.rvj, self.rdxj, self.rdyj, self.rudxj, self.rudyj)
 
-        return rmass, rmomx, rmomz, ren, rts
+        return self.rmass, self.rmomx, self.rmomz, self.ren, self.rts
+
+    def mesh_getresiduals_b(self, n, th11, h, beta, nts, qx, qy, qz,
+        rmass_b=None, rmomx_b=None, rmomz_b=None, ren_b=None, rts_b=None
+            ):
+        '''
+        Run reverse AD code for mesh residual module.
+        Seeds set as None in kwargs will be interpreted as zero
+        '''
+
+        nb=np.zeros(self.nnodes)
+        th11b=np.zeros(self.nnodes)
+        hb=np.zeros(self.nnodes)
+        betab=np.zeros(self.nnodes)
+        ntsb=np.zeros(self.nnodes)
+        qxb=np.zeros(self.nnodes)
+        qyb=np.zeros(self.nnodes)
+        qzb=np.zeros(self.nnodes)
+
+        atm=self.passive['atm']
+
+        teb.mesh_getresiduals_b(
+            self.cellmatrix, 
+                n, nb, 
+                    th11, th11b, 
+                        h, hb, 
+                            beta, betab, 
+                                nts, ntsb, 
+                                    qx, qxb, qy, qyb, qz, qzb,
+                                        atm.rho, atm.v_sonic, 
+                                            self.passive['A_transition'], self.passive['A_Rethcrit'], 
+                                                self.cell_Mtosys, 
+                                                    self.passive['Uinf'], 
+                                                        atm.mu,
+                                                            self.passive['Ncrit'], 
+                                                                self.passive['gamma'], 
+                                                                    self.rvj, self.rdxj, self.rdyj, self.rudxj, self.rudyj, 
+                                                                        self.rmass, (rmass_b if rmass_b is not None else np.zeros_like(self.rmass)), 
+                                                                            self.rmomx, (rmomx_b if rmomx_b is not None else np.zeros_like(self.rmomx)), 
+                                                                                self.rmomz, (rmomz_b if rmomz_b is not None else np.zeros_like(self.rmomz)), 
+                                                                                    self.ren, (ren_b if ren_b is not None else np.zeros_like(self.ren)), 
+                                                                                        self.rts, (rts_b if rts_b is not None else np.zeros_like(self.rts)))
+        
+        return nb, th11b, hb, betab, ntsb, qxb, qyb, qzb

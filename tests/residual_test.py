@@ -1,6 +1,6 @@
 import numpy as np
 
-from chochoBL import residual, defatm
+from chochoBL import *
 
 import pytest
 
@@ -95,7 +95,7 @@ def test_uw():
 
     mtosys[1, :]=np.cross(mtosys[2, :], mtosys[0, :])
 
-    u, w, q=residual.uwq(qx, qy, qz, mtosys)
+    u, w, q=three_equation.uwq(qx, qy, qz, mtosys)
 
     assert np.all(np.abs(qx-u)<1e-5)
     assert np.all(np.abs(qy-w)<1e-5)
@@ -104,7 +104,7 @@ def test_uw():
 
     v_sonic=10.0
 
-    mach=residual.mache(q, v_sonic)
+    mach=three_equation.mache(q, v_sonic)
 
     rho0=1.0
     uinf=2.0
@@ -113,7 +113,7 @@ def test_uw():
     
     rhoe=(1.0-mach**2*(mach*v_sonic-uinf)/uinf)*rho0
 
-    assert np.all(np.abs(rhoe-residual.rhoe(mach, v_sonic, rho0, uinf))<1e-5)
+    assert np.all(np.abs(rhoe-three_equation.rhoe(mach, v_sonic, rho0, uinf))<1e-5)
 
     th11=np.ones_like(qx)*1e-3
 
@@ -121,12 +121,12 @@ def test_uw():
 
     rethideal=rhoe*th11*q/mu
 
-    assert np.all(np.abs(rethideal-residual.reth(q, rhoe, th11, mu))<1e-5)
+    assert np.all(np.abs(rethideal-three_equation.reth(q, rhoe, th11, mu))<1e-5)
 
 def test_sigma():
     vals=np.array([-710.0, 70.0, -2.0, 0.0, 2.0, 70.0, 710.0])
 
-    vals=residual.expit(vals)
+    vals=three_equation.expit(vals)
 
     assert vals[3]==0.5
     assert vals[0]==0.0
@@ -182,11 +182,11 @@ def test_matrixes():
             buff1=np.zeros_like(p)
             buff2=np.zeros_like(q)
 
-            residual.matbyvec(rvj, p, buff1)
+            three_equation.matbyvec(rvj, p, buff1)
 
             assert np.all(np.abs(rvj@p-buff1)<1e-5)
 
-            residual.mat3byvec(rudxj, p, q, buff2)
+            three_equation.mat3byvec(rudxj, p, q, buff2)
 
             assert np.all(np.abs(p@rudxj@q-buff2)<1e-5)
 
@@ -311,7 +311,7 @@ def test_quad_mesh():
 
     R=rdvdxj@J+M@rudvdxj@qes-rvj@tau
 
-    rmass, rmomx, rmomz, ren, rts=residual.cell_getresiduals(\
+    rmass, rmomx, rmomz, ren, rts=three_equation.cell_getresiduals(\
         np.zeros_like(thetas), thetas, Hs, np.zeros_like(thetas), Nts, qes, np.zeros_like(qes), np.zeros_like(qes), \
             rho, a, 50.0, 10.0, \
                 mtosys, 1.0, mu, 6.0, 1.4, rvj, rdvdxj, rdvdyj, rudvdxj, rudvdyj)

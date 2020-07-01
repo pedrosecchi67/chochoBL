@@ -8,6 +8,28 @@ MODULE THREE_EQUATION_B
 & = 709.7
 
 CONTAINS
+!  Differentiation of uwq in reverse (adjoint) mode:
+!   gradient     of useful results: qe u w qx qy qz
+!   with respect to varying inputs: qx qy qz
+  SUBROUTINE UWQ_B(qx, qxb, qy, qyb, qz, qzb, mtosys, u, ub, w, wb, qe, &
+&   qeb)
+    IMPLICIT NONE
+    REAL*8, INTENT(IN) :: qx(4), qy(4), qz(4), mtosys(3, 3)
+    REAL*8 :: qxb(4), qyb(4), qzb(4)
+    REAL*8 :: u(4), w(4), qe(4)
+    REAL*8 :: ub(4), wb(4), qeb(4)
+    INTRINSIC SQRT
+    REAL*8, DIMENSION(4) :: tempb
+    WHERE (qx**2 + qy**2 + qz**2 .EQ. 0.0) 
+      tempb = 0.0_8
+    ELSEWHERE
+      tempb = qeb/(2.0*SQRT(qx**2+qy**2+qz**2))
+    END WHERE
+    qxb = qxb + mtosys(3, 1)*wb + mtosys(1, 1)*ub + 2*qx*tempb
+    qyb = qyb + mtosys(3, 2)*wb + mtosys(1, 2)*ub + 2*qy*tempb
+    qzb = qzb + mtosys(3, 3)*wb + mtosys(1, 3)*ub + 2*qz*tempb
+  END SUBROUTINE UWQ_B
+
   SUBROUTINE UWQ(qx, qy, qz, mtosys, u, w, qe)
     IMPLICIT NONE
     REAL*8, INTENT(IN) :: qx(4), qy(4), qz(4), mtosys(3, 3)
@@ -18,12 +40,36 @@ CONTAINS
     w = mtosys(3, 1)*qx + mtosys(3, 2)*qy + mtosys(3, 3)*qz
   END SUBROUTINE UWQ
 
+!  Differentiation of mache in reverse (adjoint) mode:
+!   gradient     of useful results: qe m
+!   with respect to varying inputs: qe
+  SUBROUTINE MACHE_B(qe, qeb, v_sonic, m, mb)
+    IMPLICIT NONE
+    REAL*8, INTENT(IN) :: qe(4), v_sonic
+    REAL*8 :: qeb(4)
+    REAL*8 :: m(4)
+    REAL*8 :: mb(4)
+    qeb = qeb + mb/v_sonic
+  END SUBROUTINE MACHE_B
+
   SUBROUTINE MACHE(qe, v_sonic, m)
     IMPLICIT NONE
     REAL*8, INTENT(IN) :: qe(4), v_sonic
     REAL*8, INTENT(OUT) :: m(4)
     m = qe/v_sonic
   END SUBROUTINE MACHE
+
+!  Differentiation of rhoe in reverse (adjoint) mode:
+!   gradient     of useful results: m rho
+!   with respect to varying inputs: m
+  SUBROUTINE RHOE_B(m, mb, a, rho0, uinf, rho, rhob)
+    IMPLICIT NONE
+    REAL*8, INTENT(IN) :: m(4), a, rho0, uinf
+    REAL*8 :: mb(4)
+    REAL*8 :: rho(4)
+    REAL*8 :: rhob(4)
+    mb = mb - (2*m*(a*m-uinf)*rho0/uinf+a*m**2*rho0/uinf)*rhob
+  END SUBROUTINE RHOE_B
 
   SUBROUTINE RHOE(m, a, rho0, uinf, rho)
     IMPLICIT NONE
@@ -33,15 +79,16 @@ CONTAINS
   END SUBROUTINE RHOE
 
 !  Differentiation of reth in reverse (adjoint) mode:
-!   gradient     of useful results: re th11
-!   with respect to varying inputs: th11
-  SUBROUTINE RETH_B(qe, rho, th11, th11b, mu, re, reb)
+!   gradient     of useful results: qe re th11 rho
+!   with respect to varying inputs: qe th11 rho
+  SUBROUTINE RETH_B(qe, qeb, rho, rhob, th11, th11b, mu, re, reb)
     IMPLICIT NONE
     REAL*8, INTENT(IN) :: qe(4), rho(4), th11(4), mu
-    REAL*8 :: th11b(4)
+    REAL*8 :: qeb(4), rhob(4), th11b(4)
     REAL*8 :: re(4)
     REAL*8 :: reb(4)
     INTEGER :: i
+    REAL*8, DIMENSION(4) :: tempb
     INTEGER :: branch
     re = qe*rho*th11/mu
     DO i=1,4
@@ -55,7 +102,10 @@ CONTAINS
       CALL POPCONTROL1B(branch)
       IF (branch .NE. 0) reb(i) = 0.0_8
     END DO
+    tempb = th11*reb/mu
     th11b = th11b + qe*rho*reb/mu
+    qeb = qeb + rho*tempb
+    rhob = rhob + qe*tempb
   END SUBROUTINE RETH_B
 
   SUBROUTINE RETH(qe, rho, th11, mu, re)
@@ -256,15 +306,19 @@ CONTAINS
   END SUBROUTINE P_TRANS
 
 !  Differentiation of hk_closure in reverse (adjoint) mode:
-!   gradient     of useful results: h hk
-!   with respect to varying inputs: h
-  SUBROUTINE HK_CLOSURE_B(h, hb, me, hk, hkb)
+!   gradient     of useful results: h hk me
+!   with respect to varying inputs: h me
+  SUBROUTINE HK_CLOSURE_B(h, hb, me, meb, hk, hkb)
     IMPLICIT NONE
     REAL*8, INTENT(IN) :: h(4), me(4)
-    REAL*8 :: hb(4)
+    REAL*8 :: hb(4), meb(4)
     REAL*8 :: hk(4)
     REAL*8 :: hkb(4)
-    hb = hb + hkb/(me**2*0.113+1.0)
+    REAL*8, DIMENSION(4) :: tempb
+    tempb = hkb/(0.113*me**2+1.0)
+    hb = hb + tempb
+    meb = meb - (2*me*0.290+2*me*0.113*(h-0.290*me**2)/(0.113*me**2+1.0)&
+&     )*tempb
   END SUBROUTINE HK_CLOSURE_B
 
   SUBROUTINE HK_CLOSURE(h, me, hk)
@@ -380,14 +434,15 @@ CONTAINS
   END SUBROUTINE CF_LAMINAR
 
 !  Differentiation of hprime_laminar in reverse (adjoint) mode:
-!   gradient     of useful results: hpr hk
-!   with respect to varying inputs: hk
-  SUBROUTINE HPRIME_LAMINAR_B(me, hk, hkb, hpr, hprb)
+!   gradient     of useful results: hpr hk me
+!   with respect to varying inputs: hk me
+  SUBROUTINE HPRIME_LAMINAR_B(me, meb, hk, hkb, hpr, hprb)
     IMPLICIT NONE
     REAL*8, INTENT(IN) :: me(4), hk(4)
-    REAL*8 :: hkb(4)
+    REAL*8 :: meb(4), hkb(4)
     REAL*8 :: hpr(4)
     REAL*8 :: hprb(4)
+    meb = meb + 2*me*(0.064/(hk-0.8)+0.251)*hprb
     hkb = hkb - 0.064*me**2*hprb/(hk-0.8)**2
   END SUBROUTINE HPRIME_LAMINAR_B
 
@@ -462,12 +517,12 @@ CONTAINS
   END SUBROUTINE CD_LAMINAR
 
 !  Differentiation of hstar_turbulent in reverse (adjoint) mode:
-!   gradient     of useful results: hst hk
-!   with respect to varying inputs: hk
-  SUBROUTINE HSTAR_TURBULENT_B(hk, hkb, me, hst, hstb)
+!   gradient     of useful results: hst hk me
+!   with respect to varying inputs: hk me
+  SUBROUTINE HSTAR_TURBULENT_B(hk, hkb, me, meb, hst, hstb)
     IMPLICIT NONE
     REAL*8, INTENT(IN) :: hk(4), me(4)
-    REAL*8 :: hkb(4)
+    REAL*8 :: hkb(4), meb(4)
     REAL*8 :: hst(4)
     REAL*8 :: hstb(4)
     REAL*8 :: hstme0(4)
@@ -478,8 +533,14 @@ CONTAINS
     INTRINSIC SQRT
     REAL*8, DIMENSION(4) :: temp
     REAL*8, DIMENSION(4) :: temp0
+    REAL*8, DIMENSION(4) :: tempb
+    hstme0 = 1.81 + 3.84*EXP(-(2*hk)) - ATAN((10.0**(7.0-hk)-1.0)/1.23)/&
+&     8.55 - 0.146*SQRT(TANH(2.14*10.0**(4.0-1.46*hk)))
     hstme0b = 0.0_8
-    hstme0b = hstb/(me**2*0.014+1.0)
+    tempb = hstb/(0.014*me**2+1.0)
+    hstme0b = tempb
+    meb = meb + (2*me*0.028-2*me*0.014*(hstme0+0.028*me**2)/(0.014*me**2&
+&     +1.0))*tempb
     temp = 10.0**(-hk+7.0)
     temp0 = 10.0**(-(1.46*hk)+4.0)
     WHERE (TANH(2.14*temp0) .EQ. 0.0)
@@ -507,14 +568,15 @@ CONTAINS
   END SUBROUTINE HSTAR_TURBULENT
 
 !  Differentiation of hprime_turbulent in reverse (adjoint) mode:
-!   gradient     of useful results: hpr hk
-!   with respect to varying inputs: hk
-  SUBROUTINE HPRIME_TURBULENT_B(me, hk, hkb, hpr, hprb)
+!   gradient     of useful results: hpr hk me
+!   with respect to varying inputs: hk me
+  SUBROUTINE HPRIME_TURBULENT_B(me, meb, hk, hkb, hpr, hprb)
     IMPLICIT NONE
     REAL*8, INTENT(IN) :: me(4), hk(4)
-    REAL*8 :: hkb(4)
+    REAL*8 :: meb(4), hkb(4)
     REAL*8 :: hpr(4)
     REAL*8 :: hprb(4)
+    meb = meb + 2*me*(0.064/(hk-0.8)+0.251)*hprb
     hkb = hkb - 0.064*me**2*hprb/(hk-0.8)**2
   END SUBROUTINE HPRIME_TURBULENT_B
 
@@ -525,6 +587,20 @@ CONTAINS
     hpr = me**2*(0.251+0.064/(hk-0.8))
   END SUBROUTINE HPRIME_TURBULENT
 
+!  Differentiation of fc in reverse (adjoint) mode:
+!   gradient     of useful results: f me
+!   with respect to varying inputs: me
+  SUBROUTINE FC_B(me, meb, gamma, f, fb)
+    IMPLICIT NONE
+    REAL*8, INTENT(IN) :: me(4), gamma
+    REAL*8 :: meb(4)
+    REAL*8 :: f(4)
+    REAL*8 :: fb(4)
+    INTRINSIC SQRT
+    WHERE (.NOT.(gamma-1.0)*(me**2/2) + 1.0 .EQ. 0.0) meb = meb + me*(&
+&       gamma-1.0)*fb/(2.0*SQRT((gamma-1.0)*(me**2/2)+1.0))
+  END SUBROUTINE FC_B
+
   SUBROUTINE FC(me, gamma, f)
     IMPLICIT NONE
     REAL*8, INTENT(IN) :: me(4), gamma
@@ -534,12 +610,12 @@ CONTAINS
   END SUBROUTINE FC
 
 !  Differentiation of cf_turbulent in reverse (adjoint) mode:
-!   gradient     of useful results: hk rth cf
-!   with respect to varying inputs: hk rth
-  SUBROUTINE CF_TURBULENT_B(hk, hkb, rth, rthb, f, cf, cfb)
+!   gradient     of useful results: f hk rth cf
+!   with respect to varying inputs: f hk rth
+  SUBROUTINE CF_TURBULENT_B(hk, hkb, rth, rthb, f, fb, cf, cfb)
     IMPLICIT NONE
     REAL*8, INTENT(IN) :: hk(4), rth(4), f(4)
-    REAL*8 :: hkb(4), rthb(4)
+    REAL*8 :: hkb(4), rthb(4), fb(4)
     REAL*8 :: cf(4)
     REAL*8 :: cfb(4)
     REAL*8 :: cf_bar(4)
@@ -550,8 +626,11 @@ CONTAINS
     REAL*8, DIMENSION(4) :: temp
     REAL*8, DIMENSION(4) :: tempb
     REAL*8, DIMENSION(4) :: temp0
+    cf_bar = 0.3*LOG10(rth)**(-(0.31*hk)-1.74)*EXP(-(1.33*hk)) + 0.00011&
+&     *(TANH(4.0-8.0*hk/7.0)-1.0)
     cf_barb = 0.0_8
     cf_barb = cfb/f
+    fb = fb - cf_bar*cfb/f**2
     temp0 = LOG10(rth)
     temp = temp0**(-(0.31*hk)-1.74)
     tempb = EXP(-(1.33*hk))*0.3*cf_barb
@@ -582,18 +661,19 @@ CONTAINS
 
 !  Differentiation of cd_turbulent in reverse (adjoint) mode:
 !   gradient     of useful results: cd
-!   with respect to varying inputs: hk rth
-  SUBROUTINE CD_TURBULENT_B(hk, hkb, f, me, rth, rthb, cd, cdb)
+!   with respect to varying inputs: f hk rth me
+  SUBROUTINE CD_TURBULENT_B(hk, hkb, f, fb, me, meb, rth, rthb, cd, cdb)
     IMPLICIT NONE
     REAL*8, INTENT(IN) :: hk(4), f(4), me(4), rth(4)
-    REAL*8 :: hkb(4), rthb(4)
+    REAL*8 :: hkb(4), fb(4), meb(4), rthb(4)
     REAL*8 :: cd(4)
     REAL*8 :: cdb(4)
     REAL*8 :: a(4), b(4), c(4)
-    REAL*8 :: ab(4), bb(4)
+    REAL*8 :: ab(4), bb(4), cb(4)
     INTEGER :: i
     INTRINSIC EXP
     REAL*8, DIMENSION(4) :: tempb
+    REAL*8, DIMENSION(4) :: temp
     INTEGER :: branch
     DO i=1,4
       IF (hk(i) .LT. 3.5) THEN
@@ -604,14 +684,22 @@ CONTAINS
         CALL PUSHCONTROL1B(0)
       END IF
     END DO
+    b = 0.009 - 0.011*EXP(-(0.15*hk**2.1)) + 3e-5*EXP(0.117*hk**2)
     c = f*(1.0+0.05*me**1.4)
     rthb = 0.0_8
     ab = 0.0_8
     bb = 0.0_8
+    cb = 0.0_8
+    temp = rth**(-0.574)
     tempb = 2*cdb/c
     bb = tempb
-    ab = rth**(-0.574)*tempb
+    ab = temp*tempb
     rthb = -(0.574*rth**(-1.574)*a*tempb)
+    cb = -((b+a*temp)*tempb/c)
+    fb = 0.0_8
+    meb = 0.0_8
+    fb = (0.05*me**1.4+1.0)*cb
+    meb = 1.4*me**0.4*0.05*f*cb
     hkb = 0.0_8
     hkb = (2*hk*0.117*EXP(0.117*hk**2)*3e-5+2.1*hk**1.1*0.15*EXP(-(0.15*&
 &     hk**2.1))*0.011)*bb
@@ -672,12 +760,12 @@ CONTAINS
   END SUBROUTINE SIGMA_N
 
 !  Differentiation of a_crossflow in reverse (adjoint) mode:
-!   gradient     of useful results: cf beta a
-!   with respect to varying inputs: cf beta
-  SUBROUTINE A_CROSSFLOW_B(cf, cfb, beta, betab, me, a, ab)
+!   gradient     of useful results: cf beta me a
+!   with respect to varying inputs: cf beta me
+  SUBROUTINE A_CROSSFLOW_B(cf, cfb, beta, betab, me, meb, a, ab)
     IMPLICIT NONE
     REAL*8, INTENT(IN) :: cf(4), beta(4), me(4)
-    REAL*8 :: cfb(4), betab(4)
+    REAL*8 :: cfb(4), betab(4), meb(4)
     REAL*8 :: a(4)
     REAL*8 :: ab(4)
     REAL*8 :: g(4)
@@ -686,20 +774,23 @@ CONTAINS
     INTRINSIC SQRT
     INTRINSIC TAN
     REAL*8, DIMENSION(4) :: temp
+    REAL*8, DIMENSION(4) :: temp0
     REAL*8, DIMENSION(4) :: tempb
     g = SQRT(cf*COS(beta)*(1.0+0.18*me**2))
     gb = 0.0_8
     tempb = TAN(beta)*ab/(g-1.0)
     gb = (1.0-g/(g-1.0))*tempb
-    temp = COS(beta)
-    WHERE ((me**2*0.18+1.0)*(cf*temp) .EQ. 0.0) 
+    temp = 0.18*(me*me) + 1.0
+    temp0 = COS(beta)
+    WHERE (temp0*(cf*temp) .EQ. 0.0) 
       tempb = 0.0_8
     ELSEWHERE
-      tempb = (me**2*0.18+1.0)*gb/(2.0*SQRT((me**2*0.18+1.0)*(cf*temp)))
+      tempb = gb/(2.0*SQRT(temp0*(cf*temp)))
     END WHERE
     betab = betab + (1.0+TAN(beta)**2)*(g/(g-1.0)+1.0)*ab - SIN(beta)*cf&
-&     *tempb
-    cfb = cfb + temp*tempb
+&     *temp*tempb
+    cfb = cfb + temp*temp0*tempb
+    meb = meb + 2*me*0.18*cf*temp0*tempb
   END SUBROUTINE A_CROSSFLOW_B
 
   SUBROUTINE A_CROSSFLOW(cf, beta, me, a)
@@ -919,17 +1010,20 @@ CONTAINS
   END SUBROUTINE CD_INNODE
 
 !  Differentiation of j_innode in reverse (adjoint) mode:
-!   gradient     of useful results: jxx jxz jzx th11 jzz
-!   with respect to varying inputs: th22 th11 th12 th21
+!   gradient     of useful results: jxx jxz u w jzx th11 jzz rho
+!   with respect to varying inputs: th22 u w th11 th12 rho th21
   SUBROUTINE J_INNODE_B(th11, th11b, th12, th12b, th21, th21b, th22, &
-&   th22b, u, w, rho, jxx, jxxb, jxz, jxzb, jzx, jzxb, jzz, jzzb)
+&   th22b, u, ub, w, wb, rho, rhob, jxx, jxxb, jxz, jxzb, jzx, jzxb, jzz&
+&   , jzzb)
     IMPLICIT NONE
     REAL*8, INTENT(IN) :: th11(4), th12(4), th21(4), th22(4), u(4), w(4)&
 &   , rho(4)
-    REAL*8 :: th11b(4), th12b(4), th21b(4), th22b(4)
+    REAL*8 :: th11b(4), th12b(4), th21b(4), th22b(4), ub(4), wb(4), rhob&
+&   (4)
     REAL*8 :: jxx(4), jxz(4), jzx(4), jzz(4)
     REAL*8 :: jxxb(4), jxzb(4), jzxb(4), jzzb(4)
     REAL*8 :: u2(4), uw(4), w2(4)
+    REAL*8 :: u2b(4), uwb(4), w2b(4)
     REAL*8, DIMENSION(4) :: tempb
     u2 = u**2
     uw = u*w
@@ -937,26 +1031,46 @@ CONTAINS
     th22b = 0.0_8
     th12b = 0.0_8
     th21b = 0.0_8
+    w2b = 0.0_8
+    uwb = 0.0_8
+    u2b = 0.0_8
     tempb = rho*jzzb
+    rhob = rhob + (w2*th11+uw*th12+uw*th21+u2*th22)*jzzb + (uw*th11-w2*&
+&     th12+u2*th21-uw*th22)*jzxb + (uw*th11+u2*th12-w2*th21-uw*th22)*&
+&     jxzb + (u2*th11-uw*th12+w2*th22-uw*th21)*jxxb
+    w2b = th11*tempb
     th11b = th11b + w2*tempb
+    uwb = (th12+th21)*tempb
     th12b = uw*tempb
     th21b = uw*tempb
+    u2b = th22*tempb
     th22b = u2*tempb
     tempb = rho*jzxb
+    uwb = uwb + (th11-th22)*tempb
     th11b = th11b + uw*tempb
+    w2b = w2b - th12*tempb
     th12b = th12b - w2*tempb
+    u2b = u2b + th21*tempb
     th21b = th21b + u2*tempb
     th22b = th22b - uw*tempb
     tempb = rho*jxzb
+    uwb = uwb + (th11-th22)*tempb
     th11b = th11b + uw*tempb
+    u2b = u2b + th12*tempb
     th12b = th12b + u2*tempb
+    w2b = w2b - th21*tempb
     th21b = th21b - w2*tempb
     th22b = th22b - uw*tempb
     tempb = rho*jxxb
+    u2b = u2b + th11*tempb
     th11b = th11b + u2*tempb
+    uwb = uwb - (th12+th21)*tempb
     th12b = th12b - uw*tempb
+    w2b = w2b + th22*tempb
     th22b = th22b + w2*tempb
     th21b = th21b - uw*tempb
+    wb = wb + 2*w*w2b + u*uwb
+    ub = ub + w*uwb + 2*u*u2b
   END SUBROUTINE J_INNODE_B
 
   SUBROUTINE J_INNODE(th11, th12, th21, th22, u, w, rho, jxx, jxz, jzx, &
@@ -976,20 +1090,31 @@ CONTAINS
   END SUBROUTINE J_INNODE
 
 !  Differentiation of m_innode in reverse (adjoint) mode:
-!   gradient     of useful results: mz mx
-!   with respect to varying inputs: deltastar_1 deltastar_2
+!   gradient     of useful results: mz u w rho mx
+!   with respect to varying inputs: u w deltastar_1 rho deltastar_2
   SUBROUTINE M_INNODE_B(deltastar_1, deltastar_1b, deltastar_2, &
-&   deltastar_2b, u, w, rho, mx, mxb, mz, mzb)
+&   deltastar_2b, u, ub, w, wb, rho, rhob, mx, mxb, mz, mzb)
     IMPLICIT NONE
     REAL*8, INTENT(IN) :: deltastar_1(4), deltastar_2(4), u(4), w(4), &
 &   rho(4)
-    REAL*8 :: deltastar_1b(4), deltastar_2b(4)
+    REAL*8 :: deltastar_1b(4), deltastar_2b(4), ub(4), wb(4), rhob(4)
     REAL*8 :: mx(4), mz(4)
     REAL*8 :: mxb(4), mzb(4)
+    REAL*8, DIMENSION(4) :: tempb
     deltastar_1b = 0.0_8
     deltastar_2b = 0.0_8
-    deltastar_2b = u*rho*mzb + w*rho*mxb
-    deltastar_1b = u*rho*mxb - w*rho*mzb
+    tempb = rho*mzb
+    rhob = rhob + (deltastar_2*u-deltastar_1*w)*mzb + (deltastar_1*u+&
+&     deltastar_2*w)*mxb
+    deltastar_2b = u*tempb
+    ub = ub + deltastar_2*tempb
+    deltastar_1b = -(w*tempb)
+    wb = wb - deltastar_1*tempb
+    tempb = rho*mxb
+    deltastar_1b = deltastar_1b + u*tempb
+    ub = ub + deltastar_1*tempb
+    deltastar_2b = deltastar_2b + w*tempb
+    wb = wb + deltastar_2*tempb
   END SUBROUTINE M_INNODE_B
 
   SUBROUTINE M_INNODE(deltastar_1, deltastar_2, u, w, rho, mx, mz)
@@ -1002,24 +1127,33 @@ CONTAINS
   END SUBROUTINE M_INNODE
 
 !  Differentiation of e_innode in reverse (adjoint) mode:
-!   gradient     of useful results: ex ez
-!   with respect to varying inputs: thst1 thst2
-  SUBROUTINE E_INNODE_B(thst1, thst1b, thst2, thst2b, u, w, q, rho, ex, &
-&   exb, ez, ezb)
+!   gradient     of useful results: q u w ex ez rho
+!   with respect to varying inputs: q u w thst1 thst2 rho
+  SUBROUTINE E_INNODE_B(thst1, thst1b, thst2, thst2b, u, ub, w, wb, q, &
+&   qb, rho, rhob, ex, exb, ez, ezb)
     IMPLICIT NONE
     REAL*8, INTENT(IN) :: thst1(4), thst2(4), u(4), w(4), q(4), rho(4)
-    REAL*8 :: thst1b(4), thst2b(4)
+    REAL*8 :: thst1b(4), thst2b(4), ub(4), wb(4), qb(4), rhob(4)
     REAL*8 :: ex(4), ez(4)
     REAL*8 :: exb(4), ezb(4)
     REAL*8, DIMENSION(4) :: tempb
+    REAL*8, DIMENSION(4) :: tempb0
     thst1b = 0.0_8
     thst2b = 0.0_8
+    tempb0 = (thst2*u-thst1*w)*ezb
     tempb = rho*q**2*ezb
     thst2b = u*tempb
+    ub = ub + thst2*tempb
     thst1b = -(w*tempb)
-    tempb = rho*q**2*exb
-    thst1b = thst1b + u*tempb
-    thst2b = thst2b + w*tempb
+    wb = wb - thst1*tempb
+    tempb = (thst1*u+thst2*w)*exb
+    rhob = rhob + q**2*tempb0 + q**2*tempb
+    qb = qb + 2*q*rho*tempb0 + 2*q*rho*tempb
+    tempb0 = rho*q**2*exb
+    thst1b = thst1b + u*tempb0
+    ub = ub + thst1*tempb0
+    thst2b = thst2b + w*tempb0
+    wb = wb + thst2*tempb0
   END SUBROUTINE E_INNODE_B
 
   SUBROUTINE E_INNODE(thst1, thst2, u, w, q, rho, ex, ez)
@@ -1031,20 +1165,33 @@ CONTAINS
   END SUBROUTINE E_INNODE
 
 !  Differentiation of rhoq_innode in reverse (adjoint) mode:
-!   gradient     of useful results: rhoqx rhoqz
-!   with respect to varying inputs: deltaprime_1 deltaprime_2
+!   gradient     of useful results: u w rhoqx rhoqz rho
+!   with respect to varying inputs: u w deltaprime_1 deltaprime_2
+!                rho
   SUBROUTINE RHOQ_INNODE_B(deltaprime_1, deltaprime_1b, deltaprime_2, &
-&   deltaprime_2b, u, w, rho, rhoqx, rhoqxb, rhoqz, rhoqzb)
+&   deltaprime_2b, u, ub, w, wb, rho, rhob, rhoqx, rhoqxb, rhoqz, rhoqzb&
+& )
     IMPLICIT NONE
     REAL*8, INTENT(IN) :: deltaprime_1(4), deltaprime_2(4), u(4), w(4), &
 &   rho(4)
-    REAL*8 :: deltaprime_1b(4), deltaprime_2b(4)
+    REAL*8 :: deltaprime_1b(4), deltaprime_2b(4), ub(4), wb(4), rhob(4)
     REAL*8 :: rhoqx(4), rhoqz(4)
     REAL*8 :: rhoqxb(4), rhoqzb(4)
+    REAL*8, DIMENSION(4) :: tempb
     deltaprime_1b = 0.0_8
     deltaprime_2b = 0.0_8
-    deltaprime_2b = u*rho*rhoqzb + w*rho*rhoqxb
-    deltaprime_1b = u*rho*rhoqxb - w*rho*rhoqzb
+    rhob = rhob + (deltaprime_2*u-deltaprime_1*w)*rhoqzb + (deltaprime_1&
+&     *u+deltaprime_2*w)*rhoqxb
+    tempb = rho*rhoqzb
+    deltaprime_2b = u*tempb
+    ub = ub + deltaprime_2*tempb
+    deltaprime_1b = -(w*tempb)
+    wb = wb - deltaprime_1*tempb
+    tempb = rho*rhoqxb
+    deltaprime_1b = deltaprime_1b + u*tempb
+    ub = ub + deltaprime_1*tempb
+    deltaprime_2b = deltaprime_2b + w*tempb
+    wb = wb + deltaprime_2*tempb
   END SUBROUTINE RHOQ_INNODE_B
 
   SUBROUTINE RHOQ_INNODE(deltaprime_1, deltaprime_2, u, w, rho, rhoqx, &
@@ -1058,23 +1205,31 @@ CONTAINS
   END SUBROUTINE RHOQ_INNODE
 
 !  Differentiation of tau_innode in reverse (adjoint) mode:
-!   gradient     of useful results: taux tauz
-!   with respect to varying inputs: cf_1 cf_2
-  SUBROUTINE TAU_INNODE_B(cf_1, cf_1b, cf_2, cf_2b, u, w, q, rho, taux, &
-&   tauxb, tauz, tauzb)
+!   gradient     of useful results: q u w taux tauz rho
+!   with respect to varying inputs: q u w cf_1 cf_2 rho
+  SUBROUTINE TAU_INNODE_B(cf_1, cf_1b, cf_2, cf_2b, u, ub, w, wb, q, qb&
+&   , rho, rhob, taux, tauxb, tauz, tauzb)
     IMPLICIT NONE
     REAL*8, INTENT(IN) :: cf_1(4), cf_2(4), u(4), w(4), q(4), rho(4)
-    REAL*8 :: cf_1b(4), cf_2b(4)
+    REAL*8 :: cf_1b(4), cf_2b(4), ub(4), wb(4), qb(4), rhob(4)
     REAL*8 :: taux(4), tauz(4)
     REAL*8 :: tauxb(4), tauzb(4)
     REAL*8, DIMENSION(4) :: tempb
     cf_2b = 0.0_8
+    rhob = rhob + (cf_2*q*u-cf_2*q*w)*tauzb/2 + (cf_1*q*u+cf_2*q*w)*&
+&     tauxb/2
     tempb = rho*tauzb/2
     cf_2b = (q*u-q*w)*tempb
+    qb = qb + (cf_2*u-cf_2*w)*tempb
+    ub = ub + cf_2*q*tempb
+    wb = wb - cf_2*q*tempb
     cf_1b = 0.0_8
     tempb = rho*tauxb/2
     cf_1b = q*u*tempb
+    qb = qb + (cf_1*u+cf_2*w)*tempb
+    ub = ub + cf_1*q*tempb
     cf_2b = cf_2b + q*w*tempb
+    wb = wb + cf_2*q*tempb
   END SUBROUTINE TAU_INNODE_B
 
   SUBROUTINE TAU_INNODE(cf_1, cf_2, u, w, q, rho, taux, tauz)
@@ -1169,17 +1324,19 @@ CONTAINS
   END SUBROUTINE MAT3BYVEC
 
 !  Differentiation of cell_getresiduals in reverse (adjoint) mode:
-!   gradient     of useful results: h rmass n nts rts th11 beta
-!                rmomx rmomz ren
-!   with respect to varying inputs: h n nts th11 beta
+!   gradient     of useful results: h rmass n nts qx qy qz rts
+!                th11 beta rmomx rmomz ren
+!   with respect to varying inputs: h n nts qx qy qz th11 beta
   SUBROUTINE CELL_GETRESIDUALS_B(n, nb, th11, th11b, h, hb, beta, betab&
-&   , nts, ntsb, qx, qy, qz, rho0, v_sonic, a_transition, a_rethcrit, &
-&   mtosys, uinf, mu, ncrit, gamma, rvj, rdxj, rdyj, rudxj, rudyj, rmass&
-&   , rmassb, rmomx, rmomxb, rmomz, rmomzb, ren, renb, rts, rtsb)
+&   , nts, ntsb, qx, qxb, qy, qyb, qz, qzb, rho0, v_sonic, a_transition&
+&   , a_rethcrit, mtosys, uinf, mu, ncrit, gamma, rvj, rdxj, rdyj, rudxj&
+&   , rudyj, rmass, rmassb, rmomx, rmomxb, rmomz, rmomzb, ren, renb, rts&
+&   , rtsb)
     IMPLICIT NONE
     REAL*8, INTENT(IN) :: n(4), th11(4), h(4), beta(4), nts(4), qx(4), &
 &   qy(4), qz(4)
-    REAL*8 :: nb(4), th11b(4), hb(4), betab(4), ntsb(4)
+    REAL*8 :: nb(4), th11b(4), hb(4), betab(4), ntsb(4), qxb(4), qyb(4)&
+&   , qzb(4)
     REAL*8, INTENT(IN) :: rho0, v_sonic, a_transition, a_rethcrit, &
 &   mtosys(3, 3), uinf, mu, ncrit, gamma, rvj(4, 4), rdxj(4, 4), rdyj(4&
 &   , 4), rudxj(4, 4, 4), rudyj(4, 4, 4)
@@ -1191,12 +1348,12 @@ CONTAINS
 &   (4), cd_cr(4), taux(4), tauz(4), d(4), dst1(4), dst2(4), th12(4), &
 &   th21(4), th22(4), dpr1(4), dpr2(4), thst1(4), thst2(4), jxx(4), jxz(&
 &   4), jzx(4), jzz(4), mx(4), mz(4), ex(4), ez(4), rhoqx(4), rhoqz(4)
-    REAL*8 :: ub(4), wb(4), rthb(4), hkb(4), pb(4), sgnb(4), clb(4), ctb&
-&   (4), cfb(4), a_crb(4), cf_crb(4), hstb(4), hprb(4), cdb(4), cd_crb(4&
-&   ), tauxb(4), tauzb(4), db(4), dst1b(4), dst2b(4), th12b(4), th21b(4)&
-&   , th22b(4), dpr1b(4), dpr2b(4), thst1b(4), thst2b(4), jxxb(4), jxzb(&
-&   4), jzxb(4), jzzb(4), mxb(4), mzb(4), exb(4), ezb(4), rhoqxb(4), &
-&   rhoqzb(4)
+    REAL*8 :: qeb(4), ub(4), wb(4), mb(4), rhob(4), rthb(4), hkb(4), pb(&
+&   4), sgnb(4), clb(4), ctb(4), cfb(4), fb(4), a_crb(4), cf_crb(4), &
+&   hstb(4), hprb(4), cdb(4), cd_crb(4), tauxb(4), tauzb(4), db(4), &
+&   dst1b(4), dst2b(4), th12b(4), th21b(4), th22b(4), dpr1b(4), dpr2b(4)&
+&   , thst1b(4), thst2b(4), jxxb(4), jxzb(4), jzxb(4), jzzb(4), mxb(4), &
+&   mzb(4), exb(4), ezb(4), rhoqxb(4), rhoqzb(4)
     INTRINSIC TAN
     REAL*8, DIMENSION(4) :: arg1
     REAL*8, DIMENSION(4) :: arg1b
@@ -1210,6 +1367,7 @@ CONTAINS
     CALL RHOE(m, v_sonic, rho0, uinf, rho)
     CALL RETH(qe, rho, th11, mu, rth)
     CALL HK_CLOSURE(h, m, hk)
+    CALL P_TRANS(rth, hk, th11, a_rethcrit, p)
     CALL SIGMA_N(nts, ncrit, a_transition, sgn)
     CALL FC(m, gamma, f)
 ! closure relationships
@@ -1217,6 +1375,7 @@ CONTAINS
     CALL CF_TURBULENT(hk, rth, f, ct)
     cf = sgn*ct + (1.0-sgn)*cl
     CALL A_CROSSFLOW(cf, beta, m, a_cr)
+    cf_cr = -(cf*TAN(beta))
     CALL PUSHREAL8ARRAY(cl, 4)
     CALL HSTAR_LAMINAR(hk, cl)
     CALL PUSHREAL8ARRAY(ct, 4)
@@ -1232,15 +1391,19 @@ CONTAINS
     CALL PUSHREAL8ARRAY(ct, 4)
     CALL CD_TURBULENT(hk, f, m, rth, ct)
     cd = sgn*ct + (1.0-sgn)*cl
+    CALL CD_INNODE(cd, a_cr, cd_cr)
     CALL DELTASTAR_INNODE(th11, h, a_cr, dst1, dst2)
     CALL THETA_INNODE(th11, a_cr, dst2, th12, th21, th22)
     CALL DELTAPRIME_INNODE(hpr, a_cr, th11, dpr1, dpr2)
+    CALL THETASTAR_INNODE(hst, a_cr, dst1, th11, th22, thst1, thst2)
     CALL M_INNODE(dst1, dst2, u, w, rho, mx, mz)
     CALL RHOQ_INNODE(dpr1, dpr2, u, w, rho, rhoqx, rhoqz)
 ! initialize residuals
     arg1(:) = qe**2
     arg1b = 0.0_8
     CALL MATBYVEC_B(rvj, arg1(:), arg1b(:), rmass, rmassb)
+    rhob = 0.0_8
+    rhob = -(n*arg1b(:))
     nb = nb - rho*arg1b
     mzb = 0.0_8
     CALL MATBYVEC_B(rdyj, mz, mzb, rmass, rmassb)
@@ -1248,7 +1411,9 @@ CONTAINS
     CALL MATBYVEC_B(rdxj, mx, mxb, rmass, rmassb)
     arg1b = 0.0_8
     CALL MATBYVEC_B(rvj, arg1(:), arg1b(:), rts, rtsb)
+    qeb = 0.0_8
     pb = 0.0_8
+    qeb = -(p*arg1b(:))
     pb = -(qe*arg1b(:))
     wb = 0.0_8
     CALL MAT3BYVEC_B(rudyj, w, wb, nts, ntsb, rts, rtsb)
@@ -1257,10 +1422,12 @@ CONTAINS
     rhoqzb = 0.0_8
     arg1b = 0.0_8
     CALL MAT3BYVEC_B(rudyj, rhoqz, rhoqzb, arg1(:), arg1b(:), ren, renb)
+    qeb = qeb + 2*qe*arg1b
     arg1(:) = qe**2
     rhoqxb = 0.0_8
     arg1b = 0.0_8
     CALL MAT3BYVEC_B(rudxj, rhoqx, rhoqxb, arg1(:), arg1b(:), ren, renb)
+    qeb = qeb + 2*qe*arg1b
     arg1b = 0.0_8
     CALL MATBYVEC_B(rvj, arg1(:), arg1b(:), ren, renb)
     db = 0.0_8
@@ -1269,9 +1436,7 @@ CONTAINS
     CALL MATBYVEC_B(rdyj, ez, ezb, ren, renb)
     exb = 0.0_8
     CALL MATBYVEC_B(rdxj, ex, exb, ren, renb)
-    wb = 0.0_8
     CALL MAT3BYVEC_B(rudyj, mz, mzb, w, wb, rmomz, rmomzb)
-    wb = 0.0_8
     CALL MAT3BYVEC_B(rudxj, mx, mxb, w, wb, rmomz, rmomzb)
     arg1b1 = 0.0_8
     CALL MATBYVEC_B(rvj, arg11, arg1b1, rmomz, rmomzb)
@@ -1281,9 +1446,7 @@ CONTAINS
     CALL MATBYVEC_B(rdyj, jzz, jzzb, rmomz, rmomzb)
     jzxb = 0.0_8
     CALL MATBYVEC_B(rdxj, jzx, jzxb, rmomz, rmomzb)
-    ub = 0.0_8
     CALL MAT3BYVEC_B(rudyj, mz, mzb, u, ub, rmomx, rmomxb)
-    ub = 0.0_8
     CALL MAT3BYVEC_B(rudxj, mx, mxb, u, ub, rmomx, rmomxb)
     arg1b0 = 0.0_8
     CALL MATBYVEC_B(rvj, arg10, arg1b0, rmomx, rmomxb)
@@ -1293,14 +1456,15 @@ CONTAINS
     CALL MATBYVEC_B(rdyj, jxz, jxzb, rmomx, rmomxb)
     jxxb = 0.0_8
     CALL MATBYVEC_B(rdxj, jxx, jxxb, rmomx, rmomxb)
-    CALL RHOQ_INNODE_B(dpr1, dpr1b, dpr2, dpr2b, u, w, rho, rhoqx, &
-&                rhoqxb, rhoqz, rhoqzb)
-    CALL E_INNODE_B(thst1, thst1b, thst2, thst2b, u, w, qe, rho, ex, exb&
-&             , ez, ezb)
-    CALL M_INNODE_B(dst1, dst1b, dst2, dst2b, u, w, rho, mx, mxb, mz, &
-&             mzb)
+    CALL RHOQ_INNODE_B(dpr1, dpr1b, dpr2, dpr2b, u, ub, w, wb, rho, rhob&
+&                , rhoqx, rhoqxb, rhoqz, rhoqzb)
+    CALL E_INNODE_B(thst1, thst1b, thst2, thst2b, u, ub, w, wb, qe, qeb&
+&             , rho, rhob, ex, exb, ez, ezb)
+    CALL M_INNODE_B(dst1, dst1b, dst2, dst2b, u, ub, w, wb, rho, rhob, &
+&             mx, mxb, mz, mzb)
     CALL J_INNODE_B(th11, th11b, th12, th12b, th21, th21b, th22, th22b, &
-&             u, w, rho, jxx, jxxb, jxz, jxzb, jzx, jzxb, jzz, jzzb)
+&             u, ub, w, wb, rho, rhob, jxx, jxxb, jxz, jxzb, jzx, jzxb, &
+&             jzz, jzzb)
     CALL THETASTAR_INNODE_B(hst, hstb, a_cr, a_crb, dst1, dst1b, th11, &
 &                     th11b, th22, th22b, thst1, thst1b, thst2, thst2b)
     CALL DELTAPRIME_INNODE_B(hpr, hprb, a_cr, a_crb, th11, th11b, dpr1, &
@@ -1309,13 +1473,15 @@ CONTAINS
 &                 th12b, th21, th21b, th22, th22b)
     CALL DELTASTAR_INNODE_B(th11, th11b, h, hb, a_cr, a_crb, dst1, dst1b&
 &                     , dst2, dst2b)
-    CALL TAU_INNODE_B(cf, cfb, cf_cr, cf_crb, u, w, qe, rho, taux, tauxb&
-&               , tauz, tauzb)
+    CALL TAU_INNODE_B(cf, cfb, cf_cr, cf_crb, u, ub, w, wb, qe, qeb, rho&
+&               , rhob, taux, tauxb, tauz, tauzb)
     cd_crb = 0.0_8
     cdb = 0.0_8
-    tempb = rho*qe**3*db
-    cdb = tempb
-    cd_crb = tempb
+    qeb = qeb + 3*qe**2*rho*(cd+cd_cr)*db
+    tempb = qe**3*db
+    rhob = rhob + (cd+cd_cr)*tempb
+    cdb = rho*tempb
+    cd_crb = rho*tempb
     CALL CD_INNODE_B(cd, cdb, a_cr, a_crb, cd_cr, cd_crb)
     sgnb = 0.0_8
     clb = 0.0_8
@@ -1324,7 +1490,7 @@ CONTAINS
     ctb = sgn*cdb
     clb = (1.0-sgn)*cdb
     CALL POPREAL8ARRAY(ct, 4)
-    CALL CD_TURBULENT_B(hk, hkb, f, m, rth, rthb, ct, ctb)
+    CALL CD_TURBULENT_B(hk, hkb, f, fb, m, mb, rth, rthb, ct, ctb)
     CALL POPREAL8ARRAY(cl, 4)
     CALL CD_LAMINAR_B(hst, hstb, hk, hkb, rth, rthb, cl, clb)
     clb = 0.0_8
@@ -1333,31 +1499,35 @@ CONTAINS
     ctb = sgn*hprb
     clb = (1.0-sgn)*hprb
     CALL POPREAL8ARRAY(ct, 4)
-    CALL HPRIME_TURBULENT_B(m, hk, hkb, ct, ctb)
+    CALL HPRIME_TURBULENT_B(m, mb, hk, hkb, ct, ctb)
     CALL POPREAL8ARRAY(cl, 4)
-    CALL HPRIME_LAMINAR_B(m, hk, hkb, cl, clb)
+    CALL HPRIME_LAMINAR_B(m, mb, hk, hkb, cl, clb)
     clb = 0.0_8
     ctb = 0.0_8
     sgnb = sgnb + (ct-cl)*hstb
     ctb = sgn*hstb
     clb = (1.0-sgn)*hstb
     CALL POPREAL8ARRAY(ct, 4)
-    CALL HSTAR_TURBULENT_B(hk, hkb, m, ct, ctb)
+    CALL HSTAR_TURBULENT_B(hk, hkb, m, mb, ct, ctb)
     CALL POPREAL8ARRAY(cl, 4)
     CALL HSTAR_LAMINAR_B(hk, hkb, cl, clb)
     cfb = cfb - TAN(beta)*cf_crb
     betab = betab - (1.0+TAN(beta)**2)*cf*cf_crb
-    CALL A_CROSSFLOW_B(cf, cfb, beta, betab, m, a_cr, a_crb)
+    CALL A_CROSSFLOW_B(cf, cfb, beta, betab, m, mb, a_cr, a_crb)
     ctb = 0.0_8
     sgnb = sgnb + (ct-cl)*cfb
     ctb = sgn*cfb
     clb = clb + (1.0-sgn)*cfb
-    CALL CF_TURBULENT_B(hk, hkb, rth, rthb, f, ct, ctb)
+    CALL CF_TURBULENT_B(hk, hkb, rth, rthb, f, fb, ct, ctb)
     CALL CF_LAMINAR_B(hk, hkb, rth, rthb, cl, clb)
+    CALL FC_B(m, mb, gamma, f, fb)
     CALL SIGMA_N_B(nts, ntsb, ncrit, a_transition, sgn, sgnb)
     CALL P_TRANS_B(rth, rthb, hk, hkb, th11, th11b, a_rethcrit, p, pb)
-    CALL HK_CLOSURE_B(h, hb, m, hk, hkb)
-    CALL RETH_B(qe, rho, th11, th11b, mu, rth, rthb)
+    CALL HK_CLOSURE_B(h, hb, m, mb, hk, hkb)
+    CALL RETH_B(qe, qeb, rho, rhob, th11, th11b, mu, rth, rthb)
+    CALL RHOE_B(m, mb, v_sonic, rho0, uinf, rho, rhob)
+    CALL MACHE_B(qe, qeb, v_sonic, m, mb)
+    CALL UWQ_B(qx, qxb, qy, qyb, qz, qzb, mtosys, u, ub, w, wb, qe, qeb)
   END SUBROUTINE CELL_GETRESIDUALS_B
 
   SUBROUTINE CELL_GETRESIDUALS(n, th11, h, beta, nts, qx, qy, qz, rho0, &
@@ -1448,16 +1618,16 @@ CONTAINS
 
 !  Differentiation of mesh_getresiduals in reverse (adjoint) mode:
 !   gradient     of useful results: rmass rts rmomx rmomz ren
-!   with respect to varying inputs: h rmass n nts rts th11 beta
-!                rmomx rmomz ren
+!   with respect to varying inputs: h rmass n nts qx qy qz rts
+!                th11 beta rmomx rmomz ren
 !   RW status of diff variables: h:out rmass:in-zero n:out nts:out
-!                rts:in-zero th11:out beta:out rmomx:in-zero rmomz:in-zero
-!                ren:in-zero
+!                qx:out qy:out qz:out rts:in-zero th11:out beta:out
+!                rmomx:in-zero rmomz:in-zero ren:in-zero
   SUBROUTINE MESH_GETRESIDUALS_B(nnodes, ncells, cellmat, n, nb, th11, &
-&   th11b, h, hb, beta, betab, nts, ntsb, qx, qy, qz, rho0, v_sonic, &
-&   a_transition, a_rethcrit, mtosys, uinf, mu, ncrit, gamma, rvj, rdxj&
-&   , rdyj, rudxj, rudyj, rmass, rmassb, rmomx, rmomxb, rmomz, rmomzb, &
-&   ren, renb, rts, rtsb)
+&   th11b, h, hb, beta, betab, nts, ntsb, qx, qxb, qy, qyb, qz, qzb, &
+&   rho0, v_sonic, a_transition, a_rethcrit, mtosys, uinf, mu, ncrit, &
+&   gamma, rvj, rdxj, rdyj, rudxj, rudyj, rmass, rmassb, rmomx, rmomxb, &
+&   rmomz, rmomzb, ren, renb, rts, rtsb)
     IMPLICIT NONE
     INTEGER, INTENT(IN) :: nnodes, ncells
     INTEGER, INTENT(IN) :: cellmat(ncells, 4)
@@ -1467,7 +1637,7 @@ CONTAINS
 &   ncrit, gamma, rvj(ncells, 4, 4), rdxj(ncells, 4, 4), rdyj(ncells, 4&
 &   , 4), rudxj(ncells, 4, 4, 4), rudyj(ncells, 4, 4, 4)
     REAL*8 :: nb(nnodes), th11b(nnodes), hb(nnodes), betab(nnodes), ntsb&
-&   (nnodes)
+&   (nnodes), qxb(nnodes), qyb(nnodes), qzb(nnodes)
     REAL*8 :: rmass(nnodes), rmomx(nnodes), rmomz(nnodes), ren(nnodes), &
 &   rts(nnodes)
     REAL*8 :: rmassb(nnodes), rmomxb(nnodes), rmomzb(nnodes), renb(&
@@ -1479,6 +1649,9 @@ CONTAINS
     hb = 0.0_8
     nb = 0.0_8
     ntsb = 0.0_8
+    qxb = 0.0_8
+    qyb = 0.0_8
+    qzb = 0.0_8
     th11b = 0.0_8
     betab = 0.0_8
     DO i=ncells,1,-1
@@ -1495,13 +1668,14 @@ CONTAINS
       rmass_lb = rmassb(inds)
       CALL CELL_GETRESIDUALS_B(n(inds), nb(inds), th11(inds), th11b(inds&
 &                        ), h(inds), hb(inds), beta(inds), betab(inds), &
-&                        nts(inds), ntsb(inds), qx(inds), qy(inds), qz(&
-&                        inds), rho0, v_sonic, a_transition, a_rethcrit&
-&                        , mtosys(i, :, :), uinf, mu, ncrit, gamma, rvj(&
-&                        i, :, :), rdxj(i, :, :), rdyj(i, :, :), rudxj(i&
-&                        , :, :, :), rudyj(i, :, :, :), rmass_l, &
-&                        rmass_lb, rmomx_l, rmomx_lb, rmomz_l, rmomz_lb&
-&                        , ren_l, ren_lb, rts_l, rts_lb)
+&                        nts(inds), ntsb(inds), qx(inds), qxb(inds), qy(&
+&                        inds), qyb(inds), qz(inds), qzb(inds), rho0, &
+&                        v_sonic, a_transition, a_rethcrit, mtosys(i, :&
+&                        , :), uinf, mu, ncrit, gamma, rvj(i, :, :), &
+&                        rdxj(i, :, :), rdyj(i, :, :), rudxj(i, :, :, :)&
+&                        , rudyj(i, :, :, :), rmass_l, rmass_lb, rmomx_l&
+&                        , rmomx_lb, rmomz_l, rmomz_lb, ren_l, ren_lb, &
+&                        rts_l, rts_lb)
     END DO
     rmassb = 0.0_8
     rtsb = 0.0_8
