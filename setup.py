@@ -5,6 +5,9 @@ from numpy.distutils.core import setup
 with open("README.md", "r") as fh:
     long_description = fh.read()
 
+Exts=[Extension('chochoBL.three_equation_b', \
+    sources=['chochoBL/ADFirstAidKit/adStack.c', 'chochoBL/ADFirstAidKit/adBuffer.f', 'chochoBL/three_equation_b.f90'])]
+
 setup(
     name="chochoBL",
     version="0.0.1",
@@ -20,6 +23,7 @@ setup(
         "License :: OSI Approved :: GNU General Public License (GPL)",
         "Operating System :: OS Independent",
     ],
+    ext_modules=Exts,
     install_requires=['numpy', 'scipy', 'matplotlib', 'fluids', 'cloudpickle'],
     python_requires='>=3.6',
 )
