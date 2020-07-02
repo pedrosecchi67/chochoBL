@@ -1,5 +1,5 @@
 TESTDIR=tests
-TESTS=$(TESTDIR)/residual_test.py $(TESTDIR)/mesh_test.py
+TESTS=$(TESTDIR)/gradient_descent_test.py # $(TESTDIR)/residual_test.py $(TESTDIR)/mesh_test.py
 PYTEST=pytest
 PYTESTFLGS=-s
 

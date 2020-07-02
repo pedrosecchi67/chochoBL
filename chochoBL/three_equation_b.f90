@@ -1335,7 +1335,7 @@ CONTAINS
     IMPLICIT NONE
     REAL*8, INTENT(IN) :: n(4), th11(4), h(4), beta(4), nts(4), qx(4), &
 &   qy(4), qz(4)
-    REAL*8 :: nb(4), th11b(4), hb(4), betab(4), ntsb(4), qxb(4), qyb(4)&
+    REAL*8, INTENT(INOUT) :: nb(4), th11b(4), hb(4), betab(4), ntsb(4), qxb(4), qyb(4)&
 &   , qzb(4)
     REAL*8, INTENT(IN) :: rho0, v_sonic, a_transition, a_rethcrit, &
 &   mtosys(3, 3), uinf, mu, ncrit, gamma, rvj(4, 4), rdxj(4, 4), rdyj(4&
@@ -1645,7 +1645,8 @@ CONTAINS
     INTEGER :: i, inds(4)
     REAL*8 :: rmass_l(4), rmomx_l(4), rmomz_l(4), ren_l(4), rts_l(4)
     REAL*8 :: rmass_lb(4), rmomx_lb(4), rmomz_lb(4), ren_lb(4), rts_lb(4&
-&   )
+&   ), n_lb(4), th11_lb(4), h_lb(4), beta_lb(4), nts_lb(4), qx_lb(4), &
+&   qy_lb(4), qz_lb(4)
     hb = 0.0_8
     nb = 0.0_8
     ntsb = 0.0_8
@@ -1656,26 +1657,31 @@ CONTAINS
     betab = 0.0_8
     DO i=ncells,1,-1
       inds = cellmat(i, :)
-      rts_lb = 0.0_8
       rts_lb = rtsb(inds)
-      ren_lb = 0.0_8
       ren_lb = renb(inds)
-      rmomz_lb = 0.0_8
       rmomz_lb = rmomzb(inds)
-      rmomx_lb = 0.0_8
       rmomx_lb = rmomxb(inds)
-      rmass_lb = 0.0_8
       rmass_lb = rmassb(inds)
-      CALL CELL_GETRESIDUALS_B(n(inds), nb(inds), th11(inds), th11b(inds&
-&                        ), h(inds), hb(inds), beta(inds), betab(inds), &
-&                        nts(inds), ntsb(inds), qx(inds), qxb(inds), qy(&
-&                        inds), qyb(inds), qz(inds), qzb(inds), rho0, &
+      n_lb=0.0_8
+      th11_lb=0.0_8
+      h_lb=0.0_8
+      beta_lb=0.0_8
+      nts_lb=0.0_8
+      CALL CELL_GETRESIDUALS_B(n(inds), n_lb, th11(inds), th11_lb&
+&                        , h(inds), h_lb, beta(inds), beta_lb, &
+&                        nts(inds), nts_lb, qx(inds), qx_lb, qy(&
+&                        inds), qy_lb, qz(inds), qz_lb, rho0, &
 &                        v_sonic, a_transition, a_rethcrit, mtosys(i, :&
 &                        , :), uinf, mu, ncrit, gamma, rvj(i, :, :), &
 &                        rdxj(i, :, :), rdyj(i, :, :), rudxj(i, :, :, :)&
 &                        , rudyj(i, :, :, :), rmass_l, rmass_lb, rmomx_l&
 &                        , rmomx_lb, rmomz_l, rmomz_lb, ren_l, ren_lb, &
 &                        rts_l, rts_lb)
+      nb(inds)=nb(inds)+n_lb
+      th11b(inds)=th11b(inds)+th11_lb
+      hb(inds)=hb(inds)+h_lb
+      betab(inds)=betab(inds)+beta_lb
+      ntsb(inds)=ntsb(inds)+nts_lb
     END DO
     rmassb = 0.0_8
     rtsb = 0.0_8
@@ -1683,6 +1689,209 @@ CONTAINS
     rmomzb = 0.0_8
     renb = 0.0_8
   END SUBROUTINE MESH_GETRESIDUALS_B
+
+    SUBROUTINE MESH_GETRESIDUALS_JAC(nnodes, ncells, cellmat, n, th11, &
+&   h, beta, nts, qx, qy, qz, &
+&   rho0, v_sonic, a_transition, a_rethcrit, mtosys, uinf, mu, ncrit, &
+&   gamma, rvj, rdxj, rdyj, rudxj, rudyj, rmass, rmomx, &
+&   rmomz, ren, rts, rmassj, rmomxj, rmomzj, renj, rtsj)
+    IMPLICIT NONE
+    INTEGER, INTENT(IN) :: nnodes, ncells
+    INTEGER, INTENT(IN) :: cellmat(ncells, 4)
+    REAL*8, INTENT(IN) :: n(nnodes), th11(nnodes), h(nnodes), beta(&
+&   nnodes), nts(nnodes), qx(nnodes), qy(nnodes), qz(nnodes), rho0, &
+&   v_sonic, a_transition, a_rethcrit, mtosys(ncells, 3, 3), uinf, mu, &
+&   ncrit, gamma, rvj(ncells, 4, 4), rdxj(ncells, 4, 4), rdyj(ncells, 4&
+&   , 4), rudxj(ncells, 4, 4, 4), rudyj(ncells, 4, 4, 4)
+    REAL*8 :: rmass(nnodes), rmomx(nnodes), rmomz(nnodes), ren(nnodes), &
+&   rts(nnodes)
+    REAL*8, intent(OUT) :: rmassj(ncells, 4, 4, 8), rmomxj(ncells, 4, 4, 8), rmomzj(ncells, 4, 4, 8), renj(&
+&   ncells, 4, 4, 8), rtsj(ncells, 4, 4, 8)
+    INTEGER :: i, j, inds(4)
+    REAL*8 :: rmass_l(4), rmomx_l(4), rmomz_l(4), ren_l(4), rts_l(4)
+    REAL*8 :: rmass_lb(4), rmomx_lb(4), rmomz_lb(4), ren_lb(4), rts_lb(4&
+&   ), n_lb(4), th11_lb(4), h_lb(4), beta_lb(4), nts_lb(4), qx_lb(4), &
+&   qy_lb(4), qz_lb(4)
+    rmassj = 0.0_8
+    rmomxj = 0.0_8
+    rmomzj = 0.0_8
+    renj = 0.0_8
+    rtsj = 0.0_8
+    rmass_lb=0.0_8
+    rmomx_lb=0.0_8
+    rmomz_lb=0.0_8
+    ren_lb=0.0_8
+    rts_lb=0.0_8
+    DO i=ncells,1,-1
+      inds = cellmat(i, :)
+
+      DO j=1, 4
+        rmass_lb(j)=1.0_8
+
+        n_lb=0.0_8
+        th11_lb=0.0_8
+        h_lb=0.0_8
+        beta_lb=0.0_8
+        nts_lb=0.0_8
+        qx_lb=0.0_8
+        qy_lb=0.0_8
+        qz_lb=0.0_8
+
+        CALL CELL_GETRESIDUALS_B(n(inds), n_lb, th11(inds), th11_lb&
+  &                        , h(inds), h_lb, beta(inds), beta_lb, &
+  &                        nts(inds), nts_lb, qx(inds), qx_lb, qy(&
+  &                        inds), qy_lb, qz(inds), qz_lb, rho0, &
+  &                        v_sonic, a_transition, a_rethcrit, mtosys(i, :&
+  &                        , :), uinf, mu, ncrit, gamma, rvj(i, :, :), &
+  &                        rdxj(i, :, :), rdyj(i, :, :), rudxj(i, :, :, :)&
+  &                        , rudyj(i, :, :, :), rmass_l, rmass_lb, rmomx_l&
+  &                        , rmomx_lb, rmomz_l, rmomz_lb, ren_l, ren_lb, &
+  &                        rts_l, rts_lb)
+
+        rmass_lb(j)=0.0_8
+
+        rmassj(i, j, :, 1)=n_lb
+        rmassj(i, j, :, 2)=th11_lb
+        rmassj(i, j, :, 3)=h_lb
+        rmassj(i, j, :, 4)=beta_lb
+        rmassj(i, j, :, 5)=nts_lb
+        rmassj(i, j, :, 6)=qx_lb
+        rmassj(i, j, :, 7)=qy_lb
+        rmassj(i, j, :, 8)=qz_lb
+
+        rmomx_lb(j)=1.0_8
+
+        n_lb=0.0_8
+        th11_lb=0.0_8
+        h_lb=0.0_8
+        beta_lb=0.0_8
+        nts_lb=0.0_8
+        qx_lb=0.0_8
+        qy_lb=0.0_8
+        qz_lb=0.0_8
+
+        CALL CELL_GETRESIDUALS_B(n(inds), n_lb, th11(inds), th11_lb&
+  &                        , h(inds), h_lb, beta(inds), beta_lb, &
+  &                        nts(inds), nts_lb, qx(inds), qx_lb, qy(&
+  &                        inds), qy_lb, qz(inds), qz_lb, rho0, &
+  &                        v_sonic, a_transition, a_rethcrit, mtosys(i, :&
+  &                        , :), uinf, mu, ncrit, gamma, rvj(i, :, :), &
+  &                        rdxj(i, :, :), rdyj(i, :, :), rudxj(i, :, :, :)&
+  &                        , rudyj(i, :, :, :), rmass_l, rmass_lb, rmomx_l&
+  &                        , rmomx_lb, rmomz_l, rmomz_lb, ren_l, ren_lb, &
+  &                        rts_l, rts_lb)
+
+        rmomx_lb(j)=0.0_8
+
+        rmomxj(i, j, :, 1)=n_lb
+        rmomxj(i, j, :, 2)=th11_lb
+        rmomxj(i, j, :, 3)=h_lb
+        rmomxj(i, j, :, 4)=beta_lb
+        rmomxj(i, j, :, 5)=nts_lb
+        rmomxj(i, j, :, 6)=qx_lb
+        rmomxj(i, j, :, 7)=qy_lb
+        rmomxj(i, j, :, 8)=qz_lb
+
+        rmomz_lb(j)=1.0_8
+
+        n_lb=0.0_8
+        th11_lb=0.0_8
+        h_lb=0.0_8
+        beta_lb=0.0_8
+        nts_lb=0.0_8
+        qx_lb=0.0_8
+        qy_lb=0.0_8
+        qz_lb=0.0_8
+        CALL CELL_GETRESIDUALS_B(n(inds), n_lb, th11(inds), th11_lb&
+  &                        , h(inds), h_lb, beta(inds), beta_lb, &
+  &                        nts(inds), nts_lb, qx(inds), qx_lb, qy(&
+  &                        inds), qy_lb, qz(inds), qz_lb, rho0, &
+  &                        v_sonic, a_transition, a_rethcrit, mtosys(i, :&
+  &                        , :), uinf, mu, ncrit, gamma, rvj(i, :, :), &
+  &                        rdxj(i, :, :), rdyj(i, :, :), rudxj(i, :, :, :)&
+  &                        , rudyj(i, :, :, :), rmass_l, rmass_lb, rmomx_l&
+  &                        , rmomx_lb, rmomz_l, rmomz_lb, ren_l, ren_lb, &
+  &                        rts_l, rts_lb)
+
+        rmomz_lb(j)=0.0_8
+
+        rmomzj(i, j, :, 1)=n_lb
+        rmomzj(i, j, :, 2)=th11_lb
+        rmomzj(i, j, :, 3)=h_lb
+        rmomzj(i, j, :, 4)=beta_lb
+        rmomzj(i, j, :, 5)=nts_lb
+        rmomzj(i, j, :, 6)=qx_lb
+        rmomzj(i, j, :, 7)=qy_lb
+        rmomzj(i, j, :, 8)=qz_lb
+
+        ren_lb(j)=1.0_8
+
+        n_lb=0.0_8
+        th11_lb=0.0_8
+        h_lb=0.0_8
+        beta_lb=0.0_8
+        nts_lb=0.0_8
+        qx_lb=0.0_8
+        qy_lb=0.0_8
+        qz_lb=0.0_8
+
+        CALL CELL_GETRESIDUALS_B(n(inds), n_lb, th11(inds), th11_lb&
+  &                        , h(inds), h_lb, beta(inds), beta_lb, &
+  &                        nts(inds), nts_lb, qx(inds), qx_lb, qy(&
+  &                        inds), qy_lb, qz(inds), qz_lb, rho0, &
+  &                        v_sonic, a_transition, a_rethcrit, mtosys(i, :&
+  &                        , :), uinf, mu, ncrit, gamma, rvj(i, :, :), &
+  &                        rdxj(i, :, :), rdyj(i, :, :), rudxj(i, :, :, :)&
+  &                        , rudyj(i, :, :, :), rmass_l, rmass_lb, rmomx_l&
+  &                        , rmomx_lb, rmomz_l, rmomz_lb, ren_l, ren_lb, &
+  &                        rts_l, rts_lb)
+
+        ren_lb(j)=0.0_8
+
+        renj(i, j, :, 1)=n_lb
+        renj(i, j, :, 2)=th11_lb
+        renj(i, j, :, 3)=h_lb
+        renj(i, j, :, 4)=beta_lb
+        renj(i, j, :, 5)=nts_lb
+        renj(i, j, :, 6)=qx_lb
+        renj(i, j, :, 7)=qy_lb
+        renj(i, j, :, 8)=qz_lb
+
+        rts_lb(j)=1.0_8
+
+        n_lb=0.0_8
+        th11_lb=0.0_8
+        h_lb=0.0_8
+        beta_lb=0.0_8
+        nts_lb=0.0_8
+        qx_lb=0.0_8
+        qy_lb=0.0_8
+        qz_lb=0.0_8
+
+        CALL CELL_GETRESIDUALS_B(n(inds), n_lb, th11(inds), th11_lb&
+  &                        , h(inds), h_lb, beta(inds), beta_lb, &
+  &                        nts(inds), nts_lb, qx(inds), qx_lb, qy(&
+  &                        inds), qy_lb, qz(inds), qz_lb, rho0, &
+  &                        v_sonic, a_transition, a_rethcrit, mtosys(i, :&
+  &                        , :), uinf, mu, ncrit, gamma, rvj(i, :, :), &
+  &                        rdxj(i, :, :), rdyj(i, :, :), rudxj(i, :, :, :)&
+  &                        , rudyj(i, :, :, :), rmass_l, rmass_lb, rmomx_l&
+  &                        , rmomx_lb, rmomz_l, rmomz_lb, ren_l, ren_lb, &
+  &                        rts_l, rts_lb)
+
+        rts_lb(j)=0.0_8
+
+        rtsj(i, j, :, 1)=n_lb
+        rtsj(i, j, :, 2)=th11_lb
+        rtsj(i, j, :, 3)=h_lb
+        rtsj(i, j, :, 4)=beta_lb
+        rtsj(i, j, :, 5)=nts_lb
+        rtsj(i, j, :, 6)=qx_lb
+        rtsj(i, j, :, 7)=qy_lb
+        rtsj(i, j, :, 8)=qz_lb
+      END DO
+    END DO
+  END SUBROUTINE MESH_GETRESIDUALS_JAC
 
   SUBROUTINE MESH_GETRESIDUALS(nnodes, ncells, cellmat, n, th11, h, beta&
 &   , nts, qx, qy, qz, rho0, v_sonic, a_transition, a_rethcrit, mtosys, &
