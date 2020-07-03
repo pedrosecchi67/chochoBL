@@ -36,16 +36,10 @@ def test_ident():
     assert map(0.5)[0]==0.5
     assert np.all(map(np.array([0.0, 1.0]))[0]==np.array([0.0, 1.0]))
 
-def test_exp():
-    map=exp_mapping(2.0)
+def test_ksmap():
+    map=KS_mapping(2.0, A=0.1)
 
-    findiff(map, 2.1)
-    findiff(map, 2.0)
-    findiff(map, 5.0)
-    findiff(map, 4.9)
-    findiff(map, 0.0)
-
-    findiff(map, np.array([2.1, 2.0, 5.0, 4.9, 0.0]))
+    findiff(map, 3.0)
 
 def findiff(map, val, factor=1e-7):
     var=np.maximum(np.abs(val)*factor, factor)

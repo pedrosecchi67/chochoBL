@@ -28,9 +28,9 @@ class optunit:
 
         self.mappings={
             'n':mapping.identity_mapping,
-            'th11':mapping.identity_mapping,
-            'H':mapping.identity_mapping, #mapping.sigma_mapping((1.0, 7.5)),
-            'beta':mapping.identity_mapping, # mapping.sigma_mapping((-np.pi/2, np.pi/2)),
+            'th11':mapping.KS_mapping(1.0, A=1.0),
+            'H':mapping.sigma_mapping((1.0, 7.5)),
+            'beta':mapping.sigma_mapping((-np.pi/2, np.pi/2)),
             'N':mapping.identity_mapping
         }
 
@@ -87,18 +87,23 @@ class optunit:
         Calculate residuals
         '''
 
-        self.x=(x.copy() if not translate else self.arrunmap(x)[0])
+        if translate:
+            mapr=self.arrunmap(x)
+
+            self.x=mapr[0]
+            self.grad=mapr[1]
+
         self.qx=qx.copy()
         self.qy=qy.copy()
         self.qz=qz.copy()
 
         args=(
-            self._fromx_extract(x, 'n'),
-            self._fromx_extract(x, 'th11'),
-            self._fromx_extract(x, 'H'),
-            self._fromx_extract(x, 'beta'),
-            self._fromx_extract(x, 'N'),
-            qx, qy, qz
+            self._fromx_extract(self.x, 'n'),
+            self._fromx_extract(self.x, 'th11'),
+            self._fromx_extract(self.x, 'H'),
+            self._fromx_extract(self.x, 'beta'),
+            self._fromx_extract(self.x, 'N'),
+            self.qx, self.qy, self.qz
         )
 
         retvals=self.msh.mesh_getresiduals(*args)
@@ -188,6 +193,9 @@ class optunit:
 
         if fulljac:
             oper=self.Jac_convert((self.rmassj, self.rmomxj, self.rmomzj, self.renj, self.rtsj))
+
+            if translate:
+                oper=oper.multiply(self.grad)
 
         else:
             def _matvec(xd):

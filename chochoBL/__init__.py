@@ -7,6 +7,7 @@ sys.path.insert(0, os.getcwd())
 
 from mesh import *
 from adjoint import *
+from mapping import *
 from residual import *
 from three_equation import *
 from three_equation_b import *

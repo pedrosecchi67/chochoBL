@@ -1,4 +1,5 @@
 import numpy as np
+import numpy.linalg as lg
 import scipy.sparse.linalg as splg
 import matplotlib.pyplot as plt
 
@@ -28,7 +29,7 @@ alpha=0.1
 plotResults=True
 
 def _getmesh(CC=False):
-    nm=50
+    nm=70
     nn=2
     nnodes=nm*nn
 
@@ -94,6 +95,7 @@ def test_J():
     # margin=0.2
 
     x=opt.arrmap(np.hstack([n, th, h, beta, nts]))
+    resx=opt.fun(x, qx, qy, qz, translate=True)
 
     t=tm.time()
 
@@ -101,15 +103,13 @@ def test_J():
 
     xp=x*1e-8
 
-    resx=opt.fun(x, qx, qy, qz, translate=True)
-
     resxp=opt.fun(x+xp, qx, qy, qz, translate=True)
 
     var_num=resxp-resx
 
     var_an=linop@xp
 
-    assert np.all(np.abs(var_an-var_num)<=np.abs(var_an)*1e-5)
+    assert np.all(np.abs(var_an-var_num)<=np.abs(var_an)*1e-3)
 
     t=tm.time()
 
@@ -121,12 +121,12 @@ def test_J():
 
     print('Jacobian system solving: ', tm.time()-t)
 
-def test_J():
+def test_NR():
     msh, th, h, qx, xaux=_getmesh(CC=True)
 
-    niter=5
+    niter=3
 
-    factor=1.2
+    factor=1.5
 
     alpha=1.0
 
@@ -141,18 +141,23 @@ def test_J():
 
     opt=msh.opt
 
-    x=np.hstack([n, th, h, beta, nts])
+    x=opt.arrmap(np.hstack([n, th, h, beta, nts]))
 
-    for i in tqdm(range(niter)):
-        r=opt.fun(x, qx, qy, qz)
+    for i in (range(niter)):
+        r=opt.fun(x, qx, qy, qz, translate=True)
 
-        J=opt.get_jac_Krylov(x, qx, qy, qz)
+        J=opt.get_jac_Krylov(x, qx, qy, qz, translate=True)
 
-        dx, inv=solve_0CC(J, -r, msh.CC)
+        print(lg.norm(r))
+
+        try:
+            dx, inv=solve_0CC(J, -r, msh.CC)
+        except:
+            dx=np.zeros_like(x)
 
         x+=alpha*dx
 
-    numsoln=opt._fromx_extract(x, 'th11')
+    numsoln=opt._fromx_extract(opt.arrunmap(x)[0], 'th11')
 
     if plotResults:
         plt.scatter(xaux, numsoln, label='Newton-Raphson')
@@ -165,4 +170,9 @@ def test_J():
 
         plt.show()
 
-    assert np.abs(opt._fromx_extract(x, 'th11')-th_ideal)[-1]<=5e-2*np.abs(th_ideal)[-1]
+    numdev=np.abs(numsoln[-1]-th_ideal[-1])
+    devmax=np.abs(th_ideal[-1])*5e-2
+
+    isaccurate=(numdev<=devmax)
+
+    assert isaccurate
