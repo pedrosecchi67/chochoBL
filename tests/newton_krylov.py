@@ -1,11 +1,13 @@
 import numpy as np
+import scipy.sparse.linalg as splg
+
 import time as tm
 from tqdm import tqdm
 
 from chochoBL import *
 
 '''
-Test for verifying the feasibility of a least squares solution via gradient descent
+Test for verifying the feasibility of a Newton-Krylov solution
 '''
 
 Lx=1.0
@@ -22,9 +24,9 @@ H_ideal=2.42161
 
 alpha=0.1
 
-def _getmesh():
-    nm=20
-    nn=5
+def _getmesh(CC=False):
+    nm=100
+    nn=50
     nnodes=nm*nn
 
     xs=np.linspace(Lx, 0.0, nm, endpoint=False)
@@ -33,21 +35,16 @@ def _getmesh():
 
     yy, xx=np.meshgrid(ys, xs)
 
-    msh=mesh(Uinf=Uinf)
+    indmat=np.arange(0, nnodes, dtype='int').reshape((nm, nn))
 
-    n=0
+    msh=mesh(Uinf=Uinf, transition_CC=indmat[0, :] if CC else None)
 
     xaux=[]
-
-    indmat=np.zeros((nm, nn), dtype='int')
 
     for i, x in enumerate(xs):
         for j, y in enumerate(ys):
             msh.add_node([x, y, 0.0])
             xaux.append(x)
-
-            indmat[i, j]=n
-            n+=1
 
     for i in range(nm-1):
         for j in range(nn-1):
@@ -75,14 +72,12 @@ def _getmesh():
 
     return msh, th, H, qx
 
-def test_GD():
+def test_J():
     msh, th, h, qx=_getmesh()
 
     niter=100
 
-    factor=1.1
-
-    step_alpha=2.5e-9
+    factor=1.2
 
     th_ideal=th.copy()
 
@@ -93,18 +88,23 @@ def test_GD():
     qy=np.zeros_like(qx)
     qz=np.zeros_like(qx)
 
-    for i in tqdm(range(niter)):
-        rmass, rmomx, rmomz, ren, rts=msh.mesh_getresiduals(n, th, h, beta, nts, qx, qy, qz)
-        nb, thb, hb, betab, ntsb, qxb, qyb, qzb=msh.mesh_getresiduals_b(n, th, h, beta, nts, qx, qy, qz, \
-            rmass_b=rmass, rmomx_b=rmomx, rmomz_b=rmomz, ren_b=ren, rts_b=rts)
+    opt=msh.opt
 
-        n-=nb*step_alpha
-        th-=thb*step_alpha
-        h-=hb*step_alpha
-        beta-=betab*step_alpha
-        nts-=ntsb*step_alpha
-        qx-=qxb*step_alpha
-        qy-=qyb*step_alpha
-        qz-=qzb*step_alpha
+    margin=0.2
 
-    assert np.abs(th_ideal[-1]-th[-1])/np.amax(np.abs(th_ideal))<5e-2
+    x=np.hstack([n, th, h, beta, nts])
+
+    t=tm.time()
+
+    linop=opt.get_jac_Krylov(x, qx, qy, qz)
+
+    atol=np.amax(np.abs(opt.residuals))*margin
+
+    solninfo=splg.lgmres(linop, -opt.residuals, x0=np.zeros(msh.nnodes*5), maxiter=3, atol=atol)
+
+    xp=solninfo[0]
+    info=solninfo[1]
+
+    print('t, status: ', tm.time()-t, info)
+
+    print(np.amax(np.abs(linop@xp+opt.residuals)), atol/margin)

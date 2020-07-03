@@ -9,6 +9,7 @@ from mesh import *
 from residual import *
 from three_equation import *
 from three_equation_b import *
+from three_equation_d import *
 
 os.chdir(ordir)
 del ordir

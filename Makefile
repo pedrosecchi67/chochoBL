@@ -1,6 +1,6 @@
 TESTDIR=tests
-TESTS=$(TESTDIR)/gradient_descent_test.py # $(TESTDIR)/residual_test.py $(TESTDIR)/mesh_test.py
-PYTEST=pytest
+TESTS=$(TESTDIR)/residual_test.py $(TESTDIR)/mesh_test.py $(TESTDIR)/findiff_test.py # $(TESTDIR)/newton_krylov.py
+PYTEST=py.test
 PYTESTFLGS=-s
 
 PIP=pip3

@@ -419,13 +419,7 @@ subroutine uwq(qx, qy, qz, mtosys, u, w, qe)
         real(8), intent(IN) :: a(1:4, 1:4), x(1:4)
         real(8), intent(INOUT) :: y(1:4)
 
-        integer :: i, j
-
-        do i=1, 4
-            do j=1, 4
-                y(i)=y(i)+a(i, j)*x(j)
-            end do
-        end do
+        y=y+matmul(a, x)
 
     end subroutine matbyvec
 
@@ -441,10 +435,9 @@ subroutine uwq(qx, qy, qz, mtosys, u, w, qe)
         integer :: i, j
 
         do i=1, 4
-            interm=0.0
-            call matbyvec(a(i, :, :), y, interm)
+            interm=matmul(a(i, :, :), y)
 
-            z(i)=z(i)+interm(1)*x(1)+interm(2)*x(2)+interm(3)*x(3)+interm(4)*x(4)
+            z(i)=z(i)+dot_product(interm, x)
         end do
 
     end subroutine mat3byvec

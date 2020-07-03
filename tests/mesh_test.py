@@ -85,12 +85,12 @@ def _numeric(factor):
 
     print('Residual calculation: ', tm.time()-t)
 
-    t=tm.time()
+    '''t=tm.time()
 
     msh.mesh_getresiduals_b(np.zeros_like(th), th, H, \
         np.zeros_like(th), np.zeros_like(th), qx, np.zeros_like(qx), np.zeros_like(qx))
 
-    print('Reverse AD: ', tm.time()-t)
+    print('Reverse AD: ', tm.time()-t)'''
 
     numR=np.sum(rmomx)
 

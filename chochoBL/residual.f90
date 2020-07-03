@@ -552,6 +552,23 @@ contains
 
     end subroutine get_rudvdy_matrix
 
+    subroutine matbyvec(a, x, y)
+        ! custom subroutine for matrix by vector multiplication to improve performance of Tapenade differentiated
+        ! code
+
+        real(8), intent(IN) :: a(1:4, 1:4), x(1:4)
+        real(8), intent(INOUT) :: y(1:4)
+
+        integer :: i, j
+
+        do i=1, 4
+            do j=1, 4
+                y(i)=y(i)+a(i, j)*x(j)
+            end do
+        end do
+
+    end subroutine matbyvec
+
     subroutine get_mesh_resmats(ncells, xs, ys, &
         rvj, rdxj, rdyj, rudxj, rudyj)
 
@@ -571,5 +588,21 @@ contains
         end do
 
     end subroutine get_mesh_resmats
+
+    subroutine jac_mult(nnodes, ncells, J, cellmatrix, xd, yd)
+
+        integer, intent(IN) :: nnodes, ncells, cellmatrix(1:ncells, 1:4)
+        real(8), intent(IN) :: J(1:ncells, 1:4, 1:4), xd(1:nnodes)
+        real(8), intent(OUT) :: yd(1:nnodes)
+
+        integer :: nc, inds(1:4)
+
+        do nc=1, ncells
+            inds=cellmatrix(nc, :)
+
+            yd(inds)=yd(inds)+matmul(J(nc, :, :), xd(inds))
+        end do
+
+    end subroutine jac_mult
 
 end module residual

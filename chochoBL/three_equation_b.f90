@@ -1265,12 +1265,7 @@ CONTAINS
 ! code
     REAL*8, INTENT(IN) :: a(4, 4), x(4)
     REAL*8, INTENT(INOUT) :: y(4)
-    INTEGER :: i, j
-    DO i=1,4
-      DO j=1,4
-        y(i) = y(i) + a(i, j)*x(j)
-      END DO
-    END DO
+    y=y+matmul(a, x)
   END SUBROUTINE MATBYVEC
 
 !  Differentiation of mat3byvec in reverse (adjoint) mode:
@@ -1690,7 +1685,7 @@ CONTAINS
     renb = 0.0_8
   END SUBROUTINE MESH_GETRESIDUALS_B
 
-    SUBROUTINE MESH_GETRESIDUALS_JAC(nnodes, ncells, cellmat, n, th11, &
+  SUBROUTINE mesh_jac(nnodes, ncells, cellmat, n, th11, &
 &   h, beta, nts, qx, qy, qz, &
 &   rho0, v_sonic, a_transition, a_rethcrit, mtosys, uinf, mu, ncrit, &
 &   gamma, rvj, rdxj, rdyj, rudxj, rudyj, rmass, rmomx, &
@@ -1891,7 +1886,7 @@ CONTAINS
         rtsj(i, j, :, 8)=qz_lb
       END DO
     END DO
-  END SUBROUTINE MESH_GETRESIDUALS_JAC
+  END SUBROUTINE mesh_jac
 
   SUBROUTINE MESH_GETRESIDUALS(nnodes, ncells, cellmat, n, th11, h, beta&
 &   , nts, qx, qy, qz, rho0, v_sonic, a_transition, a_rethcrit, mtosys, &

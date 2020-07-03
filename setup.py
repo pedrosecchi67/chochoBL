@@ -6,8 +6,10 @@ with open("README.md", "r") as fh:
 
 Exts=[Extension('chochoBL.three_equation_b', \
     sources=['chochoBL/ADFirstAidKit/adStack.c', 'chochoBL/ADFirstAidKit/adBuffer.f', 'chochoBL/three_equation_b.f90']), \
-        Extension('chochoBL.three_equation', sources=['chochoBL/three_equation.f90']), \
-            Extension('chochoBL.residual', sources=['chochoBL/residual.f90'])]
+        Extension('chochoBL.three_equation_d', \
+            sources=['chochoBL/ADFirstAidKit/adStack.c', 'chochoBL/ADFirstAidKit/adBuffer.f', 'chochoBL/three_equation_d.f90']), \
+                Extension('chochoBL.three_equation', sources=['chochoBL/three_equation.f90']), \
+                    Extension('chochoBL.residual', sources=['chochoBL/residual.f90'])]
 
 setup(
     name="chochoBL",

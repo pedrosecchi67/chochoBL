@@ -1,11 +1,13 @@
 import numpy as np
 import numpy.linalg as lg
 import scipy.optimize as sopt
+import scipy.sparse.linalg as splg
 
 import mapping
+from residual import residual
 
 '''
-Module containing ADTs necessary for a conjugate gradient descent using scipy
+Module containing ADTs necessary for an iterative solution using scipy implementations
 '''
 
 import adjoint as adj
@@ -27,19 +29,11 @@ class optunit:
             'n':mapping.identity_mapping,
             'th11':mapping.identity_mapping,
             'H':mapping.identity_mapping, #mapping.sigma_mapping((1.0, 7.5)),
-            'beta':mapping.sigma_mapping((-np.pi/2, np.pi/2))
+            'beta':mapping.sigma_mapping((-np.pi/2, np.pi/2)),
+            'N':mapping.identity_mapping
         }
 
         self._inord=_base_inord.copy()
-
-        if not self.msh.CC is None:
-            self._inord.remove('N')
-
-            self.has_transadjoint=True
-        else:
-            self.has_transadjoint=False
-
-            self.mappings['N']=mapping.KS_mapping(10.0)
 
         self.inds={
             k:(i*self.msh.nnodes, (i+1)*self.msh.nnodes) for i, k in enumerate(self._inord)
@@ -50,41 +44,10 @@ class optunit:
 
         self.echo=echo
 
-    def _fromx_extract(self, prop):
+    def _fromx_extract(self, x, prop):
         indtup=self.inds[prop]
 
-        return self.x[indtup[0]:indtup[1]]
-
-    def set_value(self, x, N=None):
-        '''
-        Set the value of x as a given vector
-        '''
-
-        self.x=x.copy()
-
-        indict={inp:self._fromx_extract(inp) for inp in self._inord}
-
-        indict.update(self.q)
-
-        if not N is None:
-            indict.update({'N':N})
-
-        # set in mesh
-        self.msh.set_values(
-            indict, nodal=False
-        )
-
-    def x_compare(self, x):
-        '''
-        Check whether the requested value of x has already been set
-        '''
-
-        if not hasattr(self, 'x'):
-            self.x=x.copy()
-
-            return False
-
-        return np.all(x==self.x)
+        return x[indtup[0]:indtup[1]]
 
     def arrmap(self, x):
         '''
@@ -118,124 +81,94 @@ class optunit:
 
         return np.hstack(arrlist), np.hstack(gradlist)
 
-    def calculate(self, x):
+    def fun(self, x, qx, qy, qz, translate=False, calcjac=False):
         '''
-        Run graph calculation
+        Calculate residuals
         '''
 
-        xprop, mapjac=self.arrunmap(x)
+        self.x=(x.copy() if not translate else self.arrunmap(x)[0])
+        self.qx=qx.copy()
+        self.qy=qy.copy()
+        self.qz=qz.copy()
 
-        self.set_value(xprop, N=np.zeros(self.msh.nnodes) if self.has_transadjoint else None)
+        args=(
+            self._fromx_extract(x, 'n'),
+            self._fromx_extract(x, 'th11'),
+            self._fromx_extract(x, 'H'),
+            self._fromx_extract(x, 'beta'),
+            self._fromx_extract(x, 'N'),
+            qx, qy, qz
+        )
 
-        if self.has_transadjoint:
-            # solve adjoint system for transition
-            value, grad=self.msh.calculate_graph(ends=['RTS'])
+        retvals=self.msh.mesh_getresiduals(*args)
 
-            distJ=self.msh.dcell_dnode[1]
+        if calcjac:
+            self.rmassj, self.rmomxj, self.rmomzj, self.renj, self.rtsj=self.msh.mesh_getresiduals_jac(*args)
 
-            derivs_dir=self.msh.gr.get_derivs_direct('N', ends=['RTS'])
+        return np.hstack(retvals)
 
-            A=distJ.T@derivs_dir['RTS']
-            b=distJ.T@value['RTS']
+    def _get_dseeds(self, xd, translate=False):
+        '''
+        Execute direct AD subroutine to obtain dot product with Jacobian:
+        for Krylov solver only
+        '''
 
-            N, _=adj.solve_0CC(A, -b, self.msh.CC)
+        x=self.x
 
-            self.msh.set_values({'N':N}, nodes=['N'], nodal=False, reset=False)
-
-            value, grad=self.msh.calculate_graph()
-
-            b=grad['N']
-
-            psi, self.msh.trans_prec_SuperLU=adj.solve_0CC(A.T, -b, self.msh.CC)
-            psi=distJ@psi
-
-            derivs_rev=self.msh.gr.get_derivs_reverse('RTS')
-
-            grad={p:grad[p]+(psi@derivs_rev[p] if not derivs_rev[p] is None else 0.0) for p in self._inord}
+        if translate:
+            umx, gm=self.arrunmap(xd)
+            mx=gm*umx
         else:
-            value, grad=self.msh.calculate_graph()
+            mx=xd
 
-        self.fx=total_residual(value)*self.scaler
-        self.grad=np.hstack([grad[p] for p in self._inord])*self.scaler
+        n, th11, h, beta, nts= \
+            self._fromx_extract(x, 'n'), self._fromx_extract(x, 'th11'), self._fromx_extract(x, 'H'), self._fromx_extract(x, 'beta'), self._fromx_extract(x, 'N')
 
-        self.grad*=mapjac
+        nd, th11d, hd, betad, ntsd= \
+            self._fromx_extract(mx, 'n'), self._fromx_extract(mx, 'th11'), self._fromx_extract(mx, 'H'), self._fromx_extract(mx, 'beta'), self._fromx_extract(mx, 'N')
 
-        self.nit+=1
+        return np.hstack(self.msh.mesh_getresiduals_d(n, th11, h, beta, nts, self.qx, self.qy, self.qz, \
+            nd=nd, th11d=th11d, hd=hd, betad=betad, ntsd=ntsd))
 
-        if self.echo:
-            print('Iteration: ', self.nit, ' norm of gradient: ', lg.norm(self.grad), ' fun: ', self.fx)
+    def _Jaceval(self, J, vs):
+        return sum([residual.jac_mult(J[:, :, :, i], self.msh.cellmatrix, v) for i, v in enumerate(vs)])
 
-    def fun(self, x):
+    def _get_dseeds_jac(self, xd, translate=False):
         '''
-        Objective function (total residual)
-        '''
-
-        if not self.x_compare(self.arrunmap(x)[0]):
-            self.calculate(x)
-
-        return self.fx
-
-    def jac(self, x):
-        '''
-        Jacobian function (for total residual, returned as 1-D array)
+        Get derivative seeds from Jacobian
         '''
 
-        if not self.x_compare(self.arrunmap(x)[0]):
-            self.calculate(x)
-
-        return self.grad
-
-    def pack(self, x):
-        '''
-        Pack a dictionary into a single input array
-        '''
-
-        return np.hstack([x[p] for p in self._inord])
-
-    def solve(self, x0, q={}, solinfo=False, relgtol=1e-2, maxiter=200, method='CG', w=1.0, b=0.5, \
-        init_alpha=1e-3, factor_echo=False):
-        '''
-        Solve boundary layer equations via iterative methods, Conjugate Gradients as default
-        '''
-
-        self.q=q
-
-        initguess_vector=self.arrmap(self.pack(x0))
-
-        if method=='custom_adaptative':
-            xans, fans, _, nit, success=custom_adaptative(itermax=maxiter, relgtol=relgtol, fun=self.fun, jac=self.jac, \
-                x0=initguess_vector, w=w, b=b, init_alpha=init_alpha, \
-                    factor_echo=factor_echo)
+        if translate:
+            umx, gm=self.arrunmap(xd)
+            mx=gm*umx
         else:
-            ng0=lg.norm(self.jac(initguess_vector))
+            mx=xd
 
-            soln=sopt.minimize(fun=self.fun, x0=initguess_vector, jac=self.jac, method=method, \
-                options={'maxiter':maxiter, 'gtol':relgtol*ng0})
+        perts= \
+            (self._fromx_extract(mx, 'n'), self._fromx_extract(mx, 'th11'), self._fromx_extract(mx, 'H'), self._fromx_extract(mx, 'beta'), self._fromx_extract(mx, 'N'))
 
-            if not soln.success:
-                print(soln)
-                raise Exception('Iterative solution failed')
+        return np.hstack([self._Jaceval(self.rmassj, perts), self._Jaceval(self.rmomxj, perts), self._Jaceval(self.rmomzj, perts), \
+            self._Jaceval(self.renj, perts), self._Jaceval(self.rtsj, perts)])
 
-            xans=soln.x
+    def get_jac_Krylov(self, x, qx, qy, qz, translate=False, usejac=True):
+        '''
+        Generate linear operator to serve as Krylov space linear solver
+        '''
 
-        xans, _=self.arrunmap(xans)
+        self.residuals=self.fun(x, qx, qy, qz, translate=translate, calcjac=True)
 
-        solution={}
-
-        for p in self._inord:
-            inds=self.inds[p]
-
-            solution[p]=xans[inds[0]:inds[1]]
-
-        if self.has_transadjoint:
-            solution['N']=self.msh.gr.get_value('N')[0]
-
-        if solinfo:
-            if method=='custom_adaptative':
-                return solution, nit, success
+        def _matvec(xd):
+            if usejac:
+                retval=self._get_dseeds_jac(xd, translate=translate)
             else:
-                return solution, soln.nit, soln.success
-        return solution
+                retval=self._get_dseeds(xd, translate=translate)
+            retval[self.msh.CC+4*self.msh.nnodes]=xd[self.msh.CC+4*self.msh.nnodes]
+
+            return retval
+
+        oper=splg.LinearOperator((self.msh.nnodes*5, self.msh.nnodes*5), matvec=_matvec)
+
+        return oper
 
 def custom_adaptative(fun, jac, x0, init_alpha=1.0, w=1.0, b=0.5, itermax=100, relgtol=1e-3, factor_echo=False):
     '''
