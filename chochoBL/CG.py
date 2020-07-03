@@ -1,6 +1,7 @@
 import numpy as np
 import numpy.linalg as lg
 import scipy.optimize as sopt
+import scipy.sparse as sps
 import scipy.sparse.linalg as splg
 
 import mapping
@@ -150,23 +151,55 @@ class optunit:
         return np.hstack([self._Jaceval(self.rmassj, perts), self._Jaceval(self.rmomxj, perts), self._Jaceval(self.rmomzj, perts), \
             self._Jaceval(self.renj, perts), self._Jaceval(self.rtsj, perts)])
 
-    def get_jac_Krylov(self, x, qx, qy, qz, translate=False, usejac=True):
+    def Jac_convert(self, jacs):
+        '''
+        Convert Jacobians from a tuple into a full, sparse COO matrix
+        '''
+
+        # creating fundamental coordinates
+
+        rows_base=np.hstack([
+            cell.repeat(4) for cell in self.msh.cellmatrix-1
+        ])
+        cols_base=np.hstack([
+            np.tile(cell, 4) for cell in self.msh.cellmatrix-1
+        ])
+
+        rows=[]
+        cols=[]
+        data=[]
+
+        for i, resj in enumerate(jacs):
+            for j in range(len(self._inord)):
+                rows.append(rows_base+i*self.msh.nnodes)
+                cols.append(cols_base+j*self.msh.nnodes)
+                data.append(resj[:, :, :, j].flatten())
+
+        nvars=len(self._inord)*self.msh.nnodes
+
+        return sps.coo_matrix((np.hstack(data), (np.hstack(rows), np.hstack(cols))), (nvars, nvars))
+
+    def get_jac_Krylov(self, x, qx, qy, qz, translate=False, usejac=True, fulljac=True):
         '''
         Generate linear operator to serve as Krylov space linear solver
         '''
 
         self.residuals=self.fun(x, qx, qy, qz, translate=translate, calcjac=True)
 
-        def _matvec(xd):
-            if usejac:
-                retval=self._get_dseeds_jac(xd, translate=translate)
-            else:
-                retval=self._get_dseeds(xd, translate=translate)
-            retval[self.msh.CC+4*self.msh.nnodes]=xd[self.msh.CC+4*self.msh.nnodes]
+        if fulljac:
+            oper=self.Jac_convert((self.rmassj, self.rmomxj, self.rmomzj, self.renj, self.rtsj))
 
-            return retval
+        else:
+            def _matvec(xd):
+                if usejac:
+                    retval=self._get_dseeds_jac(xd, translate=translate)
+                else:
+                    retval=self._get_dseeds(xd, translate=translate)
+                retval[self.msh.CC+4*self.msh.nnodes]=xd[self.msh.CC+4*self.msh.nnodes]
 
-        oper=splg.LinearOperator((self.msh.nnodes*5, self.msh.nnodes*5), matvec=_matvec)
+                return retval
+
+            oper=splg.LinearOperator((self.msh.nnodes*5, self.msh.nnodes*5), matvec=_matvec)
 
         return oper
 

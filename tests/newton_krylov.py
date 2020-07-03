@@ -26,7 +26,7 @@ alpha=0.1
 
 def _getmesh(CC=False):
     nm=100
-    nn=50
+    nn=20
     nnodes=nm*nn
 
     xs=np.linspace(Lx, 0.0, nm, endpoint=False)
@@ -73,7 +73,7 @@ def _getmesh(CC=False):
     return msh, th, H, qx
 
 def test_J():
-    msh, th, h, qx=_getmesh()
+    msh, th, h, qx=_getmesh(CC=True)
 
     niter=100
 
@@ -90,21 +90,32 @@ def test_J():
 
     opt=msh.opt
 
-    margin=0.2
+    # margin=0.2
 
-    x=np.hstack([n, th, h, beta, nts])
+    x=opt.arrmap(np.hstack([n, th, h, beta, nts]))
 
     t=tm.time()
 
-    linop=opt.get_jac_Krylov(x, qx, qy, qz)
+    linop=opt.get_jac_Krylov(x, qx, qy, qz, translate=True, fulljac=True)
 
-    atol=np.amax(np.abs(opt.residuals))*margin
+    xp=x*1e-8
 
-    solninfo=splg.lgmres(linop, -opt.residuals, x0=np.zeros(msh.nnodes*5), maxiter=3, atol=atol)
+    resx=opt.fun(x, qx, qy, qz, translate=True)
 
-    xp=solninfo[0]
-    info=solninfo[1]
+    resxp=opt.fun(x+xp, qx, qy, qz, translate=True)
 
-    print('t, status: ', tm.time()-t, info)
+    var_num=resxp-resx
 
-    print(np.amax(np.abs(linop@xp+opt.residuals)), atol/margin)
+    var_an=linop@xp
+
+    assert np.all(np.abs(var_an-var_num)<=np.abs(var_an)*1e-5)
+
+    t=tm.time()
+
+    r=resx.copy()
+
+    # dx=splg.lgmres(linop, -r)[0]
+
+    dx, inv=solve_0CC(linop, -r, msh.CC, method='analytic', tol=1e-7, maxiter=10)
+
+    print('Jacobian system solving: ', tm.time()-t)

@@ -3,6 +3,8 @@ import scipy.sparse as sps
 import scipy.sparse.linalg as slg
 import scipy.optimize as sopt
 
+import warnings as warn
+
 '''
 Module containing functions pertinent to adjoint method
 '''
@@ -46,7 +48,7 @@ class optimcore:
 
         return self.grad
 
-def sys_solve(A, b, x0=None, method='CG', inv=None, gtol=1e-3):
+def sys_solve(A, b, x0=None, method='CG', inv=None, gtol=1e-3, maxiter=100):
     '''
     Function to solve a linear system using conjugate gradient method applied to least squares residual
     '''
@@ -75,6 +77,16 @@ def sys_solve(A, b, x0=None, method='CG', inv=None, gtol=1e-3):
 
         return soln[0]
 
+    if method=='lgmres':
+        soln=slg.lgmres(A, b, x0=x0, atol=gtol, maxiter=maxiter)
+
+        if soln[1]>0:
+            warn.warn('Warning: LGMRES solution hasn\'t been allowed a sufficient number of iterations')
+        elif soln[1]<0:
+            raise Exception('LGMRES failed')
+
+        return soln[0]
+
     opt=optimcore(fg=lambda p: _R_dRdp(A, p, b))
 
     initguess=((np.zeros_like(b) if x0 is None else x0) if inv is None else inv.solve(b))
@@ -88,7 +100,7 @@ def sys_solve(A, b, x0=None, method='CG', inv=None, gtol=1e-3):
 
     return soln.x
 
-def solve_0CC(A, b, CCs, method='analytic', x0=None, inv=None):
+def solve_0CC(A, b, CCs, method='analytic', x0=None, inv=None, tol=1e-3, maxiter=100):
     '''
     Solve a linear system setting contour conditions of x[CCs]=0.0, for system Ax=b
     '''
@@ -106,14 +118,14 @@ def solve_0CC(A, b, CCs, method='analytic', x0=None, inv=None):
     bp=b[nCCs]
 
     if inv is None and method=='analytic':
-        xp, inv=sys_solve(Ap, bp, method=method, x0=x0, inv=inv)
+        xp, inv=sys_solve(Ap, bp, method=method, x0=x0, inv=inv, gtol=tol)
 
         x=np.zeros_like(b)
         x[nCCs]=xp
 
         return x, inv
     else:
-        xp=sys_solve(Ap, bp, method=method, x0=x0, inv=inv)
+        xp=sys_solve(Ap, bp, method=method, x0=x0, inv=inv, gtol=tol, maxiter=maxiter)
 
         x=np.zeros_like(b)
         x[nCCs]=xp
