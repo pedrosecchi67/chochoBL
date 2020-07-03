@@ -30,7 +30,7 @@ class optunit:
             'n':mapping.identity_mapping,
             'th11':mapping.identity_mapping,
             'H':mapping.identity_mapping, #mapping.sigma_mapping((1.0, 7.5)),
-            'beta':mapping.sigma_mapping((-np.pi/2, np.pi/2)),
+            'beta':mapping.identity_mapping, # mapping.sigma_mapping((-np.pi/2, np.pi/2)),
             'N':mapping.identity_mapping
         }
 

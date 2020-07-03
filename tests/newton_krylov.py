@@ -1,5 +1,6 @@
 import numpy as np
 import scipy.sparse.linalg as splg
+import matplotlib.pyplot as plt
 
 import time as tm
 from tqdm import tqdm
@@ -24,9 +25,11 @@ H_ideal=2.42161
 
 alpha=0.1
 
+plotResults=True
+
 def _getmesh(CC=False):
-    nm=100
-    nn=20
+    nm=50
+    nn=2
     nnodes=nm*nn
 
     xs=np.linspace(Lx, 0.0, nm, endpoint=False)
@@ -70,12 +73,10 @@ def _getmesh(CC=False):
     th=delta_FS*theta_over_dfs
     H=np.ones_like(xaux)*H_ideal
 
-    return msh, th, H, qx
+    return msh, th, H, qx, xaux
 
 def test_J():
-    msh, th, h, qx=_getmesh(CC=True)
-
-    niter=100
+    msh, th, h, qx, _=_getmesh(CC=True)
 
     factor=1.2
 
@@ -116,6 +117,52 @@ def test_J():
 
     # dx=splg.lgmres(linop, -r)[0]
 
-    dx, inv=solve_0CC(linop, -r, msh.CC, method='analytic', tol=1e-7, maxiter=10)
+    dx, inv=solve_0CC(linop, -r, msh.CC, method='analytic')
 
     print('Jacobian system solving: ', tm.time()-t)
+
+def test_J():
+    msh, th, h, qx, xaux=_getmesh(CC=True)
+
+    niter=5
+
+    factor=1.2
+
+    alpha=1.0
+
+    th_ideal=th.copy()
+
+    th*=factor
+    n=np.zeros_like(th)
+    beta=np.zeros_like(th)
+    nts=np.zeros_like(th)
+    qy=np.zeros_like(qx)
+    qz=np.zeros_like(qx)
+
+    opt=msh.opt
+
+    x=np.hstack([n, th, h, beta, nts])
+
+    for i in tqdm(range(niter)):
+        r=opt.fun(x, qx, qy, qz)
+
+        J=opt.get_jac_Krylov(x, qx, qy, qz)
+
+        dx, inv=solve_0CC(J, -r, msh.CC)
+
+        x+=alpha*dx
+
+    numsoln=opt._fromx_extract(x, 'th11')
+
+    if plotResults:
+        plt.scatter(xaux, numsoln, label='Newton-Raphson')
+        plt.scatter(xaux, th_ideal, label='Ideal')
+        plt.scatter(xaux, th_ideal*factor, label='Initial guess')
+
+        plt.ylim(0.0, 1.5*np.amax(th_ideal))
+        plt.grid()
+        plt.legend()
+
+        plt.show()
+
+    assert np.abs(opt._fromx_extract(x, 'th11')-th_ideal)[-1]<=5e-2*np.abs(th_ideal)[-1]
